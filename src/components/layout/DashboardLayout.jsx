@@ -1,0 +1,57 @@
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import { clsx } from 'clsx';
+import { Sidebar } from './Sidebar';
+import { Header } from './Header';
+
+export function DashboardLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-dark-950">
+      {/* Sidebar */}
+      <div className="hidden lg:block">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-dark-950/80 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Sidebar */}
+      <div
+        className={clsx(
+          'fixed inset-y-0 left-0 z-40 lg:hidden transition-transform duration-300',
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        <Sidebar collapsed={false} onToggle={() => setMobileMenuOpen(false)} />
+      </div>
+
+      {/* Main Content */}
+      <div
+        className={clsx(
+          'min-h-screen transition-all duration-300',
+          sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
+        )}
+      >
+        <Header
+          showMenuButton={true}
+          onMenuClick={() => setMobileMenuOpen(true)}
+        />
+
+        <main className="p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
