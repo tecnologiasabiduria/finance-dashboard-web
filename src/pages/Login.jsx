@@ -35,13 +35,11 @@ export default function Login() {
       if (err.status === 401) {
         setError('Credenciales incorrectas. Verifica tu email y contraseña.');
       } else if (err.status === 403) {
-        navigate('/subscription-required');
+        // TODO: Suscripción se maneja externamente (GHL/Stripe)
+        // Por ahora permitir acceso
+        setError('Acceso denegado. Contacta soporte.');
       } else if (err.code === 'NETWORK_ERROR') {
-        // Para demo, permitir login simulado
-        if (email && password) {
-          await login('demo@demo.com', 'demo');
-          navigate(from, { replace: true });
-        }
+        setError('Error de conexión. Verifica que el servidor esté activo.');
       } else {
         setError(err.message || 'Error al iniciar sesión');
       }
@@ -126,19 +124,6 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Demo Mode Hint */}
-          <div className="mt-6 p-4 bg-gold-400/10 border border-gold-400/20 rounded-xl">
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-gold-400 mt-0.5" />
-              <div>
-                <p className="text-sm text-gold-400 font-medium">Modo Demostración</p>
-                <p className="text-xs text-dark-400 mt-1">
-                  Usa cualquier email y contraseña para ver el dashboard
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Register Link */}
           <p className="mt-8 text-center text-dark-400">
             ¿No tienes una cuenta?{' '}
@@ -149,6 +134,30 @@ export default function Login() {
               Regístrate aquí
             </Link>
           </p>
+
+          {/* DEMO MODE - TEMPORAL (remover en producción) */}
+          <div className="mt-6 pt-6 border-t border-dark-800">
+            <p className="text-xs text-dark-500 text-center mb-3">⚠️ Modo desarrollo</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-gold-400/30 text-gold-400 hover:bg-gold-400/10"
+              onClick={() => {
+                // Simular login demo sin backend
+                const demoUser = {
+                  id: 'demo-user-123',
+                  email: 'demo@finanzas.com',
+                  name: 'Usuario Demo'
+                };
+                const demoToken = 'demo-token-' + Date.now();
+                sessionStorage.setItem('token', demoToken);
+                sessionStorage.setItem('user', JSON.stringify(demoUser));
+                window.location.href = '/dashboard';
+              }}
+            >
+              🚀 Acceso Demo (sin backend)
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -34,8 +34,19 @@ import { useAuth } from '../context/AuthContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { api } from '../services/api';
 
-// Colores para categorías
-const CATEGORY_COLORS = ['#D4AF37', '#F4E4BC', '#9A7B1A', '#7C6315', '#5E4A10', '#B8860B'];
+// Colores por defecto para categorías (fallback)
+const DEFAULT_CATEGORY_COLORS = {
+  'alimentación': '#EF4444',
+  'transporte': '#F97316',
+  'servicios': '#F59E0B',
+  'entretenimiento': '#8B5CF6',
+  'salud': '#EC4899',
+  'educación': '#3B82F6',
+  'otros gastos': '#6B7280',
+  'otros': '#6B7280',
+};
+
+const FALLBACK_COLORS = ['#D4AF37', '#F4E4BC', '#9A7B1A', '#7C6315', '#5E4A10', '#B8860B'];
 
 // Datos de demostración
 const DEMO_DATA = {
@@ -62,11 +73,11 @@ const DEMO_DATA = {
     { day: 'Dom', value: 2100 },
   ],
   expensesByCategory: [
-    { name: 'Servicios', value: 3200, color: '#D4AF37' },
-    { name: 'Transporte', value: 2100, color: '#F4E4BC' },
-    { name: 'Alimentación', value: 1800, color: '#9A7B1A' },
-    { name: 'Entretenimiento', value: 1500, color: '#7C6315' },
-    { name: 'Otros', value: 1970, color: '#5E4A10' },
+    { name: 'Servicios', value: 3200, color: '#F59E0B' },
+    { name: 'Transporte', value: 2100, color: '#F97316' },
+    { name: 'Alimentación', value: 1800, color: '#EF4444' },
+    { name: 'Entretenimiento', value: 1500, color: '#8B5CF6' },
+    { name: 'Otros Gastos', value: 1970, color: '#6B7280' },
   ],
   recentTransactions: [
     {
@@ -123,43 +134,51 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [error, setError] = useState(null);
-  const [goals, setGoals] = useState([]);
-
-  // Cargar metas del localStorage
-  useEffect(() => {
-    const savedGoals = localStorage.getItem(`goals_${user?.id}`);
-    if (savedGoals) {
-      setGoals(JSON.parse(savedGoals));
-    } else {
-      // Metas por defecto
-      setGoals([
-        { id: '1', name: 'Meta de ahorro', current: 0, target: 20000, color: '#D4AF37' },
-        { id: '2', name: 'Fondo emergencia', current: 0, target: 10000, color: '#10B981' },
-        { id: '3', name: 'Inversión mensual', current: 0, target: 5000, color: '#3B82F6' },
-      ]);
-    }
-  }, [user?.id]);
+  const [categoryColors, setCategoryColors] = useState({});
 
   useEffect(() => {
     const loadDashboard = async () => {
-      // Si es token de demo, usar datos demo
-      if (token?.startsWith('demo-')) {
-        setData(DEMO_DATA);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         
-        // Cargar datos del dashboard y estadísticas en paralelo
-        const [summaryRes, statsRes] = await Promise.all([
+        // Cargar categorías personalizadas para obtener los colores
+        let userCategoryColors = { ...DEFAULT_CATEGORY_COLORS };
+        
+        // En modo demo, cargar de localStorage
+        if (token?.startsWith('demo-')) {
+          const savedCategories = localStorage.getItem('demo_categories');
+          if (savedCategories) {
+            const parsed = JSON.parse(savedCategories);
+            parsed.expense?.forEach(cat => {
+              userCategoryColors[cat.name.toLowerCase()] = cat.color;
+            });
+          }
+        } else {
+          // Cargar categorías del backend
+          try {
+            const categoriesRes = await api.getCategories();
+            if (categoriesRes.data.grouped?.expense) {
+              categoriesRes.data.grouped.expense.forEach(cat => {
+                userCategoryColors[cat.name.toLowerCase()] = cat.color;
+              });
+            }
+          } catch (catErr) {
+            console.log('Using default category colors');
+          }
+        }
+        
+        setCategoryColors(userCategoryColors);
+        
+        // Cargar datos del dashboard, estadísticas y metas en paralelo
+        const [summaryRes, statsRes, goalsRes] = await Promise.all([
           api.getDashboardSummary(),
           api.getDashboardStats(),
+          api.getGoals(),
         ]);
         
         const apiData = summaryRes.data;
         const statsData = statsRes.data;
+        const goalsData = goalsRes.data.goals || [];
 
         // Transformar datos mensuales para el gráfico
         const monthlyData = statsData.monthlyData?.map((m) => ({
@@ -182,23 +201,84 @@ export default function Dashboard() {
           weeklyData: weeklyData.length > 0 ? weeklyData : DEMO_DATA.weeklyData,
           expensesByCategory: apiData.expensesByCategory?.map((cat, i) => ({
             ...cat,
-            color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+            // Usar el color de la categoría personalizada o fallback
+            color: userCategoryColors[cat.name.toLowerCase()] || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
           })) || [],
           recentTransactions: apiData.recentTransactions || [],
-          targets: goals.length > 0 ? goals : DEMO_DATA.targets,
+          targets: goalsData,
         });
         setError(null);
       } catch (err) {
         console.error('Error loading dashboard:', err);
         setError('Error al cargar datos. Usando datos de demostración.');
-        setData(DEMO_DATA);
+        
+        // En modo demo, calcular datos desde localStorage
+        const demoDataWithColors = { ...DEMO_DATA };
+        
+        // Cargar colores de categorías del localStorage (modo demo)
+        const savedCategories = localStorage.getItem('demo_categories');
+        const categoryColorMap = { ...DEFAULT_CATEGORY_COLORS };
+        
+        if (savedCategories) {
+          const parsed = JSON.parse(savedCategories);
+          parsed.expense?.forEach(cat => {
+            categoryColorMap[cat.name.toLowerCase()] = cat.color;
+          });
+        }
+        
+        // Cargar transacciones demo y calcular gastos por categoría
+        const savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
+        
+        if (savedTransactions.length > 0) {
+          // Calcular gastos por categoría desde transacciones reales
+          const expensesByCategory = {};
+          let totalExpenses = 0;
+          let totalIncome = 0;
+          
+          savedTransactions.forEach(t => {
+            if (t.type === 'expense') {
+              const catName = t.category;
+              if (!expensesByCategory[catName]) {
+                expensesByCategory[catName] = {
+                  name: catName,
+                  value: 0,
+                  color: categoryColorMap[catName.toLowerCase()] || FALLBACK_COLORS[Object.keys(expensesByCategory).length % FALLBACK_COLORS.length],
+                };
+              }
+              expensesByCategory[catName].value += t.amount;
+              totalExpenses += t.amount;
+            } else {
+              totalIncome += t.amount;
+            }
+          });
+          
+          // Convertir a array y ordenar por valor
+          demoDataWithColors.expensesByCategory = Object.values(expensesByCategory)
+            .sort((a, b) => b.value - a.value);
+          
+          // Actualizar totales
+          demoDataWithColors.totalExpenses = totalExpenses;
+          demoDataWithColors.totalIncome = DEMO_DATA.totalIncome + totalIncome;
+          demoDataWithColors.balance = demoDataWithColors.totalIncome - totalExpenses;
+          
+          // Últimas transacciones
+          demoDataWithColors.recentTransactions = savedTransactions.slice(0, 5);
+        } else {
+          // Si no hay transacciones, usar datos demo con colores
+          demoDataWithColors.expensesByCategory = DEMO_DATA.expensesByCategory.map((cat, i) => ({
+            ...cat,
+            color: categoryColorMap[cat.name.toLowerCase()] || cat.color,
+          }));
+        }
+        
+        setData(demoDataWithColors);
       } finally {
         setLoading(false);
       }
     };
 
     loadDashboard();
-  }, [token, goals]);
+  }, [token]);
 
   // Función para calcular datos semanales
   const calculateWeeklyData = (dailyData) => {

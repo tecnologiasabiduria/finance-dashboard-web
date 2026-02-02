@@ -11,6 +11,7 @@ import {
   TrendingUp,
   TrendingDown,
   Target,
+  Tag,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -39,6 +40,11 @@ const navigation = [
     name: 'Metas',
     href: '/goals',
     icon: Target,
+  },
+  {
+    name: 'Categorías',
+    href: '/categories',
+    icon: Tag,
   },
   {
     name: 'Configuración',

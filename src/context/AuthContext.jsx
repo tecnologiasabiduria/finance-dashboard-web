@@ -3,19 +3,6 @@ import { api } from '../services/api';
 
 const AuthContext = createContext(null);
 
-// Datos de demostración para visualización
-const DEMO_USER = {
-  id: '1',
-  name: 'Carlos García',
-  email: 'carlos@empresa.com',
-  avatar: null,
-  subscription: {
-    status: 'active',
-    plan: 'premium',
-    expiresAt: '2026-12-31',
-  },
-};
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -24,6 +11,20 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const checkAuth = async () => {
       const savedToken = sessionStorage.getItem('token');
+      const savedUser = sessionStorage.getItem('user');
+      
+      // DEMO MODE: Si hay usuario guardado y token demo, usarlo directamente
+      if (savedToken?.startsWith('demo-token-') && savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+          setToken(savedToken);
+          setLoading(false);
+          return;
+        } catch (e) {
+          // Si falla el parse, continuar con auth normal
+        }
+      }
+      
       if (savedToken) {
         try {
           api.setToken(savedToken);
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
           setToken(savedToken);
         } catch (error) {
           sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
           api.clearToken();
         }
       }
@@ -41,26 +43,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    // Modo demostración: si el email contiene "demo", simular login exitoso
-    if (email.includes('demo') || email === 'demo@demo.com') {
-      const demoToken = 'demo-jwt-token-' + Date.now();
-      setUser(DEMO_USER);
-      setToken(demoToken);
-      sessionStorage.setItem('token', demoToken);
-      api.setToken(demoToken);
-      return { user: DEMO_USER, token: demoToken };
-    }
-
-    try {
-      const result = await api.login(email, password);
-      setUser(result.data.user);
-      setToken(result.data.token);
-      sessionStorage.setItem('token', result.data.token);
-      api.setToken(result.data.token);
-      return result.data;
-    } catch (error) {
-      throw error;
-    }
+    const result = await api.login(email, password);
+    setUser(result.data.user);
+    setToken(result.data.token);
+    sessionStorage.setItem('token', result.data.token);
+    api.setToken(result.data.token);
+    return result.data;
   };
 
   const register = async (data) => {
@@ -72,6 +60,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     api.clearToken();
   };
 

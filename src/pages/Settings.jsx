@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { User, Mail, Lock, Bell, Shield, Palette, Save, Camera } from 'lucide-react';
 import { Button, Input, Card } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 
 export default function Settings() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   const [profileData, setProfileData] = useState({
-    name: user?.name || 'Carlos García',
-    email: user?.email || 'carlos@empresa.com',
+    name: user?.name || '',
+    email: user?.email || '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -41,12 +43,51 @@ export default function Settings() {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleSave = async () => {
+  const handleSaveProfile = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    setSuccess('Cambios guardados correctamente');
-    setTimeout(() => setSuccess(''), 3000);
+    setError('');
+    setSuccess('');
+    try {
+      await api.updateProfile({ name: profileData.name });
+      setSuccess('Perfil actualizado correctamente');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Error al actualizar perfil');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSavePassword = async () => {
+    setError('');
+    setSuccess('');
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setError('La nueva contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.updatePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      setSuccess('Contraseña actualizada correctamente');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Error al cambiar contraseña');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const tabs = [
@@ -70,6 +111,13 @@ export default function Settings() {
       {success && (
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
           <p className="text-emerald-400">{success}</p>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+          <p className="text-red-400">{error}</p>
         </div>
       )}
 
@@ -141,7 +189,7 @@ export default function Settings() {
               </div>
 
               <div className="mt-6 pt-6 border-t border-dark-800">
-                <Button onClick={handleSave} loading={loading} icon={Save}>
+                <Button onClick={handleSaveProfile} loading={loading} icon={Save}>
                   Guardar cambios
                 </Button>
               </div>
@@ -186,7 +234,7 @@ export default function Settings() {
               </div>
 
               <div className="mt-6 pt-6 border-t border-dark-800">
-                <Button onClick={handleSave} loading={loading} icon={Save}>
+                <Button onClick={handleSavePassword} loading={loading} icon={Save}>
                   Actualizar contraseña
                 </Button>
               </div>

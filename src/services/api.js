@@ -1,5 +1,5 @@
-// Forzar la URL de la API con /api
-const API_URL = 'http://localhost:3000/api';
+// URL de la API desde variables de entorno
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 class ApiService {
   constructor() {
@@ -108,6 +108,81 @@ class ApiService {
   deleteTransaction(id) {
     return this.request(`/transactions/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Goals
+  getGoals() {
+    return this.request('/goals');
+  }
+
+  getGoal(id) {
+    return this.request(`/goals/${id}`);
+  }
+
+  createGoal(data) {
+    return this.request('/goals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateGoal(id, data) {
+    return this.request(`/goals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteGoal(id) {
+    return this.request(`/goals/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Profile
+  updateProfile(data) {
+    return this.request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updatePassword(data) {
+    return this.request('/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Categories
+  getCategories() {
+    return this.request('/categories');
+  }
+
+  createCategory(data) {
+    return this.request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateCategory(id, data) {
+    return this.request(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteCategory(id) {
+    return this.request(`/categories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  initCategories() {
+    return this.request('/categories/init', {
+      method: 'POST',
     });
   }
 }

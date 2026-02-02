@@ -9,26 +9,28 @@ import {
   DollarSign,
   Tag,
   FileText,
+  Plus,
 } from 'lucide-react';
 import { Button, Input, Select, Card } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-const CATEGORIES = {
+// Categorías por defecto (fallback)
+const DEFAULT_CATEGORIES = {
   income: [
     { value: 'salario', label: 'Salario' },
     { value: 'freelance', label: 'Freelance' },
     { value: 'inversiones', label: 'Inversiones' },
-    { value: 'otros', label: 'Otros' },
+    { value: 'otros ingresos', label: 'Otros Ingresos' },
   ],
   expense: [
-    { value: 'alimentacion', label: 'Alimentación' },
+    { value: 'alimentación', label: 'Alimentación' },
     { value: 'transporte', label: 'Transporte' },
     { value: 'servicios', label: 'Servicios' },
     { value: 'entretenimiento', label: 'Entretenimiento' },
     { value: 'salud', label: 'Salud' },
-    { value: 'educacion', label: 'Educación' },
-    { value: 'otros', label: 'Otros' },
+    { value: 'educación', label: 'Educación' },
+    { value: 'otros gastos', label: 'Otros Gastos' },
   ],
 };
 
@@ -49,6 +51,39 @@ export default function TransactionForm() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditing);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+
+  // Cargar categorías personalizadas
+  useEffect(() => {
+    const loadCategories = async () => {
+      // Modo demo: cargar de localStorage
+      if (token?.startsWith('demo-')) {
+        const saved = localStorage.getItem('demo_categories');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setCategories({
+            income: parsed.income?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.income,
+            expense: parsed.expense?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.expense,
+          });
+        }
+        return;
+      }
+
+      try {
+        const response = await api.getCategories();
+        if (response.data.grouped) {
+          setCategories({
+            income: response.data.grouped.income?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.income,
+            expense: response.data.grouped.expense?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.expense,
+          });
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err);
+        // Usar categorías por defecto en caso de error
+      }
+    };
+    loadCategories();
+  }, [token]);
 
   useEffect(() => {
     if (isEditing) {
@@ -140,9 +175,29 @@ export default function TransactionForm() {
         date: formData.date,
       };
 
-      // Si es demo, simular
+      // Si es demo, guardar en localStorage
       if (token?.startsWith('demo-')) {
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 500));
+        
+        // Cargar transacciones existentes
+        const savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
+        
+        if (isEditing) {
+          // Actualizar transacción existente
+          const index = savedTransactions.findIndex(t => t.id === id);
+          if (index !== -1) {
+            savedTransactions[index] = { ...savedTransactions[index], ...transactionData };
+          }
+        } else {
+          // Crear nueva transacción
+          const newTransaction = {
+            id: `demo-${Date.now()}`,
+            ...transactionData,
+          };
+          savedTransactions.unshift(newTransaction);
+        }
+        
+        localStorage.setItem('demo_transactions', JSON.stringify(savedTransactions));
       } else if (isEditing) {
         await api.updateTransaction(id, transactionData);
       } else {
@@ -294,15 +349,28 @@ export default function TransactionForm() {
           </div>
 
           {/* Category */}
-          <Select
-            label="Categoría"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            options={CATEGORIES[formData.type]}
-            placeholder="Selecciona una categoría"
-            error={errors.category}
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-dark-200">
+                Categoría
+              </label>
+              <Link
+                to="/categories"
+                className="text-xs text-gold-400 hover:text-gold-300 flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" />
+                Gestionar
+              </Link>
+            </div>
+            <Select
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              options={categories[formData.type]}
+              placeholder="Selecciona una categoría"
+              error={errors.category}
+            />
+          </div>
 
           {/* Description */}
           <div className="space-y-2">

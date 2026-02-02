@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Check } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Check, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button, Input } from '../components/ui';
 import { Logo } from '../components/layout/Logo';
@@ -14,6 +14,7 @@ export default function Register() {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -61,12 +62,20 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await register({
+      const result = await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
-      navigate('/subscription-required');
+      
+      // Si el backend indica que requiere confirmación de email
+      if (result?.requiresEmailConfirmation) {
+        setEmailSent(true);
+      } else {
+        // TODO: Cuando se implemente suscripción externa, evaluar si redirigir a /subscription-required
+        // Por ahora, ir directo al login para que inicie sesión
+        navigate('/login');
+      }
     } catch (err) {
       if (err.status === 400) {
         setErrors({ email: err.message || 'El email ya está registrado' });
@@ -154,7 +163,35 @@ export default function Register() {
             </p>
           </div>
 
-          {/* Form */}
+          {/* Email Sent Confirmation */}
+          {emailSent ? (
+            <div className="text-center py-10">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center">
+                <Mail className="h-10 w-10 text-dark-950" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-3">
+                ¡Revisa tu correo!
+              </h2>
+              <p className="text-dark-400 mb-6 max-w-sm mx-auto">
+                Hemos enviado un enlace de verificación a{' '}
+                <span className="text-gold-400 font-medium">{formData.email}</span>.
+                Haz clic en el enlace para activar tu cuenta.
+              </p>
+              <div className="space-y-4">
+                <p className="text-dark-500 text-sm">
+                  ¿No recibes el correo? Revisa tu carpeta de spam
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300 transition-colors font-medium"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  Ir a iniciar sesión
+                </Link>
+              </div>
+            </div>
+          ) : (
+          /* Form */
           <form onSubmit={handleSubmit} className="space-y-5">
             {errors.general && (
               <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl">
@@ -240,8 +277,10 @@ export default function Register() {
               Crear cuenta
             </Button>
           </form>
+          )}
 
           {/* Login Link */}
+          {!emailSent && (
           <p className="mt-8 text-center text-dark-400">
             ¿Ya tienes una cuenta?{' '}
             <Link
@@ -251,6 +290,7 @@ export default function Register() {
               Inicia sesión
             </Link>
           </p>
+          )}
         </div>
       </div>
     </div>

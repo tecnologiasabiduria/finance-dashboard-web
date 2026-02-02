@@ -12,6 +12,7 @@ import Transactions from './pages/Transactions';
 import TransactionForm from './pages/TransactionForm';
 import Settings from './pages/Settings';
 import Goals from './pages/Goals';
+import Categories from './pages/Categories';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
             <Route path="/transactions/new" element={<TransactionForm />} />
             <Route path="/transactions/:id" element={<TransactionForm />} />
             <Route path="/goals" element={<Goals />} />
+            <Route path="/categories" element={<Categories />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
 

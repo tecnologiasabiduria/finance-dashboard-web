@@ -68,9 +68,17 @@ export default function Transactions() {
   // Cargar transacciones
   useEffect(() => {
     const loadTransactions = async () => {
-      // Si es token de demo, usar datos demo
+      // Si es token de demo, usar datos demo + localStorage
       if (token?.startsWith('demo-')) {
-        setTransactions(DEMO_TRANSACTIONS);
+        let savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
+        
+        // Si no hay transacciones guardadas, inicializar con las demo
+        if (savedTransactions.length === 0) {
+          savedTransactions = DEMO_TRANSACTIONS;
+          localStorage.setItem('demo_transactions', JSON.stringify(savedTransactions));
+        }
+        
+        setTransactions(savedTransactions);
         setLoading(false);
         return;
       }
@@ -138,9 +146,12 @@ export default function Transactions() {
     
     setDeleting(true);
     try {
-      // Si es demo, solo simular
+      // Si es demo, eliminar de localStorage
       if (token?.startsWith('demo-')) {
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 300));
+        const savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
+        const updatedTransactions = savedTransactions.filter(t => t.id !== deleteModal.transaction.id);
+        localStorage.setItem('demo_transactions', JSON.stringify(updatedTransactions));
       } else {
         await api.deleteTransaction(deleteModal.transaction.id);
       }

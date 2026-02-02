@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Target, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { Button, Card, Input, Modal, ConfirmModal } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
 // Colores disponibles para las metas
@@ -14,70 +15,80 @@ const COLORS = [
   { name: 'Naranja', value: '#F97316' },
 ];
 
-// Datos iniciales de metas (se guardan en localStorage)
-const DEFAULT_GOALS = [
-  { id: '1', name: 'Meta de ahorro', current: 0, target: 20000, color: '#D4AF37' },
-  { id: '2', name: 'Fondo de emergencia', current: 0, target: 10000, color: '#10B981' },
-  { id: '3', name: 'Inversión mensual', current: 0, target: 5000, color: '#3B82F6' },
-];
-
 export default function Goals() {
   const { user } = useAuth();
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ open: false, goal: null });
+  const [saving, setSaving] = useState(false);
 
-  // Cargar metas del localStorage
+  // Cargar metas desde la API
   useEffect(() => {
-    const savedGoals = localStorage.getItem(`goals_${user?.id}`);
-    if (savedGoals) {
-      setGoals(JSON.parse(savedGoals));
-    } else {
-      setGoals(DEFAULT_GOALS);
-    }
-    setLoading(false);
-  }, [user?.id]);
+    const loadGoals = async () => {
+      try {
+        setLoading(true);
+        const response = await api.getGoals();
+        setGoals(response.data.goals || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error loading goals:', err);
+        setError('Error al cargar las metas');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadGoals();
+  }, []);
 
-  // Guardar metas en localStorage
-  const saveGoals = (newGoals) => {
-    setGoals(newGoals);
-    localStorage.setItem(`goals_${user?.id}`, JSON.stringify(newGoals));
+  const handleSaveGoal = async (goalData) => {
+    try {
+      setSaving(true);
+      if (editingGoal) {
+        // Editar meta existente
+        const response = await api.updateGoal(editingGoal.id, goalData);
+        setGoals(goals.map((g) => (g.id === editingGoal.id ? response.data.goal : g)));
+      } else {
+        // Nueva meta
+        const response = await api.createGoal(goalData);
+        setGoals([response.data.goal, ...goals]);
+      }
+      setModalOpen(false);
+      setEditingGoal(null);
+    } catch (err) {
+      console.error('Error saving goal:', err);
+      setError('Error al guardar la meta');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveGoal = (goalData) => {
-    if (editingGoal) {
-      // Editar meta existente
-      const updated = goals.map((g) =>
-        g.id === editingGoal.id ? { ...g, ...goalData } : g
-      );
-      saveGoals(updated);
-    } else {
-      // Nueva meta
-      const newGoal = {
-        id: Date.now().toString(),
-        ...goalData,
-        current: 0,
-      };
-      saveGoals([...goals, newGoal]);
-    }
-    setModalOpen(false);
-    setEditingGoal(null);
-  };
-
-  const handleDeleteGoal = () => {
+  const handleDeleteGoal = async () => {
     if (deleteModal.goal) {
-      saveGoals(goals.filter((g) => g.id !== deleteModal.goal.id));
-      setDeleteModal({ open: false, goal: null });
+      try {
+        setSaving(true);
+        await api.deleteGoal(deleteModal.goal.id);
+        setGoals(goals.filter((g) => g.id !== deleteModal.goal.id));
+        setDeleteModal({ open: false, goal: null });
+      } catch (err) {
+        console.error('Error deleting goal:', err);
+        setError('Error al eliminar la meta');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
-  const handleUpdateProgress = (goalId, newCurrent) => {
-    const updated = goals.map((g) =>
-      g.id === goalId ? { ...g, current: Math.max(0, newCurrent) } : g
-    );
-    saveGoals(updated);
+  const handleUpdateProgress = async (goalId, newCurrent) => {
+    try {
+      const response = await api.updateGoal(goalId, { current: Math.max(0, newCurrent) });
+      setGoals(goals.map((g) => (g.id === goalId ? response.data.goal : g)));
+    } catch (err) {
+      console.error('Error updating progress:', err);
+      setError('Error al actualizar el progreso');
+    }
   };
 
   const openEditModal = (goal) => {
@@ -110,6 +121,13 @@ export default function Goals() {
           Nueva Meta
         </Button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
 
       {/* Lista de Metas */}
       {goals.length === 0 ? (
@@ -212,6 +230,7 @@ export default function Goals() {
         }}
         onSave={handleSaveGoal}
         goal={editingGoal}
+        saving={saving}
       />
 
       {/* Modal de Confirmación de Eliminación */}
@@ -283,7 +302,7 @@ function QuickUpdateInput({ goalId, currentValue, onUpdate }) {
 }
 
 // Componente Modal para crear/editar metas
-function GoalModal({ open, onClose, onSave, goal }) {
+function GoalModal({ open, onClose, onSave, goal, saving }) {
   const [formData, setFormData] = useState({
     name: '',
     target: '',
@@ -393,10 +412,10 @@ function GoalModal({ open, onClose, onSave, goal }) {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button type="submit" className="flex-1" icon={Save}>
+          <Button type="submit" className="flex-1" icon={Save} loading={saving}>
             {goal ? 'Guardar' : 'Crear'}
           </Button>
         </div>
