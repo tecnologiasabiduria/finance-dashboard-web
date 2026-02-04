@@ -210,34 +210,40 @@ CREATE TABLE public.transactions (
 
 ## 7. Hoja de Ruta
 
-### Fase 1: Fundación (Actual)
+### Fase 1: Fundación (Completado)
 - [x] Definir arquitectura
-- [ ] Inicializar proyecto Node.js
-- [ ] Configurar estructura de carpetas
-- [ ] Endpoint `GET /health`
-- [ ] Configurar variables de entorno
+- [x] Inicializar proyecto Node.js
+- [x] Configurar estructura de carpetas
+- [x] Endpoint `GET /health`
+- [x] Configurar variables de entorno
 
-### Fase 2: Integración Supabase
-- [ ] Conectar cliente Supabase
-- [ ] Crear tablas en Supabase
-- [ ] Configurar RLS básico
+### Fase 2: Integración Supabase (Completado)
+- [x] Conectar cliente Supabase
+- [x] Crear tablas en Supabase
+- [x] Configurar RLS básico
 
-### Fase 3: Autenticación
-- [ ] Endpoint `POST /auth/login`
-- [ ] Endpoint `GET /auth/me`
-- [ ] Middleware de autenticación (JWT)
-- [ ] Middleware de verificación de suscripción
+### Fase 3: Autenticación (Completado)
+- [x] Endpoint `POST /auth/login`
+- [x] Endpoint `GET /auth/me`
+- [x] Middleware de autenticación (JWT)
+- [x] Middleware de verificación de suscripción
 
-### Fase 4: Webhooks de Pago
-- [ ] Endpoint `POST /webhooks/stripe`
-- [ ] Endpoint `POST /webhooks/gohighlevel`
-- [ ] Validación de firmas
-- [ ] Lógica de activación/desactivación
+### Fase 4: Webhooks de Pago (Completado)
+- [x] Endpoint `POST /webhooks/stripe`
+- [x] Endpoint `POST /webhooks/gohighlevel` (Reemplazado por Stripe directo)
+- [x] Validación de firmas
+- [x] Lógica de activación/desactivación
 
-### Fase 5: Dashboard API
-- [ ] CRUD de transacciones
-- [ ] Endpoint de resumen financiero
-- [ ] Filtros por fecha/categoría
+### Fase 5: Dashboard API (Completado)
+- [x] CRUD de transacciones
+- [x] Endpoint de resumen financiero
+- [x] Filtros por fecha/categoría
+
+### Fase 5.5: Seguridad y Optimización (Pre-Despliegue) - ACTUAL
+- [ ] Migrar almacenamiento de tokens (HttpOnly Cookies)
+- [ ] Implementar Error Boundaries en Frontend
+- [ ] Configurar variables de entorno para producción
+- [ ] Auditoría de seguridad (no exponer .env, etc.)
 
 ### Fase 6: Despliegue
 - [ ] Configurar Nginx en VPS
@@ -492,6 +498,61 @@ const transactions = await fetch(`${API_URL}/transactions`, {
   }
 }
 ```
+
+---
+
+## 13. Configuración de Stripe (Completado - Feb 3, 2026)
+
+### ✅ Estado Actual
+
+| Componente | Estado | Valor |
+|------------|--------|-------|
+| Cuenta vinculada | ✅ | **Agencia Master LLc** |
+| `STRIPE_SECRET_KEY` | ✅ | `sk_test_51QpC58JxGOaMK16Z0QGkd...` |
+| `STRIPE_WEBHOOK_SECRET` | ✅ | `whsec_f0ac7c5fc2dffca2a0a3b91e14...` |
+| Stripe CLI | ✅ | v1.35.0 instalado |
+| Webhooks locales | ✅ | Funcionando |
+
+### Claves Configuradas en Backend (.env)
+
+```env
+# Stripe (Cuenta: Agencia Master LLc)
+STRIPE_SECRET_KEY=sk_test_51QpC58JxGOaMK16Z0QGkdBkQbuXWrGnIsWytGs7LbI3TPYqI7ELBAT8i3VYoYzpoaGDaX3CXjIVsUM6T6h8zqDhx00T0ArJWib
+STRIPE_WEBHOOK_SECRET=whsec_f0ac7c5fc2dffca2a0a3b91e142e50d00a2ae69035fcb7661bc1ac606e8c510f
+```
+
+### Comandos para Desarrollo Local
+
+```bash
+# Terminal 1: Backend
+cd "/home/garzon/Diana Cortes/finance-dashboard-api" && npm run dev
+
+# Terminal 2: Stripe Listener (escucha webhooks)
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+
+# Terminal 3: Probar eventos
+stripe trigger checkout.session.completed
+stripe trigger invoice.paid
+stripe trigger customer.subscription.created
+```
+
+### Eventos de Webhook Manejados
+
+| Evento | Acción |
+|--------|--------|
+| `checkout.session.completed` | Crea/activa suscripción |
+| `invoice.paid` | Activa suscripción |
+| `customer.subscription.created` | Crea suscripción |
+| `customer.subscription.updated` | Actualiza estado |
+| `customer.subscription.deleted` | Cancela suscripción |
+| `invoice.payment_failed` | Marca como `past_due` |
+
+### Para Producción
+
+1. Crear webhook en [dashboard.stripe.com/webhooks](https://dashboard.stripe.com/webhooks)
+2. URL: `https://tu-dominio.com/api/webhooks/stripe`
+3. Eventos: `checkout.session.completed`, `invoice.paid`, `customer.subscription.*`
+4. Copiar webhook secret de producción al `.env` del servidor
 
 ---
 

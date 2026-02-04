@@ -627,3 +627,14 @@ CREATE POLICY "Users can delete own categories"
 ```
 
 **⚠️ Ejecuta este SQL en Supabase SQL Editor para habilitar categorías personalizadas.**
+
+
+
+flujo 
+usuario paga, webhook con metadatos del cliente para crear el usuario dentro de supabase
+dos ramas si el usuario no existe dentro de la database, se crea directamente con premium + magic link 
+rama dos
+wait 5 minutos
+webhook para cambiar el estado de suscripcion
+
+
