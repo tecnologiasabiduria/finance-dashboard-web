@@ -136,9 +136,16 @@ function determineSubscriptionStatus(payload: GHLWebhookPayload): SubscriptionSt
   const invoiceStatus = payload.invoice?.status?.toLowerCase() || "";
   const orderStatus = payload.order?.status?.toLowerCase() || "";
   
-  // Verificar tags del contacto (si GHL envía tags como "paid", "subscriber", etc.)
-  const tags = payload.tags || [];
-  const hasActiveTags = tags.some(tag => 
+  // Verificar tags del contacto (GHL puede enviar como string o array)
+  let tags: string[] = [];
+  if (Array.isArray(payload.tags)) {
+    tags = payload.tags;
+  } else if (typeof payload.tags === "string") {
+    // Si es string, separar por comas
+    tags = payload.tags.split(",").map((t: string) => t.trim());
+  }
+  
+  const hasActiveTags = tags.length > 0 && tags.some(tag => 
     ["paid", "subscriber", "active", "pro", "premium"].includes(tag.toLowerCase())
   );
   
@@ -212,67 +219,148 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(`📧 Procesando para usuario: ${userEmail}`);
+    // Extraer nombre del payload (para crear usuario nuevo)
+    const userName = payload.full_name || 
+      `${payload.first_name || ''} ${payload.last_name || ''}`.trim() || 
+      'Usuario';
 
-    // Crear cliente de Supabase con service role (para bypass de RLS)
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Extraer teléfono del payload
+    const userPhone = payload.phone || null;
 
-    // Buscar el usuario por email en la tabla profiles
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, email, subscription_status")
-      .eq("email", userEmail)
-      .single();
+    console.log(`📧 Procesando para: ${userEmail} (${userName})${userPhone ? ` - Tel: ${userPhone}` : ''}`);
 
-    if (profileError || !profile) {
-      console.error("❌ Usuario no encontrado:", profileError?.message);
-      
-      // El usuario no existe en profiles, podría no haberse registrado aún
-      // Opción: Guardar en una tabla de "pending activations" o simplemente loggear
-      return jsonResponse(
-        {
-          success: false,
-          message: `Usuario con email ${userEmail} no encontrado. El usuario debe registrarse primero.`,
-        },
-        404
-      );
-    }
-
-    console.log(`✅ Usuario encontrado: ${profile.id} (estado actual: ${profile.subscription_status})`);
+    // Crear cliente de Supabase con service role (para bypass de RLS y usar Admin API)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // Determinar el nuevo estado de suscripción
     const newStatus = determineSubscriptionStatus(payload);
-    console.log(`📊 Nuevo estado de suscripción: ${newStatus}`);
+    console.log(`📊 Estado de suscripción a aplicar: ${newStatus}`);
 
-    // Actualizar subscription_status en la tabla profiles
-    const { error: updateError } = await supabase
+    // ============================================
+    // VERIFICAR SI EL USUARIO EXISTE EN PROFILES
+    // ============================================
+    
+    // Buscar usuario en profiles por email (más eficiente que listUsers)
+    const { data: existingProfile, error: profileSearchError } = await supabase
       .from("profiles")
-      .update({
-        subscription_status: newStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profile.id);
+      .select("id, email, subscription_status")
+      .eq("email", userEmail.toLowerCase())
+      .maybeSingle();
 
-    if (updateError) {
-      console.error("❌ Error actualizando suscripción:", updateError.message);
+    if (profileSearchError) {
+      console.error("❌ Error buscando profile:", profileSearchError.message);
       return jsonResponse(
-        { success: false, message: "Error actualizando suscripción" },
+        { success: false, message: "Error verificando usuario" },
         500
       );
     }
 
-    console.log(`✅ Suscripción actualizada: ${profile.subscription_status} → ${newStatus}`);
+    // ============================================
+    // RAMA 1: USUARIO EXISTE → Solo actualizar status
+    // ============================================
+    
+    if (existingProfile) {
+      console.log(`✅ RAMA 1: Usuario existe (${existingProfile.id})`);
+
+      // Actualizar subscription_status en profiles
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          subscription_status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingProfile.id);
+
+      if (updateError) {
+        console.error("❌ Error actualizando suscripción:", updateError.message);
+        return jsonResponse(
+          { success: false, message: "Error actualizando suscripción" },
+          500
+        );
+      }
+
+      console.log(`✅ Suscripción actualizada: ${existingProfile.subscription_status} → ${newStatus}`);
+
+      return jsonResponse({
+        success: true,
+        message: "Suscripción actualizada correctamente",
+        data: {
+          action: "updated",
+          user_id: existingProfile.id,
+          email: userEmail,
+          previous_status: existingProfile.subscription_status,
+          new_status: newStatus,
+        },
+      });
+    }
+
+    // ============================================
+    // RAMA 2: USUARIO NO EXISTE → Crear + Invitación por Email
+    // ============================================
+    
+    console.log(`🆕 RAMA 2: Usuario NO existe, creando e invitando...`);
+
+    // Usar inviteUserByEmail - Esto CREA el usuario Y ENVÍA el email automáticamente
+    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+      userEmail,
+      {
+        data: {
+          full_name: userName,
+          phone: userPhone,
+          source: "ghl_webhook",
+        },
+        redirectTo: `${Deno.env.get("SITE_URL") || "https://tu-app.com"}/auth/callback`,
+      }
+    );
+
+    if (inviteError) {
+      console.error("❌ Error invitando usuario:", inviteError.message);
+      return jsonResponse(
+        { success: false, message: `Error invitando usuario: ${inviteError.message}` },
+        500
+      );
+    }
+
+    console.log(`✅ Usuario invitado: ${inviteData.user.id}`);
+    console.log(`📧 Email de invitación enviado a: ${userEmail}`);
+
+    // Crear profile con subscription_status = active
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: inviteData.user.id,
+      email: userEmail,
+      full_name: userName,
+      phone: userPhone,
+      subscription_status: newStatus,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    if (profileError) {
+      console.error("❌ Error creando profile:", profileError.message);
+      // No es crítico, el profile se puede crear después
+    } else {
+      console.log(`✅ Profile creado con status: ${newStatus}`);
+    }
 
     return jsonResponse({
       success: true,
-      message: `Suscripción actualizada correctamente`,
+      message: "Usuario creado y email de invitación enviado",
       data: {
-        user_id: profile.id,
+        action: "created_and_invited",
+        user_id: inviteData.user.id,
         email: userEmail,
-        previous_status: profile.subscription_status,
+        name: userName,
+        phone: userPhone,
         new_status: newStatus,
+        invitation_sent: true,
       },
     });
+
   } catch (error) {
     console.error("❌ Error procesando webhook:", error);
     return jsonResponse(

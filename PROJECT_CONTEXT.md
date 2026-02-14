@@ -1,203 +1,334 @@
-# Contexto del Proyecto: Finance Dashboard API
+# Contexto del Proyecto: Finance Dashboard
 
-## 1. Visión General
+> **Última actualización:** 5 de febrero de 2026
 
-**Producto:** API REST para plataforma SaaS de control de gastos e ingresos.
+---
 
-**Este Repositorio:** Solo el backend (API). El frontend está en un repositorio separado.
+## 1. VISIÓN GENERAL
+
+**Producto:** Dashboard SaaS de control de gastos e ingresos personales.
 
 **Modelo de Negocio:** 
-- Usuario paga suscripción → Accede al dashboard.
-- Sin suscripción activa → Acceso bloqueado.
+- Usuario paga suscripción mensual → Accede al dashboard completo
+- Sin suscripción activa → Acceso bloqueado (página `/subscription-required`)
 
-**Integraciones:**
-- **GoHighLevel / Stripe** → Procesamiento de pagos
-- **Supabase** → Base de datos + Autenticación
-- **VPS (Ubuntu)** → Hosting del backend y frontend
+**Repositorios:**
+- `finance-dashboard-web` → Frontend React (ESTE REPO)
+- `finance-dashboard-api` → Backend Express (repo separado)
 
 ---
 
-## 2. Arquitectura del Sistema
+## 2. ARQUITECTURA ACTUAL (Febrero 2026)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    FLUJO DE LA PLATAFORMA                   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ARQUITECTURA DEL SISTEMA                            │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-   GoHighLevel / Stripe
-          │
-          │ Webhook (POST)
-          ▼
-   ┌──────────────────┐
-   │  Backend Node.js │  ◄── ESTE REPOSITORIO
-   │  (Express API)   │
-   └────────┬─────────┘
-            │
-            │ Valida, decide, escribe
-            ▼
-   ┌──────────────────┐
-   │    Supabase      │  ◄── INFRAESTRUCTURA (externo)
-   │  (DB + Auth)     │
-   └────────┬─────────┘
-            │
-            │ JWT + Datos
-            ▼
-   ┌──────────────────┐
-   │  React Frontend  │  ◄── REPOSITORIO SEPARADO
-   │  (Dashboard)     │
-   └──────────────────┘
+                              ┌──────────────┐
+                              │   CLIENTE    │
+                              │   (Browser)  │
+                              └──────┬───────┘
+                                     │
+                                     ▼
+                              ┌──────────────┐
+                              │   FRONTEND   │
+                              │  React/Vite  │
+                              │  (Este repo) │
+                              └──────┬───────┘
+                                     │ API calls
+                                     ▼
+                              ┌──────────────┐
+                              │   BACKEND    │
+                              │   Express    │
+                              │  (Node.js)   │
+                              └──────┬───────┘
+                                     │
+                                     ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              SUPABASE                                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │
+│  │  PostgreSQL │  │    Auth     │  │     RLS     │  │ Edge Functions  │   │
+│  │   (Datos)   │  │   (JWT)     │  │ (Seguridad) │  │   (Webhooks)    │   │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └────────┬────────┘   │
+└────────────────────────────────────────────────────────────────┼───────────┘
+                                                                 │
+                                          ┌──────────────────────┘
+                                          │ Webhook
+                                          ▼
+                              ┌──────────────────────┐
+                              │    GoHighLevel       │
+                              │  (CRM + Pagos)       │
+                              │                      │
+                              │  ┌────────────────┐  │
+                              │  │    Stripe      │  │
+                              │  │  (Procesador)  │  │
+                              │  └────────────────┘  │
+                              └──────────────────────┘
 ```
 
-**Alcance de este repo:** Desde el webhook hasta exponer la API REST.
+---
+
+## 3. FLUJO DE PAGO Y SUSCRIPCIÓN
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FLUJO: CLIENTE PAGA SUSCRIPCIÓN                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────┐         ┌─────────┐         ┌─────────┐         ┌─────────┐
+    │ Cliente │         │   GHL   │         │ Stripe  │         │Supabase │
+    │  paga   │────────▶│ Funnel  │────────▶│ Procesa │────────▶│  Edge   │
+    │         │         │         │         │  pago   │         │Function │
+    └─────────┘         └─────────┘         └─────────┘         └────┬────┘
+                                                                     │
+                                                                     ▼
+                                                            ¿Usuario existe?
+                                                                     │
+                                            ┌────────────────────────┼────────────────────────┐
+                                            │                        │                        │
+                                            ▼                        ▼                        │
+                                    ┌───────────────┐        ┌───────────────┐               │
+                                    │   RAMA 1:     │        │   RAMA 2:     │               │
+                                    │ Usuario EXISTE│        │ Usuario NUEVO │               │
+                                    │               │        │               │               │
+                                    │ → Actualizar  │        │ → Crear user  │               │
+                                    │   status =    │        │ → Crear       │               │
+                                    │   'active'    │        │   profile     │               │
+                                    │               │        │ → status =    │               │
+                                    │               │        │   'active'    │               │
+                                    │               │        │ → Magic Link  │               │
+                                    └───────────────┘        └───────────────┘               │
+                                                                                              │
+                                                                     ▼                        │
+                                                            ┌───────────────┐                │
+                                                            │   Usuario     │                │
+                                                            │   accede al   │◀───────────────┘
+                                                            │   Dashboard   │
+                                                            └───────────────┘
+```
 
 ---
 
-## 3. Roles y Responsabilidades (Sin Ambigüedad)
+## 4. STACK TECNOLÓGICO
 
-### A. Backend Node.js (Este Repositorio) — EL CEREBRO
-
-**Función:** Controla toda la lógica de negocio y acceso.
-
-| Responsabilidad | Descripción |
-|-----------------|-------------|
-| Recibir webhooks | Endpoint para GoHighLevel/Stripe |
-| Validar firmas | Verificar que el webhook es legítimo |
-| Gestionar suscripciones | Activar/desactivar acceso según pago |
-| Escribir en Supabase | CRUD de usuarios y estados |
-| Proteger endpoints | Middleware de autorización |
-| Exponer API REST | Endpoints para el frontend |
-
-**Regla:** Todo lo que habilita o bloquea dinero pasa por aquí.
+| Componente | Tecnología | Estado |
+|------------|------------|--------|
+| **Frontend** | React 18 + Vite + Tailwind | ✅ Funcional |
+| **Backend** | Express.js + Node.js | ✅ Funcional |
+| **Base de Datos** | Supabase PostgreSQL | ✅ Configurada |
+| **Autenticación** | Supabase Auth (JWT) | ✅ Funcional |
+| **CRM/Ventas** | GoHighLevel | ✅ Conectado |
+| **Procesador Pagos** | Stripe (via GHL) | ⚠️ Claves TEST |
+| **Webhooks** | Supabase Edge Functions | ✅ Funcional |
+| **Hosting** | VPS Ubuntu (pendiente) | ⏳ Por configurar |
 
 ---
 
-### B. Supabase — INFRAESTRUCTURA
+## 5. BASE DE DATOS (Supabase)
 
-**Función:** Almacena datos y emite tokens. NO decide.
-
-| Componente | Uso |
-|------------|-----|
-| PostgreSQL | Tablas: usuarios, suscripciones, ingresos, gastos |
-| Auth | Login/registro, emisión de JWT |
-| RLS (Row Level Security) | Seguridad a nivel de fila |
-
-**Regla:** Supabase obedece, no orquesta.
-
----
-
-### C. React Frontend — LA PANTALLA
-
-**Función:** Interfaz de usuario. NO valida acceso.
-
-| Responsabilidad | Descripción |
-|-----------------|-------------|
-| Consumir API | Llamadas al backend Node.js |
-| Renderizar dashboard | Gráficos, tablas, formularios |
-| Manejar sesión | Guardar JWT en memoria/localStorage |
-| UX/UI | Experiencia del usuario |
-
-**Regla:** El frontend muestra, no decide.
-
----
-
-## 4. Modelo de Datos (Supabase)
-
-### Tablas Principales
+### Tablas Actuales
 
 ```sql
--- Usuarios (extendiendo auth.users de Supabase)
-CREATE TABLE public.profiles (
-    id UUID REFERENCES auth.users(id) PRIMARY KEY,
-    email TEXT NOT NULL,
-    full_name TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- PROFILES (usuarios)
+profiles (
+  id UUID PRIMARY KEY,          -- = auth.users.id
+  email TEXT,
+  full_name TEXT,
+  avatar_url TEXT,
+  subscription_status TEXT,     -- 'none', 'active', 'cancelled'
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
 
--- Suscripciones
-CREATE TABLE public.subscriptions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.profiles(id) NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('active', 'inactive', 'cancelled', 'past_due')),
-    provider TEXT NOT NULL, -- 'stripe' o 'gohighlevel'
-    external_id TEXT, -- ID en el proveedor de pagos
-    current_period_start TIMESTAMPTZ,
-    current_period_end TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- TRANSACTIONS (ingresos/gastos)
+transactions (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+  type VARCHAR,                 -- 'income', 'expense'
+  amount NUMERIC,
+  category VARCHAR,
+  description TEXT,
+  date DATE,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
 
--- Transacciones (ingresos y gastos)
-CREATE TABLE public.transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.profiles(id) NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-    amount DECIMAL(12,2) NOT NULL,
-    category TEXT,
-    description TEXT,
-    date DATE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- CATEGORIES (categorías personalizadas)
+categories (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+  name TEXT,
+  type TEXT,                    -- 'income', 'expense'
+  icon TEXT,
+  color TEXT,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
+
+-- GOALS (metas de ahorro)
+goals (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+  name VARCHAR,
+  target NUMERIC,
+  current NUMERIC,
+  color VARCHAR,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
 ```
 
 ---
 
-## 5. Endpoints del Backend
+## 6. INTEGRACIONES
 
-### Webhooks (Entrada de pagos)
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/webhooks/stripe` | Recibe eventos de Stripe |
-| POST | `/webhooks/gohighlevel` | Recibe eventos de GoHighLevel |
+### 6.1 GoHighLevel → Supabase (Webhook)
 
-### Autenticación
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/auth/login` | Login (delega a Supabase, valida suscripción) |
-| POST | `/auth/register` | Registro inicial |
-| GET | `/auth/me` | Datos del usuario autenticado |
+**URL del Webhook:**
+```
+https://qpvlyeqbsvuunzitrclp.supabase.co/functions/v1/webhook-GHL
+```
 
-### Dashboard (Protegidos)
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/dashboard/summary` | Resumen financiero |
-| GET | `/transactions` | Listar transacciones |
-| POST | `/transactions` | Crear transacción |
-| PUT | `/transactions/:id` | Editar transacción |
-| DELETE | `/transactions/:id` | Eliminar transacción |
+**Flujo:**
+1. Cliente paga en funnel de GHL
+2. GHL dispara workflow "Pago recibido"
+3. Workflow envía webhook a Supabase Edge Function
+4. Edge Function crea/actualiza usuario con `subscription_status = 'active'`
 
-### Sistema
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/health` | Estado del servidor |
+**Edge Function:** `supabase/functions/ghl-webhook/index.ts`
+
+### 6.2 Stripe
+
+**Estado:** Conectado a GHL con claves TEST
+
+**Rol de Stripe:**
+- GHL usa Stripe como procesador de pagos
+- Stripe maneja la tarjeta/cobro real
+- GHL recibe confirmación y dispara el webhook
+
+**Claves (TEST):**
+```
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+```
 
 ---
 
-## 6. Flujo de Suscripción (Detallado)
+## 7. FUNCIONALIDADES IMPLEMENTADAS
+
+### Frontend ✅
+- [x] Login / Registro
+- [x] Dashboard con gráficos (Recharts)
+- [x] CRUD de transacciones
+- [x] Categorías personalizadas
+- [x] Metas de ahorro
+- [x] Configuración de perfil
+- [x] Cambio de contraseña
+- [x] Página `/subscription-required`
+- [x] Diseño dark theme + dorado
+- [x] Responsive design
+
+### Backend ✅
+- [x] Auth endpoints (login, register, me)
+- [x] CRUD transactions
+- [x] CRUD categories
+- [x] CRUD goals
+- [x] Dashboard summary
+- [x] Middleware de autenticación
+- [x] Middleware de suscripción (deshabilitado temporalmente)
+
+### Integraciones ✅
+- [x] Supabase conectado
+- [x] GHL webhook funcional
+- [x] Edge Function para activar suscripción
+- [x] Creación automática de usuarios desde webhook
+
+---
+
+## 8. PENDIENTES / TODO
+
+### Crítico para Producción
+- [ ] Configurar claves LIVE de Stripe
+- [ ] **Webhook para cancelación de suscripción** ← FALTA
+- [ ] Configurar dominio y SSL
+- [ ] Variables de entorno en producción
+- [ ] Habilitar middleware de suscripción en backend
+
+### Mejoras
+- [ ] Frontend: detectar primer login → modal crear contraseña
+- [ ] Frontend: verificar `subscription_status` en rutas protegidas
+- [ ] Configurar secreto de seguridad en webhook GHL
+- [ ] Logging y monitoreo (Sentry)
+
+---
+
+## 9. VARIABLES DE ENTORNO
+
+### Frontend (.env.local)
+```env
+VITE_API_URL=http://localhost:3000/api
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=xxx
+```
+
+### Backend (.env)
+```env
+PORT=3000
+NODE_ENV=development
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+```
+
+### Supabase Edge Functions (Secrets)
+```
+SUPABASE_URL (automático)
+SUPABASE_SERVICE_ROLE_KEY (automático)
+GHL_WEBHOOK_SECRET (opcional - para seguridad)
+SITE_URL (para redirect de magic link)
+```
+
+---
+
+## 10. ESTRUCTURA DEL REPOSITORIO (Frontend)
 
 ```
-1. Usuario paga en GoHighLevel/Stripe
-              │
-              ▼
-2. Webhook llega a Backend Node.js
-              │
-              ▼
-3. Backend valida firma del webhook
-              │
-              ├── Inválido → Rechaza (401)
-              │
-              ▼
-4. Backend extrae datos (user_email, status, plan)
-              │
-              ▼
-5. Backend busca/crea usuario en Supabase
-              │
-              ▼
-6. Backend actualiza tabla `subscriptions`
-              │
-              ▼
-7. Usuario intenta login
-              │
-              ▼
+finance-dashboard-web/
+├── src/
+│   ├── components/
+│   │   ├── layout/        # Header, Sidebar, Logo
+│   │   └── ui/            # Button, Card, Input, Modal, etc.
+│   ├── context/
+│   │   └── AuthContext.jsx
+│   ├── pages/
+│   │   ├── Dashboard.jsx
+│   │   ├── Transactions.jsx
+│   │   ├── Categories.jsx
+│   │   ├── Goals.jsx
+│   │   ├── Settings.jsx
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   │   └── SubscriptionRequired.jsx
+│   ├── services/
+│   │   └── api.js
+│   ├── styles/
+│   │   └── globals.css
+│   └── utils/
+│       └── formatters.js
+├── supabase/
+│   └── functions/
+│       └── ghl-webhook/   # Edge Function para webhooks de GHL
+│           ├── index.ts
+│           └── README.md
+├── public/
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── PROJECT_CONTEXT.md     # ESTE ARCHIVO
+```
 8. Backend verifica subscription.status === 'active'
               │
               ├── Inactivo → Bloquea acceso (403)

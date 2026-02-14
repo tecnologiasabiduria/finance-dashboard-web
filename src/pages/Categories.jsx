@@ -21,28 +21,8 @@ const PRESET_COLORS = [
   '#14B8A6', '#6366F1', '#E11D48', '#0EA5E9', '#84CC16',
 ];
 
-// Categorías demo para modo sin backend
-const DEMO_CATEGORIES = {
-  income: [
-    { id: 'demo-1', name: 'Salario', type: 'income', color: '#22C55E', icon: 'briefcase' },
-    { id: 'demo-2', name: 'Freelance', type: 'income', color: '#10B981', icon: 'laptop' },
-    { id: 'demo-3', name: 'Inversiones', type: 'income', color: '#059669', icon: 'trending-up' },
-    { id: 'demo-4', name: 'Otros Ingresos', type: 'income', color: '#047857', icon: 'plus-circle' },
-  ],
-  expense: [
-    { id: 'demo-5', name: 'Alimentación', type: 'expense', color: '#EF4444', icon: 'utensils' },
-    { id: 'demo-6', name: 'Transporte', type: 'expense', color: '#F97316', icon: 'car' },
-    { id: 'demo-7', name: 'Servicios', type: 'expense', color: '#F59E0B', icon: 'home' },
-    { id: 'demo-8', name: 'Entretenimiento', type: 'expense', color: '#8B5CF6', icon: 'film' },
-    { id: 'demo-9', name: 'Salud', type: 'expense', color: '#EC4899', icon: 'heart' },
-    { id: 'demo-10', name: 'Educación', type: 'expense', color: '#3B82F6', icon: 'book' },
-    { id: 'demo-11', name: 'Otros Gastos', type: 'expense', color: '#6B7280', icon: 'more-horizontal' },
-  ],
-};
-
 export default function Categories() {
   const { token } = useAuth();
-  const isDemo = token?.startsWith('demo-');
 
   const [categories, setCategories] = useState({ income: [], expense: [] });
   const [loading, setLoading] = useState(true);
@@ -64,19 +44,6 @@ export default function Categories() {
   }, []);
 
   const loadCategories = async () => {
-    if (isDemo) {
-      // Cargar desde localStorage o usar demo
-      const saved = localStorage.getItem('demo_categories');
-      if (saved) {
-        setCategories(JSON.parse(saved));
-      } else {
-        setCategories(DEMO_CATEGORIES);
-        localStorage.setItem('demo_categories', JSON.stringify(DEMO_CATEGORIES));
-      }
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await api.getCategories();
       setCategories(response.data.grouped || { income: [], expense: [] });
@@ -125,31 +92,6 @@ export default function Categories() {
     setSaving(true);
     setError('');
 
-    if (isDemo) {
-      // Modo demo: guardar en localStorage
-      const newCategories = { ...categories };
-      if (editingCategory) {
-        const index = newCategories[formData.type].findIndex(c => c.id === editingCategory.id);
-        if (index !== -1) {
-          newCategories[formData.type][index] = {
-            ...editingCategory,
-            ...formData,
-          };
-        }
-      } else {
-        newCategories[formData.type].push({
-          id: `demo-${Date.now()}`,
-          ...formData,
-          icon: 'tag',
-        });
-      }
-      setCategories(newCategories);
-      localStorage.setItem('demo_categories', JSON.stringify(newCategories));
-      setSaving(false);
-      handleCloseModal();
-      return;
-    }
-
     try {
       if (editingCategory) {
         await api.updateCategory(editingCategory.id, formData);
@@ -167,14 +109,6 @@ export default function Categories() {
 
   const handleDelete = async (category) => {
     if (!confirm(`¿Eliminar la categoría "${category.name}"?`)) return;
-
-    if (isDemo) {
-      const newCategories = { ...categories };
-      newCategories[category.type] = newCategories[category.type].filter(c => c.id !== category.id);
-      setCategories(newCategories);
-      localStorage.setItem('demo_categories', JSON.stringify(newCategories));
-      return;
-    }
 
     try {
       await api.deleteCategory(category.id);
@@ -206,14 +140,6 @@ export default function Categories() {
           Nueva Categoría
         </Button>
       </div>
-
-      {isDemo && (
-        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <p className="text-yellow-400 text-sm">
-            ⚠️ Modo demo: Los cambios se guardan localmente
-          </p>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 bg-dark-900/50 rounded-xl w-fit">

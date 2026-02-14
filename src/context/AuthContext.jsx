@@ -13,18 +13,6 @@ export function AuthProvider({ children }) {
       const savedToken = sessionStorage.getItem('token');
       const savedUser = sessionStorage.getItem('user');
       
-      // DEMO MODE: Si hay usuario guardado y token demo, usarlo directamente
-      if (savedToken?.startsWith('demo-token-') && savedUser) {
-        try {
-          setUser(JSON.parse(savedUser));
-          setToken(savedToken);
-          setLoading(false);
-          return;
-        } catch (e) {
-          // Si falla el parse, continuar con auth normal
-        }
-      }
-      
       if (savedToken) {
         try {
           api.setToken(savedToken);

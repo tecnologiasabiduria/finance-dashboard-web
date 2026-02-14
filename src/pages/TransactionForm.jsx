@@ -56,19 +56,6 @@ export default function TransactionForm() {
   // Cargar categorías personalizadas
   useEffect(() => {
     const loadCategories = async () => {
-      // Modo demo: cargar de localStorage
-      if (token?.startsWith('demo-')) {
-        const saved = localStorage.getItem('demo_categories');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setCategories({
-            income: parsed.income?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.income,
-            expense: parsed.expense?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.expense,
-          });
-        }
-        return;
-      }
-
       try {
         const response = await api.getCategories();
         if (response.data.grouped) {
@@ -88,21 +75,6 @@ export default function TransactionForm() {
   useEffect(() => {
     if (isEditing) {
       const loadTransaction = async () => {
-        // Si es demo, simular
-        if (token?.startsWith('demo-')) {
-          setTimeout(() => {
-            setFormData({
-              type: 'expense',
-              amount: '185.00',
-              category: 'servicios',
-              description: 'Factura electricidad',
-              date: '2026-01-27',
-            });
-            setLoadingData(false);
-          }, 500);
-          return;
-        }
-
         try {
           const response = await api.getTransaction(id);
           const t = response.data.transaction;
@@ -175,30 +147,7 @@ export default function TransactionForm() {
         date: formData.date,
       };
 
-      // Si es demo, guardar en localStorage
-      if (token?.startsWith('demo-')) {
-        await new Promise((r) => setTimeout(r, 500));
-        
-        // Cargar transacciones existentes
-        const savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
-        
-        if (isEditing) {
-          // Actualizar transacción existente
-          const index = savedTransactions.findIndex(t => t.id === id);
-          if (index !== -1) {
-            savedTransactions[index] = { ...savedTransactions[index], ...transactionData };
-          }
-        } else {
-          // Crear nueva transacción
-          const newTransaction = {
-            id: `demo-${Date.now()}`,
-            ...transactionData,
-          };
-          savedTransactions.unshift(newTransaction);
-        }
-        
-        localStorage.setItem('demo_transactions', JSON.stringify(savedTransactions));
-      } else if (isEditing) {
+      if (isEditing) {
         await api.updateTransaction(id, transactionData);
       } else {
         await api.createTransaction(transactionData);

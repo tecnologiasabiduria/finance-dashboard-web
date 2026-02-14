@@ -135,29 +135,7 @@ export default function Login() {
             </Link>
           </p>
 
-          {/* DEMO MODE - TEMPORAL (remover en producción) */}
-          <div className="mt-6 pt-6 border-t border-dark-800">
-            <p className="text-xs text-dark-500 text-center mb-3">⚠️ Modo desarrollo</p>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-gold-400/30 text-gold-400 hover:bg-gold-400/10"
-              onClick={() => {
-                // Simular login demo sin backend
-                const demoUser = {
-                  id: 'demo-user-123',
-                  email: 'demo@finanzas.com',
-                  name: 'Usuario Demo'
-                };
-                const demoToken = 'demo-token-' + Date.now();
-                sessionStorage.setItem('token', demoToken);
-                sessionStorage.setItem('user', JSON.stringify(demoUser));
-                window.location.href = '/dashboard';
-              }}
-            >
-              🚀 Acceso Demo (sin backend)
-            </Button>
-          </div>
+
         </div>
       </div>
 

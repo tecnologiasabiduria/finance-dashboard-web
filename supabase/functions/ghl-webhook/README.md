@@ -1,6 +1,8 @@
 # GHL Webhook - Supabase Edge Function
 
-Edge Function para procesar webhooks de GoHighLevel y actualizar el estado de suscripción (`subscription_status`) en la tabla `profiles`.
+Edge Function para procesar webhooks de GoHighLevel con **dos ramas**:
+- **Usuario existe** → Actualiza `subscription_status`
+- **Usuario NO existe** → Crea usuario + Magic Link
 
 ## 📁 Ubicación
 
@@ -10,12 +12,58 @@ supabase/functions/ghl-webhook/
 └── README.md         # Este archivo
 ```
 
-## 🎯 ¿Qué hace?
+## 🎯 Flujo de la función
 
-1. Recibe webhook POST de GoHighLevel
-2. Extrae el `email` del contacto
-3. Busca el usuario en la tabla `profiles`
-4. Actualiza `subscription_status` a `active` o `none`
+```
+Webhook de GHL (pago exitoso)
+         │
+         ▼
+   ¿Usuario existe?
+         │
+    ┌────┴────┐
+    │         │
+   SÍ        NO
+    │         │
+    ▼         ▼
+ RAMA 1    RAMA 2
+ Actualiza  Crea usuario
+ status     + profile
+ → active   + status active
+            + Magic Link
+            (email automático)
+```
+
+## 🔄 Respuestas de la API
+
+**RAMA 1 - Usuario actualizado (200)**:
+```json
+{
+  "success": true,
+  "message": "Suscripción actualizada correctamente",
+  "data": {
+    "action": "updated",
+    "user_id": "uuid-xxx",
+    "email": "usuario@email.com",
+    "new_status": "active"
+  }
+}
+```
+
+**RAMA 2 - Usuario creado (200)**:
+```json
+{
+  "success": true,
+  "message": "Usuario creado y Magic Link enviado",
+  "data": {
+    "action": "created",
+    "user_id": "uuid-xxx",
+    "email": "usuario@email.com",
+    "name": "Juan Pérez",
+    "new_status": "active",
+    "magic_link_sent": true
+  }
+}
+```
 
 ## 🚀 Despliegue
 

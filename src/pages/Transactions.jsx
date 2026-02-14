@@ -19,22 +19,6 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-// Datos de demostración
-const DEMO_TRANSACTIONS = [
-  { id: '1', type: 'income', description: 'Pago cliente - Proyecto Web', amount: 5500.00, category: 'Freelance', date: '2026-01-28' },
-  { id: '2', type: 'expense', description: 'Factura electricidad', amount: 185.00, category: 'Servicios', date: '2026-01-27' },
-  { id: '3', type: 'income', description: 'Transferencia - Inversiones', amount: 1200.00, category: 'Inversiones', date: '2026-01-26' },
-  { id: '4', type: 'expense', description: 'Suscripción software', amount: 49.99, category: 'Servicios', date: '2026-01-25' },
-  { id: '5', type: 'expense', description: 'Combustible', amount: 120.00, category: 'Transporte', date: '2026-01-24' },
-  { id: '6', type: 'income', description: 'Salario mensual', amount: 15000.00, category: 'Salario', date: '2026-01-15' },
-  { id: '7', type: 'expense', description: 'Supermercado semanal', amount: 450.00, category: 'Alimentación', date: '2026-01-20' },
-  { id: '8', type: 'expense', description: 'Internet y teléfono', amount: 89.00, category: 'Servicios', date: '2026-01-18' },
-  { id: '9', type: 'income', description: 'Dividendos acciones', amount: 320.00, category: 'Inversiones', date: '2026-01-10' },
-  { id: '10', type: 'expense', description: 'Cena restaurante', amount: 85.00, category: 'Entretenimiento', date: '2026-01-22' },
-  { id: '11', type: 'expense', description: 'Gimnasio mensual', amount: 45.00, category: 'Salud', date: '2026-01-05' },
-  { id: '12', type: 'income', description: 'Venta artículo usado', amount: 150.00, category: 'Otros', date: '2026-01-08' },
-];
-
 const CATEGORIES = {
   income: ['Todos', 'Salario', 'Freelance', 'Inversiones', 'Otros'],
   expense: ['Todos', 'Alimentación', 'Transporte', 'Servicios', 'Entretenimiento', 'Salud', 'Educación', 'Otros'],
@@ -68,28 +52,13 @@ export default function Transactions() {
   // Cargar transacciones
   useEffect(() => {
     const loadTransactions = async () => {
-      // Si es token de demo, usar datos demo + localStorage
-      if (token?.startsWith('demo-')) {
-        let savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
-        
-        // Si no hay transacciones guardadas, inicializar con las demo
-        if (savedTransactions.length === 0) {
-          savedTransactions = DEMO_TRANSACTIONS;
-          localStorage.setItem('demo_transactions', JSON.stringify(savedTransactions));
-        }
-        
-        setTransactions(savedTransactions);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         const response = await api.getTransactions({ limit: 100 });
         setTransactions(response.data.transactions || []);
       } catch (err) {
         console.error('Error loading transactions:', err);
-        setTransactions(DEMO_TRANSACTIONS);
+        setTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -146,15 +115,7 @@ export default function Transactions() {
     
     setDeleting(true);
     try {
-      // Si es demo, eliminar de localStorage
-      if (token?.startsWith('demo-')) {
-        await new Promise((r) => setTimeout(r, 300));
-        const savedTransactions = JSON.parse(localStorage.getItem('demo_transactions') || '[]');
-        const updatedTransactions = savedTransactions.filter(t => t.id !== deleteModal.transaction.id);
-        localStorage.setItem('demo_transactions', JSON.stringify(updatedTransactions));
-      } else {
-        await api.deleteTransaction(deleteModal.transaction.id);
-      }
+      await api.deleteTransaction(deleteModal.transaction.id);
       setTransactions((prev) => prev.filter((t) => t.id !== deleteModal.transaction.id));
     } catch (err) {
       console.error('Error deleting transaction:', err);
