@@ -334,7 +334,6 @@ Deno.serve(async (req: Request) => {
       id: inviteData.user.id,
       email: userEmail,
       full_name: userName,
-      phone: userPhone,
       subscription_status: newStatus,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

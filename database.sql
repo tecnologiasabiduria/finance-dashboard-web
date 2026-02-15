@@ -36,6 +36,21 @@ CREATE TABLE public.profiles (
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.subscriptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'inactive'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'cancelled'::text, 'past_due'::text, 'trialing'::text])),
+  provider text NOT NULL DEFAULT 'stripe'::text CHECK (provider = ANY (ARRAY['stripe'::text, 'gohighlevel'::text, 'manual'::text])),
+  external_id text,
+  plan_name text DEFAULT 'basic'::text,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  cancel_at_period_end boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -49,5 +64,3 @@ CREATE TABLE public.transactions (
   CONSTRAINT transactions_pkey PRIMARY KEY (id),
   CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
-
-#este archivo es solo para dar contexto de lo que hay en supabase
