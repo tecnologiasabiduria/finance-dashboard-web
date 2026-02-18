@@ -17,7 +17,7 @@ import {
   Building,
   Receipt,
 } from 'lucide-react';
-import { Button, Select, Card, CreatableSelect } from '../components/ui';
+import { Button, Select, Card, CreatableSelect, DatePicker } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
@@ -320,17 +320,13 @@ export default function TransactionForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-dark-200">Fecha *</label>
-              <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  className={errors.date ? inputErrorClass : inputClass}
-                />
-              </div>
-              {errors.date && <p className="text-sm text-red-400">{errors.date}</p>}
+              <DatePicker
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                placeholder="Seleccionar fecha"
+                error={errors.date}
+              />
             </div>
 
             <div className="space-y-2">

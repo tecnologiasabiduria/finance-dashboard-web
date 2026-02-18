@@ -17,7 +17,7 @@ import {
   CreditCard,
   FileCheck,
 } from 'lucide-react';
-import { Button, Card, ConfirmModal, Spinner } from '../components/ui';
+import { Button, Card, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -221,23 +221,18 @@ export default function Transactions() {
             />
           </div>
           <div className="flex gap-2 items-center">
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-500" />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="pl-10 pr-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg
-                         text-white text-sm focus:outline-none focus:border-gold-400/50"
-              />
-            </div>
+            <DatePicker
+              name="dateFrom"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              placeholder="Desde"
+            />
             <span className="text-dark-500">a</span>
-            <input
-              type="date"
+            <DatePicker
+              name="dateTo"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg
-                       text-white text-sm focus:outline-none focus:border-gold-400/50"
+              placeholder="Hasta"
             />
           </div>
         </div>

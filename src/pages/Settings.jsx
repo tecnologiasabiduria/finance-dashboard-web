@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Mail, Lock, Bell, Shield, Palette, Save, Camera } from 'lucide-react';
+import { User, Mail, Lock, Bell, Shield, Palette, Save } from 'lucide-react';
 import { Button, Input, Card } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -159,9 +159,6 @@ export default function Settings() {
                   <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-3xl font-bold text-dark-950">
                     {profileData.name.charAt(0).toUpperCase()}
                   </div>
-                  <button className="absolute bottom-0 right-0 p-2 bg-dark-800 border border-dark-700 rounded-full hover:bg-dark-700 transition-colors">
-                    <Camera className="h-4 w-4 text-gold-400" />
-                  </button>
                 </div>
                 <div>
                   <p className="text-white font-medium">{profileData.name}</p>
@@ -184,7 +181,8 @@ export default function Settings() {
                   type="email"
                   icon={Mail}
                   value={profileData.email}
-                  onChange={handleProfileChange}
+                  disabled
+                  className="opacity-60 cursor-not-allowed"
                 />
               </div>
 
