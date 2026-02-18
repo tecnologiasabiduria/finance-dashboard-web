@@ -10,7 +10,7 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { Button, Card, Input, Modal, Spinner } from '../components/ui';
+import { Button, Card, Input, Modal, ConfirmModal, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
@@ -31,6 +31,8 @@ export default function Categories() {
   const [activeTab, setActiveTab] = useState('expense');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -108,13 +110,21 @@ export default function Categories() {
   };
 
   const handleDelete = async (category) => {
-    if (!confirm(`¿Eliminar la categoría "${category.name}"?`)) return;
+    setDeleteTarget(category);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.deleteCategory(category.id);
+      await api.deleteCategory(deleteTarget.id);
       await loadCategories();
+      setDeleteTarget(null);
     } catch (err) {
-      alert(err.message || 'Error al eliminar categoría');
+      setDeleteTarget(null);
+      setError(err.message || 'Error al eliminar categoría');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -326,6 +336,19 @@ export default function Categories() {
           </div>
         </form>
       </Modal>
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar categoría"
+        message={`¿Estás seguro de eliminar la categoría "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 }
