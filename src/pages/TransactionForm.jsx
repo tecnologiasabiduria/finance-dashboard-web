@@ -78,8 +78,9 @@ export default function TransactionForm() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditing);
   const [expenseCategories, setExpenseCategories] = useState([]);
+  const [incomeCategories, setIncomeCategories] = useState([]);
 
-  // Cargar categorías de gasto personalizadas
+  // Cargar categorías personalizadas (ingreso y gasto)
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -92,8 +93,19 @@ export default function TransactionForm() {
             }))
           );
         }
+        if (response.data.grouped?.income && response.data.grouped.income.length > 0) {
+          setIncomeCategories(
+            response.data.grouped.income.map((c) => ({
+              value: c.name,
+              label: c.name,
+            }))
+          );
+        } else {
+          setIncomeCategories(INCOME_TYPES);
+        }
       } catch (err) {
         console.error('Error loading categories:', err);
+        setIncomeCategories(INCOME_TYPES);
       }
     };
     loadCategories();
@@ -362,7 +374,7 @@ export default function TransactionForm() {
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    options={INCOME_TYPES}
+                    options={incomeCategories}
                     placeholder="Selecciona tipo"
                     error={errors.category}
                   />

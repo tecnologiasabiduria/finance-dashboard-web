@@ -8,8 +8,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  TrendingDown,
   Target,
   Tag,
   BarChart3,
@@ -28,14 +26,9 @@ const navigation = [
     icon: ArrowLeftRight,
   },
   {
-    name: 'Nuevo Ingreso',
-    href: '/transactions/new?type=income',
-    icon: TrendingUp,
-  },
-  {
-    name: 'Nuevo Gasto',
-    href: '/transactions/new?type=expense',
-    icon: TrendingDown,
+    name: 'Nuevo Registro',
+    href: '/transactions/new',
+    icon: PlusCircle,
   },
   {
     name: 'Informe Anual',
