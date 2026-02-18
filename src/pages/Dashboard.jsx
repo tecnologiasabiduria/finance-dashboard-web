@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Wallet,
@@ -8,161 +8,167 @@ import {
   ArrowDownRight,
   Activity,
   Target,
-  PieChart,
   Plus,
   ArrowRight,
   Calendar,
-  Filter,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  BarChart3,
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
   PieChart as RechartsPie,
   Pie,
   Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
-import { StatCard, Card, Button, Spinner } from '../components/ui';
+import { Card, Button, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate, calculatePercentage } from '../utils/formatters';
 import { api } from '../services/api';
 
-// Colores por defecto para categorías (fallback)
-const DEFAULT_CATEGORY_COLORS = {
-  'alimentación': '#EF4444',
-  'transporte': '#F97316',
-  'servicios': '#F59E0B',
-  'entretenimiento': '#8B5CF6',
-  'salud': '#EC4899',
-  'educación': '#3B82F6',
-  'otros gastos': '#6B7280',
-  'otros': '#6B7280',
+const INCOME_TYPE_COLORS = {
+  'VENTA': '#10B981',
+  'CARTERA': '#3B82F6',
+  'OTRO': '#F59E0B',
 };
 
-const FALLBACK_COLORS = ['#D4AF37', '#F4E4BC', '#9A7B1A', '#7C6315', '#5E4A10', '#B8860B'];
+const EXPENSE_CATEGORY_COLORS = [
+  '#EF4444', '#F97316', '#8B5CF6', '#EC4899', '#3B82F6',
+  '#F59E0B', '#14B8A6', '#6366F1', '#D4AF37', '#6B7280',
+];
 
-// Datos vacíos por defecto
-const EMPTY_DATA = {
-  balance: 0,
-  totalIncome: 0,
-  totalExpenses: 0,
-  transactionsCount: 0,
-  savingsRate: 0,
-  monthlyData: [],
-  weeklyData: [],
-  expensesByCategory: [],
-  recentTransactions: [],
-  targets: [],
-};
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
 
 export default function Dashboard() {
-  const { user, token } = useAuth();
-  const [data, setData] = useState(null);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [error, setError] = useState(null);
+
+  // Selected month/year
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  // Data
+  const [summaryData, setSummaryData] = useState(null);
+  const [monthTransactions, setMonthTransactions] = useState([]);
   const [categoryColors, setCategoryColors] = useState({});
 
+  // Navigate months
+  const goToPrevMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear((y) => y - 1);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear((y) => y + 1);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+  };
+
+  // Load data
   useEffect(() => {
-    const loadDashboard = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        
-        // Cargar categorías personalizadas para obtener los colores
-        let userCategoryColors = { ...DEFAULT_CATEGORY_COLORS };
-        
-        // Cargar categorías del backend
+        setError(null);
+
+        // Load categories for colors
+        let userCategoryColors = {};
         try {
-          const categoriesRes = await api.getCategories();
-          if (categoriesRes.data.grouped?.expense) {
-            categoriesRes.data.grouped.expense.forEach(cat => {
-              userCategoryColors[cat.name.toLowerCase()] = cat.color;
+          const catRes = await api.getCategories();
+          if (catRes.data.grouped?.expense) {
+            catRes.data.grouped.expense.forEach((cat) => {
+              userCategoryColors[cat.name] = cat.color;
             });
           }
-        } catch (catErr) {
-          console.log('Using default category colors');
+        } catch (e) {
+          // Ignore — use fallbacks
         }
-        
         setCategoryColors(userCategoryColors);
-        
-        // Cargar datos del dashboard, estadísticas y metas en paralelo
-        const [summaryRes, statsRes, goalsRes] = await Promise.all([
-          api.getDashboardSummary(),
-          api.getDashboardStats(),
-          api.getGoals(),
+
+        // Load summary for selected month and all transactions
+        const [summaryRes, txRes] = await Promise.all([
+          api.getDashboardSummary({ month: selectedMonth + 1, year: selectedYear }),
+          api.getTransactions({ limit: 1000 }),
         ]);
-        
-        const apiData = summaryRes.data;
-        const statsData = statsRes.data;
-        const goalsData = goalsRes.data.goals || [];
 
-        // Transformar datos mensuales para el gráfico
-        const monthlyData = statsData.monthlyData?.map((m) => ({
-          month: m.month,
-          ingresos: m.income,
-          gastos: m.expense,
-        })) || [];
+        setSummaryData(summaryRes.data);
 
-        // Calcular actividad semanal desde dailyData
-        const dailyData = apiData.dailyData || [];
-        const weeklyData = calculateWeeklyData(dailyData);
+        // Filter transactions for selected month
+        const startDate = new Date(selectedYear, selectedMonth, 1);
+        const endDate = new Date(selectedYear, selectedMonth + 1, 0);
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
 
-        setData({
-          balance: apiData.balance,
-          totalIncome: apiData.totalIncome,
-          totalExpenses: apiData.totalExpenses,
-          transactionsCount: apiData.transactionsCount,
-          savingsRate: apiData.savingsRate,
-          monthlyData: monthlyData,
-          weeklyData: weeklyData,
-          expensesByCategory: apiData.expensesByCategory?.map((cat, i) => ({
-            ...cat,
-            // Usar el color de la categoría personalizada o fallback
-            color: userCategoryColors[cat.name.toLowerCase()] || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
-          })) || [],
-          recentTransactions: apiData.recentTransactions || [],
-          targets: goalsData,
-        });
-        setError(null);
+        const allTx = txRes.data.transactions || [];
+        const monthTx = allTx.filter((t) => t.date >= startStr && t.date <= endStr);
+        setMonthTransactions(monthTx);
+
       } catch (err) {
-        console.error('Error loading dashboard:', err);
-        setError('Error al cargar datos. Intenta de nuevo más tarde.');
-        setData(EMPTY_DATA);
+        console.error('Dashboard load error:', err);
+        setError('Error al cargar datos');
       } finally {
         setLoading(false);
       }
     };
 
-    loadDashboard();
-  }, [token]);
+    loadData();
+  }, [selectedMonth, selectedYear]);
 
-  // Función para calcular datos semanales
-  const calculateWeeklyData = (dailyData) => {
-    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const weekData = {};
-    
-    // Inicializar días de la semana
-    days.forEach((day) => {
-      weekData[day] = { day, value: 0 };
+  // Computed data
+  const incomes = useMemo(() => monthTransactions.filter((t) => t.type === 'income'), [monthTransactions]);
+  const expenses = useMemo(() => monthTransactions.filter((t) => t.type === 'expense'), [monthTransactions]);
+
+  const totalIncome = useMemo(() => incomes.reduce((s, t) => s + parseFloat(t.amount), 0), [incomes]);
+  const totalExpense = useMemo(() => expenses.reduce((s, t) => s + parseFloat(t.amount), 0), [expenses]);
+  const resultado = totalIncome - totalExpense;
+
+  // Income grouped by type (VENTA, CARTERA, OTRO)
+  const incomeByType = useMemo(() => {
+    const grouped = {};
+    incomes.forEach((t) => {
+      const type = t.category || 'OTRO';
+      grouped[type] = (grouped[type] || 0) + parseFloat(t.amount);
     });
+    return Object.entries(grouped)
+      .map(([name, value]) => ({
+        name,
+        value: Math.round(value * 100) / 100,
+        color: INCOME_TYPE_COLORS[name] || '#D4AF37',
+        percentage: totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0.0',
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [incomes, totalIncome]);
 
-    // Sumar transacciones por día de la semana
-    dailyData.forEach((d) => {
-      const date = new Date(d.date);
-      const dayName = days[date.getDay()];
-      weekData[dayName].value += d.income + d.expense;
+  // Expenses grouped by category
+  const expenseByCategory = useMemo(() => {
+    const grouped = {};
+    expenses.forEach((t) => {
+      const cat = t.category || 'Sin categoría';
+      grouped[cat] = (grouped[cat] || 0) + parseFloat(t.amount);
     });
-
-    // Retornar en orden Lun-Dom
-    return ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => weekData[d]);
-  };
+    return Object.entries(grouped)
+      .map(([name, value], i) => ({
+        name,
+        value: Math.round(value * 100) / 100,
+        color: categoryColors[name] || EXPENSE_CATEGORY_COLORS[i % EXPENSE_CATEGORY_COLORS.length],
+        percentage: totalExpense > 0 ? ((value / totalExpense) * 100).toFixed(1) : '0.0',
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [expenses, totalExpense, categoryColors]);
 
   if (loading) {
     return (
@@ -172,16 +178,14 @@ export default function Dashboard() {
     );
   }
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomPieTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
+      const d = payload[0].payload;
       return (
         <div className="bg-dark-900 border border-dark-700 rounded-lg p-3 shadow-xl">
-          <p className="text-dark-400 text-sm mb-2">{label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: {formatCurrency(entry.value)}
-            </p>
-          ))}
+          <p className="text-white font-medium">{d.name}</p>
+          <p className="text-gold-400">{formatCurrency(d.value)}</p>
+          <p className="text-dark-400 text-sm">{d.percentage}%</p>
         </div>
       );
     }
@@ -189,442 +193,387 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-6 animate-fade-in">
+      {/* Header with Month Navigation */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-white">
-            ¡Bienvenido, {user?.name?.split(' ')[0] || 'Usuario'}!
+            Informe Mensual
           </h1>
           <p className="text-dark-400 mt-1">
-            Aquí tienes un resumen de tu situación financiera
+            ¡Hola, {user?.name?.split(' ')[0] || 'Usuario'}! Aquí tienes tu resumen financiero
           </p>
         </div>
-
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-4 py-2 bg-dark-900 border border-dark-800 rounded-xl">
-            <Calendar className="h-4 w-4 text-dark-400" />
-            <span className="text-sm text-dark-300">Enero 2026</span>
+          <div className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl">
+            <button
+              onClick={goToPrevMonth}
+              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2 px-3 py-2">
+              <Calendar className="h-4 w-4 text-gold-400" />
+              <span className="text-sm font-medium text-white min-w-[130px] text-center">
+                {MONTH_NAMES[selectedMonth]} {selectedYear}
+              </span>
+            </div>
+            <button
+              onClick={goToNextMonth}
+              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
           <Link to="/transactions/new?type=income">
             <Button size="sm" icon={Plus}>
-              Nuevo ingreso
+              Nuevo
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Balance Total"
-          value={formatCurrency(data.balance)}
-          icon={Wallet}
-          variant="gold"
-          trend="up"
-          trendValue="12.5%"
-        />
-        <StatCard
-          title="Ingresos del Mes"
-          value={formatCurrency(data.totalIncome)}
-          icon={TrendingUp}
-          variant="success"
-          trend="up"
-          trendValue="8.2%"
-        />
-        <StatCard
-          title="Gastos del Mes"
-          value={formatCurrency(data.totalExpenses)}
-          icon={TrendingDown}
-          variant="danger"
-          trend="down"
-          trendValue="3.1%"
-        />
-        <StatCard
-          title="Tasa de Ahorro"
-          value={`${data.savingsRate}%`}
-          subtitle={`${data.transactionsCount} transacciones`}
-          icon={Target}
-          variant="default"
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart */}
-        <Card className="lg:col-span-2 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-white">
-                Rendimiento Financiero
-              </h3>
-              <p className="text-sm text-dark-400">
-                Ingresos vs Gastos - Últimos 6 meses
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {['week', 'month', 'year'].map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setSelectedPeriod(period)}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                    selectedPeriod === period
-                      ? 'bg-gold-400/20 text-gold-400'
-                      : 'text-dark-400 hover:text-white hover:bg-dark-800'
-                  }`}
-                >
-                  {period === 'week' ? 'Semana' : period === 'month' ? 'Mes' : 'Año'}
-                </button>
-              ))}
-            </div>
+      {/* RESULTADO Principal */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-6 md:col-span-1 bg-gradient-to-br from-dark-900 to-dark-950 border-gold-400/30">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Resultado</span>
+            <Wallet className="h-5 w-5 text-gold-400" />
           </div>
-
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.monthlyData}>
-                <defs>
-                  <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#D4AF37" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorGastos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                <XAxis
-                  dataKey="month"
-                  stroke="#666"
-                  tick={{ fill: '#666', fontSize: 12 }}
-                />
-                <YAxis
-                  stroke="#666"
-                  tick={{ fill: '#666', fontSize: 12 }}
-                  tickFormatter={(value) => `$${value / 1000}k`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="ingresos"
-                  name="Ingresos"
-                  stroke="#D4AF37"
-                  strokeWidth={2}
-                  fill="url(#colorIngresos)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="gastos"
-                  name="Gastos"
-                  stroke="#EF4444"
-                  strokeWidth={2}
-                  fill="url(#colorGastos)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <p className={`text-3xl font-bold ${resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {formatCurrency(resultado)}
+          </p>
+          <p className="text-xs text-dark-500 mt-2">Ingresos − Gastos</p>
         </Card>
 
-        {/* Pie Chart */}
+        <Card className="p-6 border-emerald-500/20">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Total Ingresos</span>
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-emerald-400">{formatCurrency(totalIncome)}</p>
+          <p className="text-xs text-dark-500 mt-2">{incomes.length} registros</p>
+        </Card>
+
+        <Card className="p-6 border-red-500/20">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Total Gastos</span>
+            <div className="p-2 bg-red-500/10 rounded-lg">
+              <ArrowDownRight className="h-4 w-4 text-red-400" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-red-400">{formatCurrency(totalExpense)}</p>
+          <p className="text-xs text-dark-500 mt-2">{expenses.length} registros</p>
+        </Card>
+      </div>
+
+      {/* Breakdown: Income by Type + Expenses by Category */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* INGRESOS por Tipo */}
         <Card className="p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white">
-              Gastos por Categoría
-            </h3>
-            <p className="text-sm text-dark-400">Distribución este mes</p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Ingresos por Tipo</h3>
+              <p className="text-sm text-dark-400">Distribución {MONTH_NAMES[selectedMonth]}</p>
+            </div>
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
+            </div>
           </div>
 
-          <div className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPie>
-                <Pie
-                  data={data.expensesByCategory}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {data.expensesByCategory.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-dark-900 border border-dark-700 rounded-lg p-3 shadow-xl">
-                          <p className="text-white font-medium">{data.name}</p>
-                          <p className="text-gold-400">{formatCurrency(data.value)}</p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-              </RechartsPie>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="space-y-3 mt-4">
-            {data.expensesByCategory.map((category) => (
-              <div key={category.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <span className="text-sm text-dark-300">{category.name}</span>
-                </div>
-                <span className="text-sm font-medium text-white">
-                  {formatCurrency(category.value)}
-                </span>
+          {incomeByType.length > 0 ? (
+            <>
+              <div className="h-48 mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPie>
+                    <Pie
+                      data={incomeByType}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {incomeByType.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip />} />
+                  </RechartsPie>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
 
-      {/* Second Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weekly Activity */}
-        <Card className="p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white">
-              Actividad Semanal
-            </h3>
-            <p className="text-sm text-dark-400">Transacciones por día</p>
-          </div>
-
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.weeklyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                <XAxis
-                  dataKey="day"
-                  stroke="#666"
-                  tick={{ fill: '#666', fontSize: 11 }}
-                />
-                <YAxis
-                  stroke="#666"
-                  tick={{ fill: '#666', fontSize: 11 }}
-                  tickFormatter={(value) => `$${value / 1000}k`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Monto" fill="#D4AF37" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Targets Progress */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-white">Metas</h3>
-              <p className="text-sm text-dark-400">Progreso mensual</p>
-            </div>
-            <Link to="/goals" className="p-2 hover:bg-dark-800 rounded-lg transition-colors" title="Configurar metas">
-              <Target className="h-5 w-5 text-gold-400" />
-            </Link>
-          </div>
-
-          <div className="space-y-5">
-            {data.targets && data.targets.length > 0 ? (
-              data.targets.map((target) => {
-                const percentage = Math.min(
-                  (target.current / target.target) * 100,
-                  100
-                );
-                return (
-                  <div key={target.name || target.id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-dark-300">{target.name}</span>
-                      <span className="text-sm font-medium text-white">
-                        {Math.round(percentage)}%
-                      </span>
+              <div className="space-y-3">
+                {incomeByType.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-dark-300">{item.name}</span>
                     </div>
-                    <div className="h-2 bg-dark-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${percentage}%`,
-                          backgroundColor: target.color,
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between mt-1.5 text-xs text-dark-500">
-                      <span>{formatCurrency(target.current)}</span>
-                      <span>{formatCurrency(target.target)}</span>
+                    <div className="text-right">
+                      <span className="text-sm font-medium text-white">{formatCurrency(item.value)}</span>
+                      <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
                     </div>
                   </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-dark-400 text-sm mb-3">No hay metas configuradas</p>
-                <Link to="/goals" className="text-gold-400 text-sm hover:text-gold-300 font-medium">
-                  + Agregar primera meta
-                </Link>
+                ))}
+                <div className="flex items-center justify-between pt-3 border-t border-dark-800">
+                  <span className="text-sm font-semibold text-white">TOTAL</span>
+                  <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome)}</span>
+                </div>
               </div>
-            )}
-          </div>
-          
-          {data.targets && data.targets.length > 0 && (
-            <Link 
-              to="/goals" 
-              className="mt-4 flex items-center justify-center gap-2 text-gold-400 text-sm hover:text-gold-300 font-medium pt-4 border-t border-dark-800"
-            >
-              Administrar metas
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            </>
+          ) : (
+            <div className="text-center py-10 text-dark-400">
+              <ArrowUpRight className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No hay ingresos en este mes</p>
+            </div>
           )}
         </Card>
 
-        {/* Quick Actions */}
+        {/* GASTOS por Categoría */}
         <Card className="p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white">Acciones Rápidas</h3>
-            <p className="text-sm text-dark-400">Operaciones frecuentes</p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Gastos por Categoría</h3>
+              <p className="text-sm text-dark-400">Distribución {MONTH_NAMES[selectedMonth]}</p>
+            </div>
+            <div className="p-2 bg-red-500/10 rounded-lg">
+              <TrendingDown className="h-5 w-5 text-red-400" />
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <Link to="/transactions/new?type=income" className="block">
-              <div className="flex items-center gap-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-colors group">
-                <div className="p-3 bg-emerald-500/20 rounded-lg">
-                  <ArrowUpRight className="h-5 w-5 text-emerald-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-white">Registrar Ingreso</p>
-                  <p className="text-sm text-dark-400">Añadir nuevo ingreso</p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-dark-500 group-hover:text-emerald-400 transition-colors" />
+          {expenseByCategory.length > 0 ? (
+            <>
+              <div className="h-48 mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPie>
+                    <Pie
+                      data={expenseByCategory}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {expenseByCategory.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip />} />
+                  </RechartsPie>
+                </ResponsiveContainer>
               </div>
-            </Link>
 
-            <Link to="/transactions/new?type=expense" className="block">
-              <div className="flex items-center gap-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-colors group">
-                <div className="p-3 bg-red-500/20 rounded-lg">
-                  <ArrowDownRight className="h-5 w-5 text-red-400" />
+              <div className="space-y-3">
+                {expenseByCategory.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-dark-300">{item.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-medium text-white">{formatCurrency(item.value)}</span>
+                      <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-3 border-t border-dark-800">
+                  <span className="text-sm font-semibold text-white">TOTAL</span>
+                  <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense)}</span>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-white">Registrar Gasto</p>
-                  <p className="text-sm text-dark-400">Añadir nuevo gasto</p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-dark-500 group-hover:text-red-400 transition-colors" />
               </div>
-            </Link>
-
-            <Link to="/transactions" className="block">
-              <div className="flex items-center gap-4 p-4 bg-gold-400/10 border border-gold-400/20 rounded-xl hover:bg-gold-400/20 transition-colors group">
-                <div className="p-3 bg-gold-400/20 rounded-lg">
-                  <Activity className="h-5 w-5 text-gold-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-white">Ver Transacciones</p>
-                  <p className="text-sm text-dark-400">Historial completo</p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-dark-500 group-hover:text-gold-400 transition-colors" />
-              </div>
-            </Link>
-          </div>
+            </>
+          ) : (
+            <div className="text-center py-10 text-dark-400">
+              <ArrowDownRight className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No hay gastos en este mes</p>
+            </div>
+          )}
         </Card>
       </div>
 
-      {/* Recent Transactions */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-white">
-              Transacciones Recientes
+      {/* Detail Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Income Detail Table */}
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-dark-800">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+              Detalle Ingresos ({incomes.length})
             </h3>
-            <p className="text-sm text-dark-400">Últimos movimientos</p>
+            <Link to="/transactions" className="text-xs text-gold-400 hover:text-gold-300">
+              Ver todos →
+            </Link>
           </div>
-          <Link to="/transactions">
-            <Button variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
-              Ver todas
-            </Button>
-          </Link>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-dark-800">
-                <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                  Descripción
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                  Categoría
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
-                  Fecha
-                </th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-dark-400">
-                  Monto
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recentTransactions.map((transaction) => (
-                <tr
-                  key={transaction.id}
-                  className="border-b border-dark-800/50 hover:bg-dark-800/30 transition-colors"
-                >
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-lg ${
-                          transaction.type === 'income'
-                            ? 'bg-emerald-500/20'
-                            : 'bg-red-500/20'
-                        }`}
-                      >
-                        {transaction.type === 'income' ? (
-                          <ArrowUpRight
-                            className={`h-4 w-4 ${
-                              transaction.type === 'income'
-                                ? 'text-emerald-400'
-                                : 'text-red-400'
-                            }`}
-                          />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4 text-red-400" />
-                        )}
-                      </div>
-                      <span className="text-white font-medium">
-                        {transaction.description}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="inline-flex items-center px-2.5 py-1 bg-dark-800 text-dark-300 text-xs rounded-lg">
-                      {transaction.category}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-dark-400 text-sm">
-                    {formatDate(transaction.date)}
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <span
-                      className={`font-semibold ${
-                        transaction.type === 'income'
-                          ? 'text-emerald-400'
-                          : 'text-red-400'
-                      }`}
-                    >
-                      {transaction.type === 'income' ? '+' : '-'}
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-dark-900">
+                <tr>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Fecha</th>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Nº Fac</th>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Tipo</th>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Nombre</th>
+                  <th className="text-right py-3 px-3 text-xs font-medium text-dark-500">Monto</th>
+                  <th className="text-center py-3 px-3 text-xs font-medium text-dark-500">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              </thead>
+              <tbody>
+                {incomes.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-dark-400 text-sm">
+                      Sin ingresos registrados
+                    </td>
+                  </tr>
+                ) : (
+                  [...incomes]
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map((t) => (
+                      <tr key={t.id} className="border-t border-dark-800/50 hover:bg-dark-800/30">
+                        <td className="py-2.5 px-3 text-dark-400">{formatDate(t.date, 'short')}</td>
+                        <td className="py-2.5 px-3 text-dark-300">{t.invoice_number || '—'}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`inline-flex px-2 py-0.5 text-xs rounded font-medium ${
+                            t.category === 'VENTA' ? 'bg-emerald-500/20 text-emerald-400'
+                            : t.category === 'CARTERA' ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-amber-500/20 text-amber-400'
+                          }`}>
+                            {t.category || 'OTRO'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-white font-medium">{t.client_name || '—'}</td>
+                        <td className="py-2.5 px-3 text-right text-emerald-400 font-medium">{formatCurrency(t.amount)}</td>
+                        <td className="py-2.5 px-3 text-center">
+                          {t.invoice_status ? (
+                            <span className={`inline-flex px-2 py-0.5 text-xs rounded ${
+                              t.invoice_status === 'FACTURADO'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {t.invoice_status === 'FACTURADO' ? 'FAC' : 'NO FAC'}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {incomes.length > 0 && (
+            <div className="px-4 py-3 border-t border-dark-800 bg-dark-900/50 flex justify-between items-center">
+              <span className="text-xs text-dark-400">Total Ingresos</span>
+              <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome)}</span>
+            </div>
+          )}
+        </Card>
+
+        {/* Expense Detail Table */}
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-dark-800">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+              Detalle Gastos ({expenses.length})
+            </h3>
+            <Link to="/transactions" className="text-xs text-gold-400 hover:text-gold-300">
+              Ver todos →
+            </Link>
+          </div>
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-dark-900">
+                <tr>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Fecha</th>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Proveedor</th>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Categoría</th>
+                  <th className="text-left py-3 px-3 text-xs font-medium text-dark-500">Método</th>
+                  <th className="text-right py-3 px-3 text-xs font-medium text-dark-500">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-dark-400 text-sm">
+                      Sin gastos registrados
+                    </td>
+                  </tr>
+                ) : (
+                  [...expenses]
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map((t) => (
+                      <tr key={t.id} className="border-t border-dark-800/50 hover:bg-dark-800/30">
+                        <td className="py-2.5 px-3 text-dark-400">{formatDate(t.date, 'short')}</td>
+                        <td className="py-2.5 px-3 text-white font-medium">{t.provider_name || '—'}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="inline-flex px-2 py-0.5 bg-dark-800 text-dark-300 text-xs rounded">
+                            {t.category || '—'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-dark-400">{t.payment_method || '—'}</td>
+                        <td className="py-2.5 px-3 text-right text-red-400 font-medium">{formatCurrency(t.amount)}</td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {expenses.length > 0 && (
+            <div className="px-4 py-3 border-t border-dark-800 bg-dark-900/50 flex justify-between items-center">
+              <span className="text-xs text-dark-400">Total Gastos</span>
+              <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense)}</span>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link to="/transactions/new?type=income" className="block">
+          <Card className="p-4 border-emerald-500/10 hover:border-emerald-500/30 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-emerald-500/10 rounded-lg">
+                <ArrowUpRight className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-white">Registrar Ingreso</p>
+                <p className="text-xs text-dark-400">Añadir nuevo ingreso</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-dark-600 group-hover:text-emerald-400 transition-colors" />
+            </div>
+          </Card>
+        </Link>
+
+        <Link to="/transactions/new?type=expense" className="block">
+          <Card className="p-4 border-red-500/10 hover:border-red-500/30 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-red-500/10 rounded-lg">
+                <ArrowDownRight className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-white">Registrar Gasto</p>
+                <p className="text-xs text-dark-400">Añadir nuevo gasto</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-dark-600 group-hover:text-red-400 transition-colors" />
+            </div>
+          </Card>
+        </Link>
+
+        <Link to="/annual-report" className="block">
+          <Card className="p-4 border-gold-400/10 hover:border-gold-400/30 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gold-400/10 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-gold-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-white">Informe Anual</p>
+                <p className="text-xs text-dark-400">Ver resumen del año</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-dark-600 group-hover:text-gold-400 transition-colors" />
+            </div>
+          </Card>
+        </Link>
+      </div>
     </div>
   );
 }

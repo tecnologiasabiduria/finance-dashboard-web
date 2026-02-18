@@ -1,6 +1,6 @@
 # Contexto del Proyecto: Finance Dashboard
 
-> **Última actualización:** 18 de febrero de 2026
+> **Última actualización:** 19 de febrero de 2026
 
 ---
 
@@ -214,9 +214,21 @@ transactions (
   user_id UUID,
   type VARCHAR,                     -- 'income', 'expense'
   amount NUMERIC,
-  category VARCHAR,
-  description TEXT,
+  category VARCHAR,                 -- Income: 'VENTA'|'CARTERA'|'OTRO', Expense: categoría libre
+  description TEXT,                 -- Expense: notas
   date DATE,
+  -- Campos de INGRESOS (solo para type='income')
+  invoice_number TEXT,              -- Nº de factura
+  client_document TEXT,             -- Documento del cliente (NIT/CC)
+  client_name TEXT,                 -- Nombre del cliente
+  client_address TEXT,              -- Dirección del cliente
+  client_email TEXT,                -- Correo del cliente
+  client_phone TEXT,                -- Teléfono del cliente
+  invoice_status TEXT,              -- 'FACTURADO' | 'NO FACTURADO'
+  -- Campos de GASTOS (solo para type='expense')
+  provider_document TEXT,           -- Documento del proveedor (NIT/CC)
+  provider_name TEXT,               -- Nombre del proveedor
+  payment_method TEXT,              -- Método de pago (Bancolombia, Nequi, etc.)
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 )
@@ -379,7 +391,23 @@ Usuario → "Conectar Google Sheet" (botón en Settings)
 
 ### Frontend ✅
 - [x] Login / Registro
-- [x] Dashboard con gráficos (Recharts)
+- [x] Dashboard → **Informe Mensual** (INFORME MES A MES)
+  - Navegador de mes/año
+  - Resultado (Ingresos − Gastos)
+  - Ingresos por Tipo (VENTA/CARTERA/OTRO) con % y pie chart
+  - Gastos por Categoría con % y pie chart
+  - Tablas detalle: Ingresos (fecha, factura, tipo, nombre, monto, status) y Gastos (fecha, proveedor, categoría, método, monto)
+- [x] **Informe Anual** (`/annual-report`) — página nueva
+  - Selector de año
+  - Grilla Ingresos: tipo × mes (Ene-Dic) con totales
+  - Grilla Gastos: categoría × mes (Ene-Dic) con totales
+  - Grilla Resultado mensual
+  - Gráfico de barras Ingresos vs Gastos
+- [x] **Formulario de Ingresos** con campos:
+  - Factura Nº, Tipo (VENTA/CARTERA/OTRO), Datos del cliente (documento, nombre, dirección, correo, teléfono), Estado facturación
+- [x] **Formulario de Gastos** con campos:
+  - Proveedor (documento, nombre), Categoría, Método de Pago (Bancolombia, Davivienda, Nequi, etc.), Notas
+- [x] **Lista de Transacciones** con pestañas Ingresos/Gastos y columnas específicas por tipo
 - [x] CRUD de transacciones
 - [x] Categorías personalizadas
 - [x] Metas de ahorro
@@ -391,13 +419,14 @@ Usuario → "Conectar Google Sheet" (botón en Settings)
 - [x] Cliente Supabase en frontend (`src/lib/supabase.js`)
 - [x] Diseño dark theme + dorado
 - [x] Responsive design
+- [x] Moneda COP (pesos colombianos)
 
 ### Backend ✅
 - [x] Auth endpoints (login, register, me, profile, password)
-- [x] CRUD transactions
+- [x] CRUD transactions (con campos extendidos para ingresos/gastos)
 - [x] CRUD categories
 - [x] CRUD goals
-- [x] Dashboard summary
+- [x] Dashboard summary (incluye `incomesByCategory`)
 - [x] Middleware de autenticación (JWT)
 - [x] Middleware de suscripción (verifica profiles → fallback subscriptions)
 - [x] Webhooks Stripe (handlers listos)
@@ -548,10 +577,11 @@ finance-dashboard-api/
 | `/auth/callback` | AuthCallback | Sin guardia | Procesa magic link de Supabase |
 | `/create-password` | CreatePassword | Sin guardia | Nuevo usuario crea contraseña |
 | `/subscription-required` | SubscriptionRequired | Sin guardia | Suscripción inactiva |
-| `/dashboard` | Dashboard | ProtectedRoute | Panel principal |
-| `/transactions` | Transactions | ProtectedRoute | Lista transacciones |
-| `/transactions/new` | TransactionForm | ProtectedRoute | Crear transacción |
+| `/dashboard` | Dashboard | ProtectedRoute | Informe Mensual (mes a mes) |
+| `/transactions` | Transactions | ProtectedRoute | Lista con pestañas Ingresos/Gastos |
+| `/transactions/new` | TransactionForm | ProtectedRoute | Crear ingreso o gasto |
 | `/transactions/:id` | TransactionForm | ProtectedRoute | Editar transacción |
+| `/annual-report` | AnnualReport | ProtectedRoute | Informe Anual (tipo × mes) |
 | `/goals` | Goals | ProtectedRoute | Metas de ahorro |
 | `/categories` | Categories | ProtectedRoute | Categorías |
 | `/settings` | Settings | ProtectedRoute | Configuración |

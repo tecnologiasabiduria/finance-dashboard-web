@@ -7,32 +7,46 @@ import {
   ArrowDownRight,
   Calendar,
   DollarSign,
-  Tag,
   FileText,
   Plus,
+  User,
+  MapPin,
+  Mail,
+  Phone,
+  Hash,
+  Building,
+  Receipt,
 } from 'lucide-react';
-import { Button, Input, Select, Card } from '../components/ui';
+import { Button, Select, Card } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-// Categorías por defecto (fallback)
-const DEFAULT_CATEGORIES = {
-  income: [
-    { value: 'salario', label: 'Salario' },
-    { value: 'freelance', label: 'Freelance' },
-    { value: 'inversiones', label: 'Inversiones' },
-    { value: 'otros ingresos', label: 'Otros Ingresos' },
-  ],
-  expense: [
-    { value: 'alimentación', label: 'Alimentación' },
-    { value: 'transporte', label: 'Transporte' },
-    { value: 'servicios', label: 'Servicios' },
-    { value: 'entretenimiento', label: 'Entretenimiento' },
-    { value: 'salud', label: 'Salud' },
-    { value: 'educación', label: 'Educación' },
-    { value: 'otros gastos', label: 'Otros Gastos' },
-  ],
-};
+// Tipos de ingreso fijos (como en el Sheet)
+const INCOME_TYPES = [
+  { value: 'VENTA', label: 'Venta' },
+  { value: 'CARTERA', label: 'Cartera' },
+  { value: 'OTRO', label: 'Otro' },
+];
+
+// Status de facturación
+const INVOICE_STATUS_OPTIONS = [
+  { value: 'FACTURADO', label: 'Facturado' },
+  { value: 'NO FACTURADO', label: 'No Facturado' },
+];
+
+// Métodos de pago comunes
+const PAYMENT_METHODS = [
+  { value: 'Bancolombia', label: 'Bancolombia' },
+  { value: 'Davivienda', label: 'Davivienda' },
+  { value: 'Nequi', label: 'Nequi' },
+  { value: 'Daviplata', label: 'Daviplata' },
+  { value: 'Efectivo', label: 'Efectivo' },
+  { value: 'Tarjeta de Crédito', label: 'Tarjeta de Crédito' },
+  { value: 'Tarjeta de Débito', label: 'Tarjeta de Débito' },
+  { value: 'Transferencia', label: 'Transferencia' },
+  { value: 'PSE', label: 'PSE' },
+  { value: 'Otro', label: 'Otro' },
+];
 
 export default function TransactionForm() {
   const navigate = useNavigate();
@@ -42,31 +56,44 @@ export default function TransactionForm() {
   const isEditing = !!id;
 
   const [formData, setFormData] = useState({
-    type: searchParams.get('type') || 'expense',
+    type: searchParams.get('type') || 'income',
     amount: '',
     category: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
+    // Campos de ingreso
+    invoice_number: '',
+    client_document: '',
+    client_name: '',
+    client_address: '',
+    client_email: '',
+    client_phone: '',
+    invoice_status: '',
+    // Campos de gasto
+    provider_document: '',
+    provider_name: '',
+    payment_method: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditing);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [expenseCategories, setExpenseCategories] = useState([]);
 
-  // Cargar categorías personalizadas
+  // Cargar categorías de gasto personalizadas
   useEffect(() => {
     const loadCategories = async () => {
       try {
         const response = await api.getCategories();
-        if (response.data.grouped) {
-          setCategories({
-            income: response.data.grouped.income?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.income,
-            expense: response.data.grouped.expense?.map(c => ({ value: c.name.toLowerCase(), label: c.name })) || DEFAULT_CATEGORIES.expense,
-          });
+        if (response.data.grouped?.expense) {
+          setExpenseCategories(
+            response.data.grouped.expense.map((c) => ({
+              value: c.name,
+              label: c.name,
+            }))
+          );
         }
       } catch (err) {
         console.error('Error loading categories:', err);
-        // Usar categorías por defecto en caso de error
       }
     };
     loadCategories();
@@ -81,9 +108,19 @@ export default function TransactionForm() {
           setFormData({
             type: t.type,
             amount: String(t.amount),
-            category: t.category.toLowerCase(),
+            category: t.category || '',
             description: t.description || '',
             date: t.date,
+            invoice_number: t.invoice_number || '',
+            client_document: t.client_document || '',
+            client_name: t.client_name || '',
+            client_address: t.client_address || '',
+            client_email: t.client_email || '',
+            client_phone: t.client_phone || '',
+            invoice_status: t.invoice_status || '',
+            provider_document: t.provider_document || '',
+            provider_name: t.provider_name || '',
+            payment_method: t.payment_method || '',
           });
         } catch (err) {
           console.error('Error loading transaction:', err);
@@ -97,19 +134,18 @@ export default function TransactionForm() {
 
   const validateForm = () => {
     const newErrors = {};
-
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'El monto debe ser mayor a 0';
     }
-
-    if (!formData.category) {
-      newErrors.category = 'Selecciona una categoría';
-    }
-
     if (!formData.date) {
       newErrors.date = 'La fecha es requerida';
     }
-
+    if (formData.type === 'income' && !formData.category) {
+      newErrors.category = 'Selecciona el tipo de ingreso';
+    }
+    if (formData.type === 'expense' && !formData.category) {
+      newErrors.category = 'Selecciona una categoría';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -126,33 +162,47 @@ export default function TransactionForm() {
     setFormData((prev) => ({
       ...prev,
       type,
-      category: '', // Reset category when type changes
+      category: '',
+      invoice_number: '', client_document: '', client_name: '',
+      client_address: '', client_email: '', client_phone: '',
+      invoice_status: '', provider_document: '', provider_name: '',
+      payment_method: '',
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
-
     setLoading(true);
 
     try {
-      // Preparar datos con category capitalizada
       const transactionData = {
         type: formData.type,
         amount: parseFloat(formData.amount),
-        category: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
-        description: formData.description,
+        category: formData.category,
+        description: formData.description || null,
         date: formData.date,
       };
+
+      if (formData.type === 'income') {
+        transactionData.invoice_number = formData.invoice_number || null;
+        transactionData.client_document = formData.client_document || null;
+        transactionData.client_name = formData.client_name || null;
+        transactionData.client_address = formData.client_address || null;
+        transactionData.client_email = formData.client_email || null;
+        transactionData.client_phone = formData.client_phone || null;
+        transactionData.invoice_status = formData.invoice_status || null;
+      } else {
+        transactionData.provider_document = formData.provider_document || null;
+        transactionData.provider_name = formData.provider_name || null;
+        transactionData.payment_method = formData.payment_method || null;
+      }
 
       if (isEditing) {
         await api.updateTransaction(id, transactionData);
       } else {
         await api.createTransaction(transactionData);
       }
-
       navigate('/transactions');
     } catch (err) {
       console.error('Error saving transaction:', err);
@@ -173,8 +223,17 @@ export default function TransactionForm() {
     );
   }
 
+  // Clase base para inputs
+  const inputClass = `w-full pl-12 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-lg
+    text-white placeholder-dark-500 focus:outline-none focus:border-gold-400
+    focus:ring-2 focus:ring-gold-400/20 transition-all duration-300`;
+
+  const inputErrorClass = `w-full pl-12 pr-4 py-3 bg-dark-900 border rounded-lg
+    text-white placeholder-dark-600 focus:outline-none focus:ring-2 transition-all duration-300
+    border-red-500 focus:border-red-500 focus:ring-red-500/20`;
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
@@ -185,12 +244,12 @@ export default function TransactionForm() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-white">
-            {isEditing ? 'Editar Transacción' : 'Nueva Transacción'}
+            {isEditing ? 'Editar Registro' : 'Nuevo Registro'}
           </h1>
           <p className="text-dark-400 mt-1">
             {isEditing
-              ? 'Modifica los detalles de la transacción'
-              : 'Registra un nuevo movimiento financiero'}
+              ? 'Modifica los detalles del registro'
+              : 'Registra un nuevo ingreso o gasto'}
           </p>
         </div>
       </div>
@@ -201,7 +260,7 @@ export default function TransactionForm() {
           {/* Transaction Type */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-dark-200">
-              Tipo de transacción
+              Tipo de registro
             </label>
             <div className="grid grid-cols-2 gap-4">
               <button
@@ -213,26 +272,10 @@ export default function TransactionForm() {
                     : 'border-dark-700 hover:border-dark-600'
                 }`}
               >
-                <div
-                  className={`p-2 rounded-lg ${
-                    formData.type === 'income'
-                      ? 'bg-emerald-500/20'
-                      : 'bg-dark-800'
-                  }`}
-                >
-                  <ArrowUpRight
-                    className={`h-5 w-5 ${
-                      formData.type === 'income'
-                        ? 'text-emerald-400'
-                        : 'text-dark-400'
-                    }`}
-                  />
+                <div className={`p-2 rounded-lg ${formData.type === 'income' ? 'bg-emerald-500/20' : 'bg-dark-800'}`}>
+                  <ArrowUpRight className={`h-5 w-5 ${formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'}`} />
                 </div>
-                <span
-                  className={`font-medium ${
-                    formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'
-                  }`}
-                >
+                <span className={`font-medium ${formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'}`}>
                   Ingreso
                 </span>
               </button>
@@ -246,142 +289,229 @@ export default function TransactionForm() {
                     : 'border-dark-700 hover:border-dark-600'
                 }`}
               >
-                <div
-                  className={`p-2 rounded-lg ${
-                    formData.type === 'expense' ? 'bg-red-500/20' : 'bg-dark-800'
-                  }`}
-                >
-                  <ArrowDownRight
-                    className={`h-5 w-5 ${
-                      formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'
-                    }`}
-                  />
+                <div className={`p-2 rounded-lg ${formData.type === 'expense' ? 'bg-red-500/20' : 'bg-dark-800'}`}>
+                  <ArrowDownRight className={`h-5 w-5 ${formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'}`} />
                 </div>
-                <span
-                  className={`font-medium ${
-                    formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'
-                  }`}
-                >
+                <span className={`font-medium ${formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'}`}>
                   Gasto
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-dark-200">
-              Monto
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-              <input
-                type="number"
-                name="amount"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={formData.amount}
-                onChange={handleChange}
-                className={`w-full pl-12 pr-4 py-3 bg-dark-900 border rounded-lg
-                          text-white text-2xl font-bold placeholder-dark-600
-                          focus:outline-none focus:ring-2 transition-all duration-300 ${
-                            errors.amount
-                              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                              : 'border-dark-700 focus:border-gold-400 focus:ring-gold-400/20'
-                          }`}
-              />
+          {/* Common: Date + Amount */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-dark-200">Fecha *</label>
+              <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  className={errors.date ? inputErrorClass : inputClass}
+                />
+              </div>
+              {errors.date && <p className="text-sm text-red-400">{errors.date}</p>}
             </div>
-            {errors.amount && (
-              <p className="text-sm text-red-400">{errors.amount}</p>
-            )}
-          </div>
 
-          {/* Category */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="space-y-2">
               <label className="block text-sm font-medium text-dark-200">
-                Categoría
+                {formData.type === 'income' ? 'Ingreso COP *' : 'Gasto Total COP *'}
               </label>
-              <Link
-                to="/categories"
-                className="text-xs text-gold-400 hover:text-gold-300 flex items-center gap-1"
-              >
-                <Plus className="h-3 w-3" />
-                Gestionar
-              </Link>
-            </div>
-            <Select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              options={categories[formData.type]}
-              placeholder="Selecciona una categoría"
-              error={errors.category}
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-dark-200">
-              Descripción (opcional)
-            </label>
-            <div className="relative">
-              <FileText className="absolute left-4 top-4 h-5 w-5 text-dark-400" />
-              <textarea
-                name="description"
-                placeholder="Añade una descripción..."
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="w-full pl-12 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-lg
-                         text-white placeholder-dark-500
-                         focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20
-                         transition-all duration-300 resize-none"
-              />
+              <div className="relative">
+                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                <input
+                  type="number"
+                  name="amount"
+                  step="1"
+                  min="0"
+                  placeholder="0"
+                  value={formData.amount}
+                  onChange={handleChange}
+                  className={`${errors.amount ? inputErrorClass : inputClass} text-xl font-bold`}
+                />
+              </div>
+              {errors.amount && <p className="text-sm text-red-400">{errors.amount}</p>}
             </div>
           </div>
 
-          {/* Date */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-dark-200">
-              Fecha
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-              <input
-                type="date"
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                className={`w-full pl-12 pr-4 py-3 bg-dark-900 border rounded-lg
-                          text-white
-                          focus:outline-none focus:ring-2 transition-all duration-300 ${
-                            errors.date
-                              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                              : 'border-dark-700 focus:border-gold-400 focus:ring-gold-400/20'
-                          }`}
-              />
-            </div>
-            {errors.date && (
-              <p className="text-sm text-red-400">{errors.date}</p>
-            )}
-          </div>
+          {/* ======= INCOME FIELDS ======= */}
+          {formData.type === 'income' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Factura Nº</label>
+                  <div className="relative">
+                    <Receipt className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input
+                      type="text"
+                      name="invoice_number"
+                      placeholder="Número de factura"
+                      value={formData.invoice_number}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
 
-          {/* Submit Buttons */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Tipo de Ingreso *</label>
+                  <Select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    options={INCOME_TYPES}
+                    placeholder="Selecciona tipo"
+                    error={errors.category}
+                  />
+                </div>
+              </div>
+
+              {/* Client Info */}
+              <div className="border-t border-dark-800 pt-6">
+                <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Datos del Cliente
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-dark-200">Documento</label>
+                    <div className="relative">
+                      <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input type="text" name="client_document" placeholder="NIT o CC" value={formData.client_document} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-dark-200">Nombre</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input type="text" name="client_name" placeholder="Nombre del cliente" value={formData.client_name} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="block text-sm font-medium text-dark-200">Dirección</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input type="text" name="client_address" placeholder="Dirección del cliente" value={formData.client_address} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-dark-200">Correo</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input type="email" name="client_email" placeholder="correo@ejemplo.com" value={formData.client_email} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-dark-200">Teléfono</label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input type="tel" name="client_phone" placeholder="+57 300 123 4567" value={formData.client_phone} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Status */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-dark-200">Estado de Facturación</label>
+                <Select
+                  name="invoice_status"
+                  value={formData.invoice_status}
+                  onChange={handleChange}
+                  options={INVOICE_STATUS_OPTIONS}
+                  placeholder="Selecciona estado"
+                />
+              </div>
+            </>
+          )}
+
+          {/* ======= EXPENSE FIELDS ======= */}
+          {formData.type === 'expense' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Documento Proveedor</label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input type="text" name="provider_document" placeholder="NIT o documento" value={formData.provider_document} onChange={handleChange} className={inputClass} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Proveedor</label>
+                  <div className="relative">
+                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input type="text" name="provider_name" placeholder="Nombre del proveedor" value={formData.provider_name} onChange={handleChange} className={inputClass} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-dark-200">Categoría *</label>
+                    <Link to="/categories" className="text-xs text-gold-400 hover:text-gold-300 flex items-center gap-1">
+                      <Plus className="h-3 w-3" />Gestionar
+                    </Link>
+                  </div>
+                  <Select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    options={expenseCategories}
+                    placeholder="Selecciona categoría"
+                    error={errors.category}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Método de Pago</label>
+                  <Select
+                    name="payment_method"
+                    value={formData.payment_method}
+                    onChange={handleChange}
+                    options={PAYMENT_METHODS}
+                    placeholder="Selecciona método"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-dark-200">Notas</label>
+                <div className="relative">
+                  <FileText className="absolute left-4 top-4 h-5 w-5 text-dark-400" />
+                  <textarea
+                    name="description"
+                    placeholder="Notas adicionales..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full pl-12 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-lg
+                             text-white placeholder-dark-500
+                             focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20
+                             transition-all duration-300 resize-none"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Submit Error */}
+          {errors.submit && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-red-400 text-sm">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Buttons */}
           <div className="flex gap-4 pt-4">
             <Link to="/transactions" className="flex-1">
-              <Button variant="secondary" className="w-full">
-                Cancelar
-              </Button>
+              <Button variant="secondary" className="w-full">Cancelar</Button>
             </Link>
-            <Button
-              type="submit"
-              className="flex-1"
-              loading={loading}
-              icon={Save}
-            >
-              {isEditing ? 'Guardar cambios' : 'Crear transacción'}
+            <Button type="submit" className="flex-1" loading={loading} icon={Save}>
+              {isEditing ? 'Guardar cambios' : 'Registrar'}
             </Button>
           </div>
         </form>

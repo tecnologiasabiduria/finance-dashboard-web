@@ -12,6 +12,7 @@ import {
   TrendingDown,
   Target,
   Tag,
+  BarChart3,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -35,6 +36,11 @@ const navigation = [
     name: 'Nuevo Gasto',
     href: '/transactions/new?type=expense',
     icon: TrendingDown,
+  },
+  {
+    name: 'Informe Anual',
+    href: '/annual-report',
+    icon: BarChart3,
   },
   {
     name: 'Metas',

@@ -1,12 +1,12 @@
 /**
- * Formatea un número como moneda
+ * Formatea un número como moneda colombiana (COP)
  */
-export function formatCurrency(amount, currency = 'USD') {
-  return new Intl.NumberFormat('es-MX', {
+export function formatCurrency(amount, currency = 'COP') {
+  return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
