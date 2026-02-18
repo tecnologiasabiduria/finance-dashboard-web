@@ -6,6 +6,8 @@ import { DashboardLayout } from './components/layout';
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AuthCallback from './pages/AuthCallback';
+import CreatePassword from './pages/CreatePassword';
 import SubscriptionRequired from './pages/SubscriptionRequired';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
@@ -37,6 +39,8 @@ function App() {
             }
           />
           <Route path="/subscription-required" element={<SubscriptionRequired />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/create-password" element={<CreatePassword />} />
 
           {/* Protected Routes with Dashboard Layout */}
           <Route

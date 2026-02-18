@@ -255,7 +255,7 @@ Deno.serve(async (req: Request) => {
     if (profileSearchError) {
       console.error("❌ Error buscando profile:", profileSearchError.message);
       return jsonResponse(
-        { success: false, message: "Error verificando usuario" },
+        { success: false, SITE_URL = https://app.sabiduriaempresarial.commessage: "Error verificando usuario" },
         500
       );
     }
@@ -314,7 +314,7 @@ Deno.serve(async (req: Request) => {
           phone: userPhone,
           source: "ghl_webhook",
         },
-        redirectTo: `${Deno.env.get("SITE_URL") || "https://tu-app.com"}/auth/callback`,
+        redirectTo: `${Deno.env.get("SITE_URL") || "https://app.sabiduriaempresarial.com"}/auth/callback`,
       }
     );
 
