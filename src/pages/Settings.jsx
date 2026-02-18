@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { User, Mail, Lock, Bell, Shield, Palette, Save } from 'lucide-react';
-import { Button, Input, Card } from '../components/ui';
+import { User, Mail, Lock, Bell, Shield, Palette, Save, Sun, Moon } from 'lucide-react';
+import { Button, Input, Card, Select } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 
 export default function Settings() {
   const { user } = useAuth();
+  const { theme, setTheme, currency, setCurrency, CURRENCIES } = useSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -335,55 +337,58 @@ export default function Settings() {
                   <label className="block text-sm font-medium text-dark-200 mb-3">
                     Tema
                   </label>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { id: 'dark', label: 'Oscuro', active: true },
-                      { id: 'light', label: 'Claro', active: false },
-                      { id: 'system', label: 'Sistema', active: false },
-                    ].map((theme) => (
-                      <button
-                        key={theme.id}
-                        className={`p-4 rounded-xl border-2 transition-all ${
-                          theme.active
-                            ? 'border-gold-400 bg-gold-400/10'
-                            : 'border-dark-700 opacity-50 cursor-not-allowed'
-                        }`}
-                        disabled={!theme.active}
-                      >
-                        <div
-                          className={`h-16 rounded-lg mb-3 ${
-                            theme.id === 'dark'
-                              ? 'bg-dark-950'
-                              : theme.id === 'light'
-                              ? 'bg-gray-100'
-                              : 'bg-gradient-to-r from-dark-950 to-gray-100'
-                          }`}
-                        />
-                        <p
-                          className={`text-sm font-medium ${
-                            theme.active ? 'text-gold-400' : 'text-dark-400'
-                          }`}
-                        >
-                          {theme.label}
-                        </p>
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        theme === 'dark'
+                          ? 'border-gold-400 bg-gold-400/10'
+                          : 'border-dark-700 hover:border-dark-600'
+                      }`}
+                    >
+                      <div className="h-16 rounded-lg mb-3 bg-dark-950 border border-dark-800 flex items-center justify-center">
+                        <Moon className="h-6 w-6 text-gold-400" />
+                      </div>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gold-400' : 'text-dark-400'}`}>
+                        Oscuro
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        theme === 'light'
+                          ? 'border-gold-400 bg-gold-400/10'
+                          : 'border-dark-700 hover:border-dark-600'
+                      }`}
+                    >
+                      <div className="h-16 rounded-lg mb-3 bg-gray-100 border border-gray-200 flex items-center justify-center">
+                        <Sun className="h-6 w-6 text-amber-500" />
+                      </div>
+                      <p className={`text-sm font-medium ${theme === 'light' ? 'text-gold-400' : 'text-dark-400'}`}>
+                        Claro
+                      </p>
+                    </button>
                   </div>
-                  <p className="text-xs text-dark-500 mt-2">
-                    Más temas próximamente
-                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-dark-200 mb-3">
                     Moneda predeterminada
                   </label>
-                  <select className="w-full px-4 py-3 bg-dark-900 border border-dark-700 rounded-lg text-white focus:outline-none focus:border-gold-400">
-                    <option value="USD">USD - Dólar estadounidense</option>
-                    <option value="MXN">MXN - Peso mexicano</option>
-                    <option value="EUR">EUR - Euro</option>
-                    <option value="COP">COP - Peso colombiano</option>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full px-4 py-3 bg-dark-900 border border-dark-700 rounded-lg text-white focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20 transition-all"
+                  >
+                    {Object.values(CURRENCIES).map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
                   </select>
+                  <p className="text-xs text-dark-500 mt-2">
+                    Se aplicará a todas las transacciones e informes
+                  </p>
                 </div>
               </div>
             </Card>

@@ -25,6 +25,7 @@ import {
 } from 'recharts';
 import { Card, Button, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, formatDate, calculatePercentage } from '../utils/formatters';
 import { api } from '../services/api';
 
@@ -46,6 +47,7 @@ const MONTH_NAMES = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { currency } = useSettings();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -184,7 +186,7 @@ export default function Dashboard() {
       return (
         <div className="bg-dark-900 border border-dark-700 rounded-lg p-3 shadow-xl">
           <p className="text-white font-medium">{d.name}</p>
-          <p className="text-gold-400">{formatCurrency(d.value)}</p>
+          <p className="text-gold-400">{formatCurrency(d.value, currency)}</p>
           <p className="text-dark-400 text-sm">{d.percentage}%</p>
         </div>
       );
@@ -241,7 +243,7 @@ export default function Dashboard() {
             <Wallet className="h-5 w-5 text-gold-400" />
           </div>
           <p className={`text-3xl font-bold ${resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatCurrency(resultado)}
+            {formatCurrency(resultado, currency)}
           </p>
           <p className="text-xs text-dark-500 mt-2">Ingresos − Gastos</p>
         </Card>
@@ -253,7 +255,7 @@ export default function Dashboard() {
               <ArrowUpRight className="h-4 w-4 text-emerald-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-emerald-400">{formatCurrency(totalIncome)}</p>
+          <p className="text-3xl font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</p>
           <p className="text-xs text-dark-500 mt-2">{incomes.length} registros</p>
         </Card>
 
@@ -264,7 +266,7 @@ export default function Dashboard() {
               <ArrowDownRight className="h-4 w-4 text-red-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-red-400">{formatCurrency(totalExpense)}</p>
+          <p className="text-3xl font-bold text-red-400">{formatCurrency(totalExpense, currency)}</p>
           <p className="text-xs text-dark-500 mt-2">{expenses.length} registros</p>
         </Card>
       </div>
@@ -314,14 +316,14 @@ export default function Dashboard() {
                       <span className="text-sm text-dark-300">{item.name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-medium text-white">{formatCurrency(item.value)}</span>
+                      <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
                       <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
                     </div>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-3 border-t border-dark-800">
                   <span className="text-sm font-semibold text-white">TOTAL</span>
-                  <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome)}</span>
+                  <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</span>
                 </div>
               </div>
             </>
@@ -376,14 +378,14 @@ export default function Dashboard() {
                       <span className="text-sm text-dark-300">{item.name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-medium text-white">{formatCurrency(item.value)}</span>
+                      <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
                       <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
                     </div>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-3 border-t border-dark-800">
                   <span className="text-sm font-semibold text-white">TOTAL</span>
-                  <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense)}</span>
+                  <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense, currency)}</span>
                 </div>
               </div>
             </>
@@ -444,7 +446,7 @@ export default function Dashboard() {
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-white font-medium">{t.client_name || '—'}</td>
-                        <td className="py-2.5 px-3 text-right text-emerald-400 font-medium">{formatCurrency(t.amount)}</td>
+                        <td className="py-2.5 px-3 text-right text-emerald-400 font-medium">{formatCurrency(t.amount, currency)}</td>
                         <td className="py-2.5 px-3 text-center">
                           {t.invoice_status ? (
                             <span className={`inline-flex px-2 py-0.5 text-xs rounded ${
@@ -465,7 +467,7 @@ export default function Dashboard() {
           {incomes.length > 0 && (
             <div className="px-4 py-3 border-t border-dark-800 bg-dark-900/50 flex justify-between items-center">
               <span className="text-xs text-dark-400">Total Ingresos</span>
-              <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome)}</span>
+              <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</span>
             </div>
           )}
         </Card>
@@ -511,7 +513,7 @@ export default function Dashboard() {
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-dark-400">{t.payment_method || '—'}</td>
-                        <td className="py-2.5 px-3 text-right text-red-400 font-medium">{formatCurrency(t.amount)}</td>
+                        <td className="py-2.5 px-3 text-right text-red-400 font-medium">{formatCurrency(t.amount, currency)}</td>
                       </tr>
                     ))
                 )}
@@ -521,7 +523,7 @@ export default function Dashboard() {
           {expenses.length > 0 && (
             <div className="px-4 py-3 border-t border-dark-800 bg-dark-900/50 flex justify-between items-center">
               <span className="text-xs text-dark-400">Total Gastos</span>
-              <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense)}</span>
+              <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense, currency)}</span>
             </div>
           )}
         </Card>

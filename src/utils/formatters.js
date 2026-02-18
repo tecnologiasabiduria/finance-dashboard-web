@@ -1,8 +1,16 @@
 /**
- * Formatea un número como moneda colombiana (COP)
+ * Formatea un número como moneda
+ * @param {number} amount
+ * @param {string} currency - código de moneda (COP, USD, MXN, EUR)
  */
 export function formatCurrency(amount, currency = 'COP') {
-  return new Intl.NumberFormat('es-CO', {
+  const locales = {
+    COP: 'es-CO',
+    USD: 'en-US',
+    MXN: 'es-MX',
+    EUR: 'de-DE',
+  };
+  return new Intl.NumberFormat(locales[currency] || 'es-CO', {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,

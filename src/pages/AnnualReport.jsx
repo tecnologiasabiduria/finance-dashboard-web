@@ -22,6 +22,7 @@ import {
   Legend,
 } from 'recharts';
 import { Card, Button, Spinner } from '../components/ui';
+import { useSettings } from '../context/SettingsContext';
 import { formatCurrency } from '../utils/formatters';
 import { api } from '../services/api';
 
@@ -47,6 +48,7 @@ const EXPENSE_CATEGORY_COLORS = [
 ];
 
 export default function AnnualReport() {
+  const { currency } = useSettings();
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [transactions, setTransactions] = useState([]);
@@ -187,7 +189,7 @@ export default function AnnualReport() {
           <p className="text-dark-400 text-sm mb-2">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: {formatCurrency(entry.value)}
+              {entry.name}: {formatCurrency(entry.value, currency)}
             </p>
           ))}
         </div>
@@ -246,14 +248,14 @@ export default function AnnualReport() {
             <span className="text-sm text-dark-400">Total Ingresos {selectedYear}</span>
             <ArrowUpRight className="h-4 w-4 text-emerald-400" />
           </div>
-          <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalIncome)}</p>
+          <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</p>
         </Card>
         <Card className="p-5 border-red-500/20">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-dark-400">Total Gastos {selectedYear}</span>
             <ArrowDownRight className="h-4 w-4 text-red-400" />
           </div>
-          <p className="text-2xl font-bold text-red-400">{formatCurrency(totalExpense)}</p>
+          <p className="text-2xl font-bold text-red-400">{formatCurrency(totalExpense, currency)}</p>
         </Card>
         <Card className="p-5 border-gold-400/20">
           <div className="flex items-center justify-between mb-2">
@@ -261,7 +263,7 @@ export default function AnnualReport() {
             <BarChart3 className="h-4 w-4 text-gold-400" />
           </div>
           <p className={`text-2xl font-bold ${totalIncome - totalExpense >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatCurrency(totalIncome - totalExpense)}
+            {formatCurrency(totalIncome - totalExpense, currency)}
           </p>
         </Card>
       </div>
@@ -328,11 +330,11 @@ export default function AnnualReport() {
                       </td>
                       {incomeGrid[type]?.map((val, i) => (
                         <td key={i} className={`py-3 px-3 text-right ${val > 0 ? 'text-emerald-400' : 'text-dark-600'}`}>
-                          {val > 0 ? formatCurrency(val) : '—'}
+                          {val > 0 ? formatCurrency(val, currency) : '—'}
                         </td>
                       ))}
                       <td className="py-3 px-4 text-right font-semibold text-emerald-400">
-                        {formatCurrency(getRowTotal(incomeGrid, type))}
+                        {formatCurrency(getRowTotal(incomeGrid, type), currency)}
                       </td>
                     </tr>
                   ))}
@@ -341,11 +343,11 @@ export default function AnnualReport() {
                     <td className="py-3 px-4 font-bold text-white sticky left-0 bg-dark-800/30">TOTAL</td>
                     {monthlyIncomeTotals.map((val, i) => (
                       <td key={i} className={`py-3 px-3 text-right font-semibold ${val > 0 ? 'text-emerald-400' : 'text-dark-600'}`}>
-                        {val > 0 ? formatCurrency(val) : '—'}
+                        {val > 0 ? formatCurrency(val, currency) : '—'}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                      {formatCurrency(grandIncomeTotal)}
+                      {formatCurrency(grandIncomeTotal, currency)}
                     </td>
                   </tr>
                 </>
@@ -398,11 +400,11 @@ export default function AnnualReport() {
                       </td>
                       {expenseGrid[cat]?.map((val, i) => (
                         <td key={i} className={`py-3 px-3 text-right ${val > 0 ? 'text-red-400' : 'text-dark-600'}`}>
-                          {val > 0 ? formatCurrency(val) : '—'}
+                          {val > 0 ? formatCurrency(val, currency) : '—'}
                         </td>
                       ))}
                       <td className="py-3 px-4 text-right font-semibold text-red-400">
-                        {formatCurrency(getRowTotal(expenseGrid, cat))}
+                        {formatCurrency(getRowTotal(expenseGrid, cat), currency)}
                       </td>
                     </tr>
                   ))}
@@ -411,11 +413,11 @@ export default function AnnualReport() {
                     <td className="py-3 px-4 font-bold text-white sticky left-0 bg-dark-800/30">TOTAL</td>
                     {monthlyExpenseTotals.map((val, i) => (
                       <td key={i} className={`py-3 px-3 text-right font-semibold ${val > 0 ? 'text-red-400' : 'text-dark-600'}`}>
-                        {val > 0 ? formatCurrency(val) : '—'}
+                        {val > 0 ? formatCurrency(val, currency) : '—'}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right font-bold text-red-400">
-                      {formatCurrency(grandExpenseTotal)}
+                      {formatCurrency(grandExpenseTotal, currency)}
                     </td>
                   </tr>
                 </>
@@ -453,19 +455,19 @@ export default function AnnualReport() {
                 <td className="py-3 px-4 font-medium text-emerald-400 sticky left-0 bg-dark-950">Ingresos</td>
                 {monthlyIncomeTotals.map((val, i) => (
                   <td key={i} className="py-3 px-3 text-right text-emerald-400">
-                    {val > 0 ? formatCurrency(val) : '—'}
+                    {val > 0 ? formatCurrency(val, currency) : '—'}
                   </td>
                 ))}
-                <td className="py-3 px-4 text-right font-semibold text-emerald-400">{formatCurrency(totalIncome)}</td>
+                <td className="py-3 px-4 text-right font-semibold text-emerald-400">{formatCurrency(totalIncome, currency)}</td>
               </tr>
               <tr className="border-t border-dark-800/50">
                 <td className="py-3 px-4 font-medium text-red-400 sticky left-0 bg-dark-950">Gastos</td>
                 {monthlyExpenseTotals.map((val, i) => (
                   <td key={i} className="py-3 px-3 text-right text-red-400">
-                    {val > 0 ? formatCurrency(val) : '—'}
+                    {val > 0 ? formatCurrency(val, currency) : '—'}
                   </td>
                 ))}
-                <td className="py-3 px-4 text-right font-semibold text-red-400">{formatCurrency(totalExpense)}</td>
+                <td className="py-3 px-4 text-right font-semibold text-red-400">{formatCurrency(totalExpense, currency)}</td>
               </tr>
               <tr className="border-t-2 border-dark-700 bg-dark-800/30">
                 <td className="py-3 px-4 font-bold text-white sticky left-0 bg-dark-800/30">RESULTADO</td>
@@ -473,12 +475,12 @@ export default function AnnualReport() {
                   const result = inc - monthlyExpenseTotals[i];
                   return (
                     <td key={i} className={`py-3 px-3 text-right font-semibold ${result >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {inc > 0 || monthlyExpenseTotals[i] > 0 ? formatCurrency(result) : '—'}
+                      {inc > 0 || monthlyExpenseTotals[i] > 0 ? formatCurrency(result, currency) : '—'}
                     </td>
                   );
                 })}
                 <td className={`py-3 px-4 text-right font-bold ${totalIncome - totalExpense >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatCurrency(totalIncome - totalExpense)}
+                  {formatCurrency(totalIncome - totalExpense, currency)}
                 </td>
               </tr>
             </tbody>

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
 import { DashboardLayout } from './components/layout';
 
@@ -19,6 +20,7 @@ import AnnualReport from './pages/AnnualReport';
 
 function App() {
   return (
+    <SettingsProvider>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -67,6 +69,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </SettingsProvider>
   );
 }
 

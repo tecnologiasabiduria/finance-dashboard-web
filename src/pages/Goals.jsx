@@ -3,6 +3,7 @@ import { Target, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { Button, Card, Input, Modal, ConfirmModal } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { useSettings } from '../context/SettingsContext';
 import { formatCurrency } from '../utils/formatters';
 
 // Colores disponibles para las metas
@@ -17,6 +18,7 @@ const COLORS = [
 
 export default function Goals() {
   const { user } = useAuth();
+  const { currency } = useSettings();
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -196,10 +198,10 @@ export default function Goals() {
                 {/* Amounts */}
                 <div className="flex justify-between text-sm mb-4">
                   <span className="text-dark-400">
-                    Actual: <span className="text-white">{formatCurrency(goal.current)}</span>
+                    Actual: <span className="text-white">{formatCurrency(goal.current, currency)}</span>
                   </span>
                   <span className="text-dark-400">
-                    Meta: <span className="text-white">{formatCurrency(goal.target)}</span>
+                    Meta: <span className="text-white">{formatCurrency(goal.target, currency)}</span>
                   </span>
                 </div>
 
@@ -212,7 +214,7 @@ export default function Goals() {
 
                 {remaining > 0 && (
                   <p className="text-xs text-dark-500 mt-3">
-                    Faltan {formatCurrency(remaining)} para alcanzar tu meta
+                    Faltan {formatCurrency(remaining, currency)} para alcanzar tu meta
                   </p>
                 )}
               </Card>

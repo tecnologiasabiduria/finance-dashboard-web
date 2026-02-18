@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Theme CSS Variables ===== */
+:root {
+  --bg-body: #0a0a0a;
+  --text-body: #ffffff;
+  --bg-surface: #1a1a1a;
+  --bg-surface-hover: #383838;
+  --border-color: #383838;
+  --scrollbar-track: #1a1a1a;
+}
+
+html.light {
+  --bg-body: #f5f5f5;
+  --text-body: #1a1a1a;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f0f0f0;
+  --border-color: #e3e3e3;
+  --scrollbar-track: #e3e3e3;
+}
+
 /* Reset y estilos base */
 * {
   margin: 0;
@@ -15,11 +34,45 @@ html {
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: #0a0a0a;
-  color: #ffffff;
+  background-color: var(--bg-body);
+  color: var(--text-body);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===== Light theme overrides ===== */
+html.light .bg-dark-950 { background-color: #ffffff !important; }
+html.light .bg-dark-900 { background-color: #f9fafb !important; }
+html.light .bg-dark-900\\/50 { background-color: rgba(249,250,251,0.5) !important; }
+html.light .bg-dark-800 { background-color: #f3f4f6 !important; }
+html.light .bg-dark-800\\/50 { background-color: rgba(243,244,246,0.5) !important; }
+
+html.light .border-dark-800 { border-color: #e5e7eb !important; }
+html.light .border-dark-700 { border-color: #d1d5db !important; }
+
+html.light .text-white { color: #111827 !important; }
+html.light .text-dark-400 { color: #6b7280 !important; }
+html.light .text-dark-300 { color: #4b5563 !important; }
+html.light .text-dark-200 { color: #374151 !important; }
+html.light .text-dark-500 { color: #9ca3af !important; }
+
+html.light .hover\\:text-white:hover { color: #111827 !important; }
+html.light .hover\\:bg-dark-800:hover { background-color: #f3f4f6 !important; }
+html.light .hover\\:bg-dark-800\\/50:hover { background-color: rgba(243,244,246,0.5) !important; }
+
+html.light .placeholder-dark-400::placeholder,
+html.light .placeholder-dark-500::placeholder,
+html.light .placeholder\\:text-dark-500::placeholder { color: #9ca3af !important; }
+
+html.light input, html.light select, html.light textarea {
+  color: #111827 !important;
+}
+
+html.light .border-gradient-gold {
+  background: linear-gradient(#ffffff, #ffffff) padding-box,
+              linear-gradient(135deg, #D4AF37 0%, #F4E4BC 50%, #D4AF37 100%) border-box;
 }
 
 /* Scrollbar personalizado */

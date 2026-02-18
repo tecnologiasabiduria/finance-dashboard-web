@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button, Select, Card, CreatableSelect, DatePicker } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 
 
@@ -48,6 +49,7 @@ export default function TransactionForm() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { token } = useAuth();
+  const { currency } = useSettings();
   const isEditing = !!id;
 
   const [formData, setFormData] = useState({
@@ -331,7 +333,7 @@ export default function TransactionForm() {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-dark-200">
-                {formData.type === 'income' ? 'Ingreso COP *' : 'Gasto Total COP *'}
+                {formData.type === 'income' ? `Ingreso ${currency} *` : `Gasto Total ${currency} *`}
               </label>
               <div className="relative">
                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />

@@ -20,10 +20,12 @@ import {
 import { Button, Card, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 
 export default function Transactions() {
   const { token } = useAuth();
+  const { currency } = useSettings();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export default function Transactions() {
         <div className="bg-dark-900/50 border border-emerald-500/20 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-sm text-dark-400">Total Ingresos</p>
-            <p className="text-2xl font-bold text-emerald-400">{formatCurrency(incomeTotal)}</p>
+            <p className="text-2xl font-bold text-emerald-400">{formatCurrency(incomeTotal, currency)}</p>
           </div>
           <div className="p-3 bg-emerald-500/10 rounded-lg">
             <ArrowUpRight className="h-5 w-5 text-emerald-400" />
@@ -160,7 +162,7 @@ export default function Transactions() {
         <div className="bg-dark-900/50 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-sm text-dark-400">Total Gastos</p>
-            <p className="text-2xl font-bold text-red-400">{formatCurrency(expenseTotal)}</p>
+            <p className="text-2xl font-bold text-red-400">{formatCurrency(expenseTotal, currency)}</p>
           </div>
           <div className="p-3 bg-red-500/10 rounded-lg">
             <ArrowDownRight className="h-5 w-5 text-red-400" />
@@ -170,7 +172,7 @@ export default function Transactions() {
           <div>
             <p className="text-sm text-dark-400">Resultado</p>
             <p className={`text-2xl font-bold ${incomeTotal - expenseTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatCurrency(incomeTotal - expenseTotal)}
+              {formatCurrency(incomeTotal - expenseTotal, currency)}
             </p>
           </div>
           <div className="p-3 bg-gold-400/10 rounded-lg">
@@ -241,7 +243,7 @@ export default function Transactions() {
       {/* Total filtrado */}
       {(searchTerm || dateFrom || dateTo) && (
         <div className="text-sm text-dark-400">
-          {filteredTransactions.length} resultados — Total: <span className={`font-semibold ${activeTab === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(filteredTotal)}</span>
+          {filteredTransactions.length} resultados — Total: <span className={`font-semibold ${activeTab === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(filteredTotal, currency)}</span>
         </div>
       )}
 
@@ -258,7 +260,7 @@ export default function Transactions() {
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Tipo</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Nombre</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Documento</th>
-                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Ingreso COP</th>
+                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Ingreso {currency}</th>
                     <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Status</th>
                     <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Acciones</th>
                   </>
@@ -269,7 +271,7 @@ export default function Transactions() {
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Proveedor</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Categoría</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Método de Pago</th>
-                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Gasto COP</th>
+                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Gasto {currency}</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Notas</th>
                     <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Acciones</th>
                   </>
@@ -302,7 +304,7 @@ export default function Transactions() {
                         <td className="py-3 px-4 text-white font-medium text-sm">{t.client_name || '—'}</td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.client_document || '—'}</td>
                         <td className="py-3 px-4 text-right">
-                          <span className="font-semibold text-emerald-400">{formatCurrency(t.amount)}</span>
+                          <span className="font-semibold text-emerald-400">{formatCurrency(t.amount, currency)}</span>
                         </td>
                         <td className="py-3 px-4 text-center">
                           {t.invoice_status ? (
@@ -338,7 +340,7 @@ export default function Transactions() {
                         </td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.payment_method || '—'}</td>
                         <td className="py-3 px-4 text-right">
-                          <span className="font-semibold text-red-400">{formatCurrency(t.amount)}</span>
+                          <span className="font-semibold text-red-400">{formatCurrency(t.amount, currency)}</span>
                         </td>
                         <td className="py-3 px-4 text-dark-400 text-sm max-w-[200px] truncate">{t.description || '—'}</td>
                         <td className="py-3 px-4">
