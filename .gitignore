@@ -4,3 +4,7 @@ dist
 .env.production
 *.log
 .DS_Store
+integrationGoogleSheet-context/Herramienta financiera 2 -  INGRESOS.csv
+integrationGoogleSheet-context/Herramienta financiera 2 - ANUAL.csv
+integrationGoogleSheet-context/Herramienta financiera 2 - INFORME MES A MES .csv
+integrationGoogleSheet-context/Herramienta financiera 2 - GASTOS.csv

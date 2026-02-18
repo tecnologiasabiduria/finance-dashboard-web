@@ -1,24 +1,26 @@
 # Contexto del Proyecto: Finance Dashboard
 
-> **Última actualización:** 5 de febrero de 2026
+> **Última actualización:** 18 de febrero de 2026
 
 ---
 
 ## 1. VISIÓN GENERAL
 
 **Producto:** Dashboard SaaS de control de gastos e ingresos personales.
+**Nombre:** Sabiduría Empresarial — Finanzas Sabias
+**URL Producción:** `https://app.sabiduriaempresarial.com`
 
-**Modelo de Negocio:** 
-- Usuario paga suscripción mensual → Accede al dashboard completo
-- Sin suscripción activa → Acceso bloqueado (página `/subscription-required`)
+**Modelo de Negocio:**
+- Usuario paga suscripción mensual via GHL/Stripe → Webhook activa cuenta
+- Sin suscripción activa → Acceso bloqueado (403 en login)
 
-**Repositorios:**
+**Repositorios (ambos en `/home/garzon/Diana Cortes/`):**
 - `finance-dashboard-web` → Frontend React (ESTE REPO)
 - `finance-dashboard-api` → Backend Express (repo separado)
 
 ---
 
-## 2. ARQUITECTURA ACTUAL (Febrero 2026)
+## 2. ARQUITECTURA ACTUAL
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -31,22 +33,25 @@
                               └──────┬───────┘
                                      │
                                      ▼
-                              ┌──────────────┐
-                              │   FRONTEND   │
-                              │  React/Vite  │
-                              │  (Este repo) │
-                              └──────┬───────┘
-                                     │ API calls
-                                     ▼
-                              ┌──────────────┐
-                              │   BACKEND    │
-                              │   Express    │
-                              │  (Node.js)   │
-                              └──────┬───────┘
-                                     │
-                                     ▼
+                    ┌──────────────────────────────┐
+                    │   FRONTEND (React/Vite)      │
+                    │   Cloudways: Puerto 5173     │
+                    │   PM2: finance-dashboard     │
+                    │   server.js → sirve dist/    │
+                    └──────────────┬───────────────┘
+                                   │ API calls (/api/...)
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │   BACKEND (Express)          │
+                    │   Cloudways: Puerto 3000     │
+                    │   PM2: finance-api           │
+                    └──────────────┬───────────────┘
+                                   │
+                                   ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                              SUPABASE                                       │
+│  URL: https://qpvlyeqbsvuunzitrclp.supabase.co                            │
+│                                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │
 │  │  PostgreSQL │  │    Auth     │  │     RLS     │  │ Edge Functions  │   │
 │  │   (Datos)   │  │   (JWT)     │  │ (Seguridad) │  │   (Webhooks)    │   │
@@ -54,11 +59,11 @@
 └────────────────────────────────────────────────────────────────┼───────────┘
                                                                  │
                                           ┌──────────────────────┘
-                                          │ Webhook
+                                          │ Webhook POST
                                           ▼
                               ┌──────────────────────┐
                               │    GoHighLevel       │
-                              │  (CRM + Pagos)       │
+                              │  (CRM + Funnel)      │
                               │                      │
                               │  ┌────────────────┐  │
                               │  │    Stripe      │  │
@@ -69,75 +74,137 @@
 
 ---
 
-## 3. FLUJO DE PAGO Y SUSCRIPCIÓN
+## 3. HOSTING (Cloudways)
+
+**Servidor:** Cloudways (phpstack-1586651-6199103.cloudwaysapps.com)
+**Ruta base:** `/home/1586651.cloudwaysapps.com/tbfckhgqye/public_html/`
+
+**Procesos PM2:**
+
+| ID | Nombre | Puerto | Descripción |
+|----|--------|--------|-------------|
+| 3 | finance-api | 3000 | Backend Express |
+| 2 | finance-dashboard | 5173 | Frontend (server.js sirve dist/) |
+| 0 | n8n-pro | - | n8n automations |
+
+**Frontend en producción:**
+- `server.js` → Express que sirve `dist/` (archivos estáticos del build)
+- Fallback SPA: todas las rutas devuelven `index.html` para que React Router funcione
+- Build: `npm run build` genera `dist/`
+
+**Comandos útiles en VPS:**
+```bash
+# Ver procesos
+pm2 list
+
+# Reiniciar backend
+pm2 restart finance-api
+
+# Reiniciar frontend
+pm2 restart finance-dashboard
+
+# Ver logs
+pm2 logs finance-api --lines 50
+pm2 logs finance-dashboard --lines 50
+
+# Actualizar código
+cd public_html/finance-dashboard-web
+git pull origin main
+npm install
+npm run build
+pm2 restart finance-dashboard
+
+cd public_html/finance-dashboard-api
+git pull origin main
+npm install  # solo si hay nuevas dependencias
+pm2 restart finance-api
+```
+
+---
+
+## 4. FLUJO DE PAGO Y ONBOARDING (✅ IMPLEMENTADO)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    FLUJO: CLIENTE PAGA SUSCRIPCIÓN                          │
+│               FLUJO COMPLETO: PAGO → ACCESO AL DASHBOARD                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-    ┌─────────┐         ┌─────────┐         ┌─────────┐         ┌─────────┐
-    │ Cliente │         │   GHL   │         │ Stripe  │         │Supabase │
-    │  paga   │────────▶│ Funnel  │────────▶│ Procesa │────────▶│  Edge   │
-    │         │         │         │         │  pago   │         │Function │
-    └─────────┘         └─────────┘         └─────────┘         └────┬────┘
-                                                                     │
-                                                                     ▼
-                                                            ¿Usuario existe?
-                                                                     │
-                                            ┌────────────────────────┼────────────────────────┐
-                                            │                        │                        │
-                                            ▼                        ▼                        │
-                                    ┌───────────────┐        ┌───────────────┐               │
-                                    │   RAMA 1:     │        │   RAMA 2:     │               │
-                                    │ Usuario EXISTE│        │ Usuario NUEVO │               │
-                                    │               │        │               │               │
-                                    │ → Actualizar  │        │ → Crear user  │               │
-                                    │   status =    │        │ → Crear       │               │
-                                    │   'active'    │        │   profile     │               │
-                                    │               │        │ → status =    │               │
-                                    │               │        │   'active'    │               │
-                                    │               │        │ → Magic Link  │               │
-                                    └───────────────┘        └───────────────┘               │
-                                                                                              │
-                                                                     ▼                        │
-                                                            ┌───────────────┐                │
-                                                            │   Usuario     │                │
-                                                            │   accede al   │◀───────────────┘
-                                                            │   Dashboard   │
-                                                            └───────────────┘
+  1. Cliente paga en funnel de GHL (Stripe procesa)
+                │
+                ▼
+  2. GHL dispara workflow → webhook POST a Edge Function
+     URL: https://qpvlyeqbsvuunzitrclp.supabase.co/functions/v1/ghl-webhook
+                │
+                ▼
+  3. Edge Function (supabase/functions/ghl-webhook/index.ts):
+     ¿Usuario existe en profiles?
+                │
+        ┌───────┴───────┐
+        ▼               ▼
+   RAMA 1: EXISTE   RAMA 2: NUEVO
+   → Actualizar     → inviteUserByEmail()
+     status =       → Crear profile con
+     'active'         status = 'active'
+                    → Email con magic link
+                      (redirectTo: /auth/callback)
+                │               │
+                └───────┬───────┘
+                        ▼
+  4. Usuario recibe email → clic en magic link
+                        │
+                        ▼
+  5. /auth/callback (AuthCallback.jsx):
+     → exchangeCodeForSession(code)
+     → Redirige a /create-password
+                        │
+                        ▼
+  6. /create-password (CreatePassword.jsx):
+     → Usuario establece contraseña
+     → supabase.auth.updateUser({ password })
+     → Auto-login via backend API
+     → Redirige a /dashboard
+                        │
+                        ▼
+  7. Login en backend (/api/auth/login):
+     → subscriptionService.getActive(userId)
+       → PRIMERO: busca profiles.subscription_status === 'active'
+       → FALLBACK: busca tabla subscriptions con status 'active'
+     → Si activo → JWT + acceso completo
+     → Si inactivo → 403 SUBSCRIPTION_INACTIVE
 ```
 
 ---
 
-## 4. STACK TECNOLÓGICO
+## 5. STACK TECNOLÓGICO
 
 | Componente | Tecnología | Estado |
 |------------|------------|--------|
-| **Frontend** | React 18 + Vite + Tailwind | ✅ Funcional |
-| **Backend** | Express.js + Node.js | ✅ Funcional |
-| **Base de Datos** | Supabase PostgreSQL | ✅ Configurada |
-| **Autenticación** | Supabase Auth (JWT) | ✅ Funcional |
+| **Frontend** | React 18 + Vite + Tailwind | ✅ Producción |
+| **Backend** | Express.js + Node.js | ✅ Producción |
+| **Base de Datos** | Supabase PostgreSQL | ✅ Producción |
+| **Autenticación** | Supabase Auth (JWT) | ✅ Producción |
+| **Cliente Supabase (FE)** | @supabase/supabase-js | ✅ Para magic link/password |
 | **CRM/Ventas** | GoHighLevel | ✅ Conectado |
-| **Procesador Pagos** | Stripe (via GHL) | ⚠️ Claves TEST |
-| **Webhooks** | Supabase Edge Functions | ✅ Funcional |
-| **Hosting** | VPS Ubuntu (pendiente) | ⏳ Por configurar |
+| **Procesador Pagos** | Stripe (via GHL) | ✅ Claves TEST |
+| **Webhooks** | Supabase Edge Functions | ✅ Producción |
+| **Hosting** | Cloudways (PM2) | ✅ Producción |
+| **UI** | Dark theme + dorado (#D4AF37) | ✅ |
 
 ---
 
-## 5. BASE DE DATOS (Supabase)
+## 6. BASE DE DATOS (Supabase)
 
 ### Tablas Actuales
 
 ```sql
--- PROFILES (usuarios)
+-- PROFILES (usuarios + estado de suscripción)
 profiles (
-  id UUID PRIMARY KEY,          -- = auth.users.id
+  id UUID PRIMARY KEY,              -- = auth.users.id
   email TEXT,
   full_name TEXT,
   avatar_url TEXT,
-  subscription_status TEXT,     -- 'none', 'active', 'cancelled'
-  created_at TIMESTAMP,
+  subscription_status TEXT,         -- 'none' | 'active' | 'cancelled'
+  created_at TIMESTAMP,             -- ← FUENTE DE VERDAD para acceso
   updated_at TIMESTAMP
 )
 
@@ -145,7 +212,7 @@ profiles (
 transactions (
   id UUID PRIMARY KEY,
   user_id UUID,
-  type VARCHAR,                 -- 'income', 'expense'
+  type VARCHAR,                     -- 'income', 'expense'
   amount NUMERIC,
   category VARCHAR,
   description TEXT,
@@ -159,7 +226,7 @@ categories (
   id UUID PRIMARY KEY,
   user_id UUID,
   name TEXT,
-  type TEXT,                    -- 'income', 'expense'
+  type TEXT,                        -- 'income', 'expense'
   icon TEXT,
   color TEXT,
   created_at TIMESTAMP,
@@ -177,45 +244,138 @@ goals (
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 )
+
+-- SUBSCRIPTIONS (legacy/Stripe directo - fallback)
+subscriptions (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+  provider TEXT,
+  external_id TEXT,
+  status TEXT,                      -- 'active', 'cancelled', 'past_due'
+  current_period_start TIMESTAMP,
+  current_period_end TIMESTAMP,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
 ```
+
+### Lógica de Verificación de Suscripción (subscriptionService.getActive)
+
+```
+1. Busca profiles.subscription_status === 'active' → ✅ acceso
+2. Si no, busca en tabla subscriptions WHERE status = 'active' → ✅ acceso
+3. Si ninguno → ❌ 403 SUBSCRIPTION_INACTIVE
+```
+
+**¿Por qué dos fuentes?**
+- `profiles.subscription_status` → Lo actualiza el **Edge Function de GHL** (flujo principal)
+- `subscriptions` tabla → Lo actualiza el **backend Express via Stripe webhooks** (legacy/futuro)
 
 ---
 
-## 6. INTEGRACIONES
+## 7. INTEGRACIONES
 
-### 6.1 GoHighLevel → Supabase (Webhook)
+### 7.1 GoHighLevel → Supabase Edge Function (FLUJO PRINCIPAL)
 
 **URL del Webhook:**
 ```
-https://qpvlyeqbsvuunzitrclp.supabase.co/functions/v1/webhook-GHL
+https://qpvlyeqbsvuunzitrclp.supabase.co/functions/v1/ghl-webhook
 ```
-
-**Flujo:**
-1. Cliente paga en funnel de GHL
-2. GHL dispara workflow "Pago recibido"
-3. Workflow envía webhook a Supabase Edge Function
-4. Edge Function crea/actualiza usuario con `subscription_status = 'active'`
 
 **Edge Function:** `supabase/functions/ghl-webhook/index.ts`
 
-### 6.2 Stripe
+**Flujo:**
+1. GHL dispara workflow → POST al Edge Function
+2. Extrae email, nombre, teléfono del payload
+3. Si usuario existe → actualiza `profiles.subscription_status = 'active'`
+4. Si no existe → `inviteUserByEmail()` + crea profile con status active
 
-**Estado:** Conectado a GHL con claves TEST
-
-**Rol de Stripe:**
-- GHL usa Stripe como procesador de pagos
-- Stripe maneja la tarjeta/cobro real
-- GHL recibe confirmación y dispara el webhook
-
-**Claves (TEST):**
+**redirectTo del magic link:**
 ```
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
+https://app.sabiduriaempresarial.com/auth/callback
 ```
+
+### 7.2 Supabase Dashboard Config (IMPORTANTE)
+
+**Authentication → URL Configuration:**
+- **Site URL:** `https://app.sabiduriaempresarial.com`
+- **Redirect URLs:** `https://app.sabiduriaempresarial.com/auth/callback`
+
+**Edge Function Secrets:**
+- `SITE_URL` = `https://app.sabiduriaempresarial.com`
+- `GHL_WEBHOOK_SECRET` = (opcional, para seguridad)
+
+### 7.3 Stripe (via GHL)
+
+**Estado:** Stripe es el procesador de pagos conectado a GHL. No se usa directamente desde la app por ahora.
+
+**Backend tiene handlers para Stripe webhooks** en `/api/webhooks/stripe` (para uso futuro directo si se necesita).
+
+### 7.4 Google Sheets — Sincronización Bidireccional (⏳ PLANIFICADO — 18 Feb 2026)
+
+**Contexto:** La app actual de la cliente ES un Google Sheet. Cada usuario tiene su propio Sheet. Se necesita sincronización bidireccional: cambios en la app se reflejan en el Sheet y viceversa.
+
+**Plan de implementación en 3 fases:**
+
+#### Fase 1: Adaptar la app a la estructura del Sheet (EN PROGRESO)
+- Modificar las tablas de Supabase para que manejen las mismas columnas/datos que el Sheet
+- Ajustar la UI (páginas, formularios, dashboard) para reflejar los nuevos campos
+- Ajustar el backend (endpoints, servicios) para los nuevos datos
+- **Resultado:** La app funciona con los mismos datos que el Sheet, pero sin conexión aún
+
+#### Fase 2: Configurar Google Cloud + OAuth
+- Crear proyecto en [console.cloud.google.com](https://console.cloud.google.com) (gratis)
+- Habilitar **Google Sheets API** + **Google Drive API**
+- Crear credenciales **OAuth 2.0** (Client ID + Client Secret)
+- Configurar pantalla de consentimiento
+- Redirect URI: `https://app.sabiduriaempresarial.com/api/google/callback`
+
+#### Fase 3: Implementar conexión Google Sheets
+**Nueva tabla en Supabase:**
+```sql
+google_connections (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id),
+  google_email TEXT,
+  access_token TEXT,
+  refresh_token TEXT,
+  token_expires_at TIMESTAMP,
+  spreadsheet_id TEXT,
+  spreadsheet_url TEXT,
+  last_sync_at TIMESTAMP,
+  sync_enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP
+)
+```
+
+**Nuevos endpoints en Backend:**
+
+| Endpoint | Función |
+|----------|---------|
+| `GET /api/google/auth` | Genera URL de autorización de Google |
+| `GET /api/google/callback` | Recibe tokens de Google (redirect) |
+| `GET /api/google/status` | ¿Está conectado? ¿Cuándo sincronizó? |
+| `POST /api/google/sync` | Sincronizar ahora (manual) |
+| `DELETE /api/google/disconnect` | Desconectar Google |
+
+**Flujo de conexión del usuario:**
+```
+Usuario → "Conectar Google Sheet" (botón en Settings)
+       → Google muestra pantalla de permisos
+       → Usuario acepta → Google devuelve tokens
+       → Backend guarda tokens en google_connections
+       → App puede leer/escribir el Sheet del usuario
+```
+
+**Librería:** `googleapis` (npm) — en el backend
+
+**Costo:** $0 — Google Sheets API es gratis (500 req/100seg por proyecto)
+
+**NOTA:** El login sigue siendo email/password. Google OAuth es SOLO para autorizar acceso al Sheet, no para autenticarse en la app.
 
 ---
 
-## 7. FUNCIONALIDADES IMPLEMENTADAS
+## 8. FUNCIONALIDADES IMPLEMENTADAS
 
 ### Frontend ✅
 - [x] Login / Registro
@@ -226,86 +386,103 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 - [x] Configuración de perfil
 - [x] Cambio de contraseña
 - [x] Página `/subscription-required`
+- [x] Página `/auth/callback` (procesa magic link de Supabase)
+- [x] Página `/create-password` (usuario nuevo establece contraseña)
+- [x] Cliente Supabase en frontend (`src/lib/supabase.js`)
 - [x] Diseño dark theme + dorado
 - [x] Responsive design
 
 ### Backend ✅
-- [x] Auth endpoints (login, register, me)
+- [x] Auth endpoints (login, register, me, profile, password)
 - [x] CRUD transactions
 - [x] CRUD categories
 - [x] CRUD goals
 - [x] Dashboard summary
-- [x] Middleware de autenticación
-- [x] Middleware de suscripción (deshabilitado temporalmente)
+- [x] Middleware de autenticación (JWT)
+- [x] Middleware de suscripción (verifica profiles → fallback subscriptions)
+- [x] Webhooks Stripe (handlers listos)
+- [x] Webhooks GHL (endpoint disponible)
 
 ### Integraciones ✅
-- [x] Supabase conectado
-- [x] GHL webhook funcional
-- [x] Edge Function para activar suscripción
-- [x] Creación automática de usuarios desde webhook
+- [x] Supabase conectado (backend + frontend)
+- [x] GHL webhook → Edge Function funcional y probado
+- [x] Edge Function crea usuarios + envía magic link
+- [x] Flujo completo: pago → webhook → magic link → create password → dashboard
 
 ---
 
-## 8. PENDIENTES / TODO
+## 9. PENDIENTES / TODO
 
-### Crítico para Producción
-- [ ] Configurar claves LIVE de Stripe
-- [ ] **Webhook para cancelación de suscripción** ← FALTA
-- [ ] Configurar dominio y SSL
-- [ ] Variables de entorno en producción
-- [ ] Habilitar middleware de suscripción en backend
+### Para Beta
+- [ ] Webhook para **cancelación** de suscripción (cuando usuario deja de pagar)
+- [ ] Secreto de seguridad en webhook GHL (`GHL_WEBHOOK_SECRET`)
+- [ ] Página de error amigable si magic link expirado
 
-### Mejoras
-- [ ] Frontend: detectar primer login → modal crear contraseña
-- [ ] Frontend: verificar `subscription_status` en rutas protegidas
-- [ ] Configurar secreto de seguridad en webhook GHL
+### Para Producción
+- [ ] Configurar claves **LIVE** de Stripe (cuando salga de beta)
+- [ ] Migrar tokens a httpOnly cookies (seguridad)
+- [ ] Error Boundaries en frontend
 - [ ] Logging y monitoreo (Sentry)
+- [ ] Tests básicos
+
+### Nice to Have
+- [ ] Lazy loading de rutas
+- [ ] PWA (instalable en móvil)
+- [ ] Modo claro (actualmente solo dark)
+- [ ] Accesibilidad (a11y)
 
 ---
 
-## 9. VARIABLES DE ENTORNO
+## 10. VARIABLES DE ENTORNO
 
-### Frontend (.env.local)
+### Frontend (.env) — Producción
+```env
+VITE_API_URL=/api
+VITE_SUPABASE_URL=https://qpvlyeqbsvuunzitrclp.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### Frontend (.env) — Desarrollo Local
 ```env
 VITE_API_URL=http://localhost:3000/api
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=xxx
+VITE_SUPABASE_URL=https://qpvlyeqbsvuunzitrclp.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### Backend (.env)
 ```env
 PORT=3000
 NODE_ENV=development
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=xxx
-SUPABASE_SERVICE_ROLE_KEY=xxx
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-```
-
-### Supabase Edge Functions (Secrets)
-```
-SUPABASE_URL (automático)
-SUPABASE_SERVICE_ROLE_KEY (automático)
-GHL_WEBHOOK_SECRET (opcional - para seguridad)
-SITE_URL (para redirect de magic link)
+SUPABASE_URL=https://qpvlyeqbsvuunzitrclp.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+JWT_SECRET=sabiduria-empresarial-jwt-secret-2026
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+GHL_WEBHOOK_SECRET=
 ```
 
 ---
 
-## 10. ESTRUCTURA DEL REPOSITORIO (Frontend)
+## 11. ESTRUCTURA DE REPOSITORIOS
 
+### Frontend (finance-dashboard-web)
 ```
 finance-dashboard-web/
 ├── src/
 │   ├── components/
-│   │   ├── layout/        # Header, Sidebar, Logo
-│   │   └── ui/            # Button, Card, Input, Modal, etc.
+│   │   ├── layout/           # Header, Sidebar, Logo, DashboardLayout
+│   │   └── ui/               # Button, Card, Input, Modal, Select, Spinner
 │   ├── context/
-│   │   └── AuthContext.jsx
+│   │   └── AuthContext.jsx    # Estado global de auth (user, token, login, logout)
+│   ├── lib/
+│   │   └── supabase.js       # Cliente Supabase (para magic link / password)
 │   ├── pages/
+│   │   ├── AuthCallback.jsx   # /auth/callback — procesa magic link
+│   │   ├── CreatePassword.jsx # /create-password — usuario nuevo crea contraseña
 │   │   ├── Dashboard.jsx
 │   │   ├── Transactions.jsx
+│   │   ├── TransactionForm.jsx
 │   │   ├── Categories.jsx
 │   │   ├── Goals.jsx
 │   │   ├── Settings.jsx
@@ -313,378 +490,140 @@ finance-dashboard-web/
 │   │   ├── Register.jsx
 │   │   └── SubscriptionRequired.jsx
 │   ├── services/
-│   │   └── api.js
+│   │   └── api.js             # Cliente HTTP (fetch) contra backend Express
 │   ├── styles/
 │   │   └── globals.css
 │   └── utils/
 │       └── formatters.js
 ├── supabase/
 │   └── functions/
-│       └── ghl-webhook/   # Edge Function para webhooks de GHL
-│           ├── index.ts
-│           └── README.md
-├── public/
+│       └── ghl-webhook/       # Edge Function para webhooks de GHL
+│           └── index.ts
+├── server.js                   # Express estático para producción (sirve dist/)
 ├── package.json
 ├── vite.config.js
 ├── tailwind.config.js
-└── PROJECT_CONTEXT.md     # ESTE ARCHIVO
-```
-8. Backend verifica subscription.status === 'active'
-              │
-              ├── Inactivo → Bloquea acceso (403)
-              │
-              ▼
-9. Usuario accede al Dashboard
+└── PROJECT_CONTEXT.md          # ESTE ARCHIVO
 ```
 
----
-
-## 7. Hoja de Ruta
-
-### Fase 1: Fundación (Completado)
-- [x] Definir arquitectura
-- [x] Inicializar proyecto Node.js
-- [x] Configurar estructura de carpetas
-- [x] Endpoint `GET /health`
-- [x] Configurar variables de entorno
-
-### Fase 2: Integración Supabase (Completado)
-- [x] Conectar cliente Supabase
-- [x] Crear tablas en Supabase
-- [x] Configurar RLS básico
-
-### Fase 3: Autenticación (Completado)
-- [x] Endpoint `POST /auth/login`
-- [x] Endpoint `GET /auth/me`
-- [x] Middleware de autenticación (JWT)
-- [x] Middleware de verificación de suscripción
-
-### Fase 4: Webhooks de Pago (Completado)
-- [x] Endpoint `POST /webhooks/stripe`
-- [x] Endpoint `POST /webhooks/gohighlevel` (Reemplazado por Stripe directo)
-- [x] Validación de firmas
-- [x] Lógica de activación/desactivación
-
-### Fase 5: Dashboard API (Completado)
-- [x] CRUD de transacciones
-- [x] Endpoint de resumen financiero
-- [x] Filtros por fecha/categoría
-
-### Fase 5.5: Seguridad y Optimización (Pre-Despliegue) - ACTUAL
-- [ ] Migrar almacenamiento de tokens (HttpOnly Cookies)
-- [ ] Implementar Error Boundaries en Frontend
-- [ ] Configurar variables de entorno para producción
-- [ ] Auditoría de seguridad (no exponer .env, etc.)
-
-### Fase 6: Despliegue
-- [ ] Configurar Nginx en VPS
-- [ ] Configurar PM2 para Node.js
-- [ ] SSL con Let's Encrypt
-- [ ] CI/CD básico (GitHub → VPS)
-
----
-
-## 8. Estructura de Carpetas
-
+### Backend (finance-dashboard-api)
 ```
 finance-dashboard-api/
 ├── src/
 │   ├── config/
-│   │   ├── supabase.js      # Cliente Supabase
-│   │   └── env.js           # Variables de entorno
+│   │   ├── supabase.js        # Clientes Supabase (anon + admin)
+│   │   └── env.js             # Variables de entorno
 │   ├── middlewares/
-│   │   ├── auth.js          # Verificar JWT
-│   │   └── subscription.js  # Verificar suscripción activa
+│   │   ├── auth.js            # Verificar JWT
+│   │   ├── subscription.js    # Verificar suscripción (profiles → subscriptions)
+│   │   └── validate.js        # Validar body
 │   ├── routes/
-│   │   ├── auth.js
-│   │   ├── webhooks.js
+│   │   ├── auth.js            # Login, register, me, profile, password
+│   │   ├── webhooks.js        # Stripe + GHL webhook endpoints
 │   │   ├── transactions.js
-│   │   └── dashboard.js
+│   │   ├── dashboard.js
+│   │   ├── goals.js
+│   │   └── categories.js
 │   ├── services/
-│   │   ├── stripe.js
-│   │   ├── gohighlevel.js
-│   │   └── subscription.js
+│   │   ├── stripe.js          # Handler de eventos Stripe
+│   │   ├── gohighlevel.js     # Handler de eventos GHL
+│   │   └── subscription.js    # getActive() → profiles PRIMERO, subscriptions FALLBACK
 │   ├── utils/
-│   │   └── response.js      # Helpers de respuesta
-│   └── index.js             # Entry point
-├── .env.example
-├── .gitignore
-├── package.json
-└── PROJECT_CONTEXT.md
+│   │   └── response.js
+│   └── index.js               # Entry point Express
+├── .env
+├── server.log
+├── start.sh
+└── package.json
 ```
 
 ---
 
-## 9. Variables de Entorno
+## 12. RUTAS DEL FRONTEND
 
-```env
-# Server
-PORT=3000
-NODE_ENV=development
+| Ruta | Componente | Tipo | Descripción |
+|------|-----------|------|-------------|
+| `/login` | Login | PublicRoute | Inicio de sesión |
+| `/register` | Register | PublicRoute | Crear cuenta |
+| `/auth/callback` | AuthCallback | Sin guardia | Procesa magic link de Supabase |
+| `/create-password` | CreatePassword | Sin guardia | Nuevo usuario crea contraseña |
+| `/subscription-required` | SubscriptionRequired | Sin guardia | Suscripción inactiva |
+| `/dashboard` | Dashboard | ProtectedRoute | Panel principal |
+| `/transactions` | Transactions | ProtectedRoute | Lista transacciones |
+| `/transactions/new` | TransactionForm | ProtectedRoute | Crear transacción |
+| `/transactions/:id` | TransactionForm | ProtectedRoute | Editar transacción |
+| `/goals` | Goals | ProtectedRoute | Metas de ahorro |
+| `/categories` | Categories | ProtectedRoute | Categorías |
+| `/settings` | Settings | ProtectedRoute | Configuración |
 
-# Supabase
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_ANON_KEY=xxxx
-SUPABASE_SERVICE_ROLE_KEY=xxxx
-
-# Stripe
-STRIPE_SECRET_KEY=sk_xxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxx
-
-# GoHighLevel
-GHL_WEBHOOK_SECRET=xxxx
-```
+**Tipos de ruta:**
+- `PublicRoute` → Si ya autenticado, redirige a `/dashboard`
+- `ProtectedRoute` → Si no autenticado, redirige a `/login`
+- `Sin guardia` → Accesible siempre (auth/callback necesita esto)
 
 ---
 
-## 10. Decisiones Técnicas
+## 13. ENDPOINTS DEL BACKEND
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| GET | `/health` | No | Estado del servidor |
+| POST | `/api/auth/login` | No | Login (verifica suscripción en prod) |
+| POST | `/api/auth/register` | No | Registro |
+| GET | `/api/auth/me` | Sí | Datos usuario + suscripción |
+| PUT | `/api/auth/profile` | Sí | Actualizar nombre |
+| PUT | `/api/auth/password` | Sí | Cambiar contraseña |
+| GET | `/api/dashboard/summary` | Sí | Resumen financiero |
+| GET | `/api/transactions` | Sí | Listar transacciones |
+| POST | `/api/transactions` | Sí | Crear transacción |
+| PUT | `/api/transactions/:id` | Sí | Editar transacción |
+| DELETE | `/api/transactions/:id` | Sí | Eliminar transacción |
+| GET | `/api/goals` | Sí | Listar metas |
+| POST | `/api/goals` | Sí | Crear meta |
+| PUT | `/api/goals/:id` | Sí | Editar meta |
+| DELETE | `/api/goals/:id` | Sí | Eliminar meta |
+| GET | `/api/categories` | Sí | Listar categorías |
+| POST | `/api/categories` | Sí | Crear categoría |
+| PUT | `/api/categories/:id` | Sí | Editar categoría |
+| DELETE | `/api/categories/:id` | Sí | Eliminar categoría |
+| POST | `/api/webhooks/stripe` | Firma | Webhooks de Stripe |
+| POST | `/api/webhooks/gohighlevel` | Firma | Webhooks de GHL |
+
+---
+
+## 14. DECISIONES TÉCNICAS
 
 | Decisión | Justificación |
 |----------|---------------|
-| Backend propio | Control total de lógica de pagos y acceso |
-| Supabase para DB/Auth | Reduce código de auth, PostgreSQL robusto |
-| Express.js | Simplicidad, madurez, documentación |
-| Middlewares separados | Auth y suscripción son concerns distintos |
-| Webhooks validados | Seguridad: nunca confiar en entrada externa |
+| profiles.subscription_status como fuente primaria | El webhook de GHL actualiza profiles, no la tabla subscriptions |
+| subscriptions como fallback | Para compatibilidad futura con Stripe directo |
+| Supabase client en frontend | Necesario para exchangeCodeForSession() y updateUser({ password }) |
+| server.js con Express para producción | Cloudways necesita un servidor Node que sirva los archivos estáticos |
+| Rutas /auth/callback y /create-password sin guardia | El usuario llega sin sesión del backend (solo tiene sesión Supabase del magic link) |
+| inviteUserByEmail en Edge Function | Crea usuario Y envía email de invitación en un solo paso |
 
 ---
 
-## 11. Cómo Probar la API
+## 15. PROBAR FLUJO DE ONBOARDING
 
-### A. Sin Frontend (Desarrollo)
-
-#### Opción 1: cURL (Terminal)
 ```bash
-# Health check
-curl http://localhost:3000/health
-
-# Login (cuando esté implementado)
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com", "password": "123456"}'
-
-# Endpoint protegido (con token)
-curl http://localhost:3000/dashboard/summary \
-  -H "Authorization: Bearer <tu_jwt_token>"
-
-# Crear transacción
-curl -X POST http://localhost:3000/transactions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <tu_jwt_token>" \
-  -d '{"type": "expense", "amount": 50.00, "category": "food", "date": "2025-01-15"}'
-```
-
-#### Opción 2: Postman / Insomnia
-1. Importar colección o crear requests manualmente
-2. Configurar variable de entorno `base_url = http://localhost:3000`
-3. Guardar token en variable después del login
-4. Usar `{{token}}` en headers de requests protegidos
-
-#### Opción 3: Extensión VS Code
-- **Thunder Client** - Cliente REST integrado en VS Code
-- **REST Client** - Archivos `.http` con requests
-
-Ejemplo de archivo `requests.http`:
-```http
-### Health Check
-GET http://localhost:3000/health
-
-### Login
-POST http://localhost:3000/auth/login
-Content-Type: application/json
-
-{
-  "email": "test@example.com",
-  "password": "123456"
-}
-
-### Get Dashboard (reemplazar token)
-GET http://localhost:3000/dashboard/summary
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
----
-
-### B. Con Frontend (Integración)
-
-#### Configuración CORS
-El backend debe permitir requests del frontend:
-
-```javascript
-// En src/index.js
-const cors = require('cors');
-
-app.use(cors({
-  origin: [
-    'http://localhost:5173',  // Vite dev server
-    'http://localhost:3001',  // Otro puerto de desarrollo
-    'https://tu-dominio.com'  // Producción
-  ],
-  credentials: true
-}));
-```
-
-#### Flujo de Pruebas
-```
-1. Backend corriendo en localhost:3000
-2. Frontend corriendo en localhost:5173
-3. Frontend hace fetch a http://localhost:3000/api/...
-4. Backend responde con JSON
-5. Frontend renderiza datos
-```
-
-#### Variables de Entorno del Frontend
-El frontend necesitará:
-```env
-VITE_API_URL=http://localhost:3000
-```
-
----
-
-### C. Simular Webhooks (Stripe/GoHighLevel)
-
-#### Con cURL
-```bash
-# Simular webhook de Stripe (sin firma válida, solo desarrollo)
-curl -X POST http://localhost:3000/webhooks/stripe \
+# Simular webhook de GHL (usar email real al que tengas acceso)
+curl -X POST https://qpvlyeqbsvuunzitrclp.supabase.co/functions/v1/ghl-webhook \
   -H "Content-Type: application/json" \
   -d '{
-    "type": "customer.subscription.created",
-    "data": {
-      "object": {
-        "customer_email": "user@example.com",
-        "status": "active"
-      }
-    }
+    "email": "tu-email@gmail.com",
+    "full_name": "Test User",
+    "phone": "+1234567890",
+    "status": "won",
+    "invoice": { "status": "paid" }
   }'
-```
 
-#### Con Stripe CLI (Recomendado)
-```bash
-# Instalar Stripe CLI
-# Iniciar túnel para webhooks locales
-stripe listen --forward-to localhost:3000/webhooks/stripe
-
-# En otra terminal, disparar eventos de prueba
-stripe trigger customer.subscription.created
+# Resultado esperado:
+# 1. Email de invitación llega a tu-email@gmail.com
+# 2. Clic en el link → /auth/callback → /create-password
+# 3. Crear contraseña → auto-login → /dashboard
 ```
 
 ---
 
-### D. Testing Automatizado (Futuro)
-
-```
-finance-dashboard-api/
-├── tests/
-│   ├── health.test.js
-│   ├── auth.test.js
-│   └── transactions.test.js
-```
-
-Herramientas recomendadas:
-- **Jest** - Test runner
-- **Supertest** - HTTP assertions
-
----
-
-## 12. Comunicación con Frontend
-
-### Contrato de API
-
-El frontend consumirá esta API así:
-
-```javascript
-// En el frontend (React)
-const API_URL = import.meta.env.VITE_API_URL;
-
-// Login
-const response = await fetch(`${API_URL}/auth/login`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password })
-});
-const { token, user } = await response.json();
-
-// Request protegido
-const transactions = await fetch(`${API_URL}/transactions`, {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-```
-
-### Formato de Respuestas (Estándar)
-
-```javascript
-// Éxito
-{
-  "success": true,
-  "data": { ... }
-}
-
-// Error
-{
-  "success": false,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Token inválido o expirado"
-  }
-}
-```
-
----
-
-## 13. Configuración de Stripe (Completado - Feb 3, 2026)
-
-### ✅ Estado Actual
-
-| Componente | Estado | Valor |
-|------------|--------|-------|
-| Cuenta vinculada | ✅ | **Agencia Master LLc** |
-| `STRIPE_SECRET_KEY` | ✅ | `sk_test_51QpC58JxGOaMK16Z0QGkd...` |
-| `STRIPE_WEBHOOK_SECRET` | ✅ | `whsec_f0ac7c5fc2dffca2a0a3b91e14...` |
-| Stripe CLI | ✅ | v1.35.0 instalado |
-| Webhooks locales | ✅ | Funcionando |
-
-### Claves Configuradas en Backend (.env)
-
-```env
-# Stripe (Cuenta: Agencia Master LLc)
-STRIPE_SECRET_KEY=sk_test_51QpC58JxGOaMK16Z0QGkdBkQbuXWrGnIsWytGs7LbI3TPYqI7ELBAT8i3VYoYzpoaGDaX3CXjIVsUM6T6h8zqDhx00T0ArJWib
-STRIPE_WEBHOOK_SECRET=whsec_f0ac7c5fc2dffca2a0a3b91e142e50d00a2ae69035fcb7661bc1ac606e8c510f
-```
-
-### Comandos para Desarrollo Local
-
-```bash
-# Terminal 1: Backend
-cd "/home/garzon/Diana Cortes/finance-dashboard-api" && npm run dev
-
-# Terminal 2: Stripe Listener (escucha webhooks)
-stripe listen --forward-to localhost:3000/api/webhooks/stripe
-
-# Terminal 3: Probar eventos
-stripe trigger checkout.session.completed
-stripe trigger invoice.paid
-stripe trigger customer.subscription.created
-```
-
-### Eventos de Webhook Manejados
-
-| Evento | Acción |
-|--------|--------|
-| `checkout.session.completed` | Crea/activa suscripción |
-| `invoice.paid` | Activa suscripción |
-| `customer.subscription.created` | Crea suscripción |
-| `customer.subscription.updated` | Actualiza estado |
-| `customer.subscription.deleted` | Cancela suscripción |
-| `invoice.payment_failed` | Marca como `past_due` |
-
-### Para Producción
-
-1. Crear webhook en [dashboard.stripe.com/webhooks](https://dashboard.stripe.com/webhooks)
-2. URL: `https://tu-dominio.com/api/webhooks/stripe`
-3. Eventos: `checkout.session.completed`, `invoice.paid`, `customer.subscription.*`
-4. Copiar webhook secret de producción al `.env` del servidor
-
----
-
-*Documento actualizado para reflejar arquitectura profesional con separación clara de responsabilidades.*
+*Documento actualizado el 17 de febrero de 2026 — refleja la arquitectura real desplegada en producción.*
