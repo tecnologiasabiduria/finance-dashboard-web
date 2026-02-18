@@ -17,16 +17,11 @@ import {
   Building,
   Receipt,
 } from 'lucide-react';
-import { Button, Select, Card } from '../components/ui';
+import { Button, Select, Card, CreatableSelect } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-// Tipos de ingreso fijos (como en el Sheet)
-const INCOME_TYPES = [
-  { value: 'VENTA', label: 'Venta' },
-  { value: 'CARTERA', label: 'Cartera' },
-  { value: 'OTRO', label: 'Otro' },
-];
+
 
 // Status de facturación
 const INVOICE_STATUS_OPTIONS = [
@@ -81,35 +76,45 @@ export default function TransactionForm() {
   const [incomeCategories, setIncomeCategories] = useState([]);
 
   // Cargar categorías personalizadas (ingreso y gasto)
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const response = await api.getCategories();
-        if (response.data.grouped?.expense) {
-          setExpenseCategories(
-            response.data.grouped.expense.map((c) => ({
-              value: c.name,
-              label: c.name,
-            }))
-          );
-        }
-        if (response.data.grouped?.income && response.data.grouped.income.length > 0) {
-          setIncomeCategories(
-            response.data.grouped.income.map((c) => ({
-              value: c.name,
-              label: c.name,
-            }))
-          );
-        } else {
-          setIncomeCategories(INCOME_TYPES);
-        }
-      } catch (err) {
-        console.error('Error loading categories:', err);
-        setIncomeCategories(INCOME_TYPES);
+  const loadCategories = async () => {
+    try {
+      const response = await api.getCategories();
+      if (response.data.grouped?.expense) {
+        setExpenseCategories(
+          response.data.grouped.expense.map((c) => ({
+            value: c.name,
+            label: c.name,
+          }))
+        );
       }
-    };
+      if (response.data.grouped?.income) {
+        setIncomeCategories(
+          response.data.grouped.income.map((c) => ({
+            value: c.name,
+            label: c.name,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  useEffect(() => {
     loadCategories();
   }, [token]);
+
+  // Crear categoría inline y recargar lista
+  const handleCreateCategory = async (name, type) => {
+    try {
+      await api.createCategory({ name, type, color: '#D4AF37' });
+      await loadCategories();
+      return name;
+    } catch (err) {
+      console.error('Error creating category:', err);
+      return null;
+    }
+  };
 
   useEffect(() => {
     if (isEditing) {
@@ -370,13 +375,18 @@ export default function TransactionForm() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-dark-200">Tipo de Ingreso *</label>
-                  <Select
+                  <CreatableSelect
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
                     options={incomeCategories}
                     placeholder="Selecciona tipo"
                     error={errors.category}
+                    onCreateNew={(name) => handleCreateCategory(name, 'income')}
+                    createLabel="Añadir tipo de ingreso"
+                    emptyMessage="No hay tipos de ingreso creados"
+                    emptyActionLabel="Ir a Categorías"
+                    emptyAction={() => navigate('/categories')}
                   />
                 </div>
               </div>
@@ -469,13 +479,18 @@ export default function TransactionForm() {
                       <Plus className="h-3 w-3" />Gestionar
                     </Link>
                   </div>
-                  <Select
+                  <CreatableSelect
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
                     options={expenseCategories}
                     placeholder="Selecciona categoría"
                     error={errors.category}
+                    onCreateNew={(name) => handleCreateCategory(name, 'expense')}
+                    createLabel="Añadir categoría"
+                    emptyMessage="No hay categorías de gasto creadas"
+                    emptyActionLabel="Ir a Categorías"
+                    emptyAction={() => navigate('/categories')}
                   />
                 </div>
                 <div className="space-y-2">

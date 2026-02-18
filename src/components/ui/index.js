@@ -4,3 +4,4 @@ export { Card, StatCard } from './Card';
 export { Spinner, LoadingScreen, PageLoader } from './Spinner';
 export { Modal, ConfirmModal } from './Modal';
 export { Select } from './Select';
+export { CreatableSelect } from './CreatableSelect';
