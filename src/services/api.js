@@ -185,6 +185,27 @@ class ApiService {
       method: 'POST',
     });
   }
+
+  // Notifications
+  getNotifications(limit = 50) {
+    return this.request(`/notifications?limit=${limit}`);
+  }
+
+  getUnreadNotificationCount() {
+    return this.request('/notifications/unread-count');
+  }
+
+  markNotificationRead(id) {
+    return this.request(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  markAllNotificationsRead() {
+    return this.request('/notifications/read-all', {
+      method: 'PUT',
+    });
+  }
 }
 
 export const api = new ApiService();
