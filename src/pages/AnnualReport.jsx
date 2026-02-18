@@ -48,7 +48,7 @@ const EXPENSE_CATEGORY_COLORS = [
 ];
 
 export default function AnnualReport() {
-  const { currency } = useSettings();
+  const { currency, theme } = useSettings();
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [transactions, setTransactions] = useState([]);
@@ -275,9 +275,9 @@ export default function AnnualReport() {
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-              <XAxis dataKey="month" stroke="#666" tick={{ fill: '#666', fontSize: 12 }} />
-              <YAxis stroke="#666" tick={{ fill: '#666', fontSize: 12 }} tickFormatter={(v) => `$${v / 1000}k`} />
+              <CartesianGrid strokeDasharray="3 3" stroke={theme === 'light' ? '#e8eaef' : '#2a2a2a'} />
+              <XAxis dataKey="month" stroke={theme === 'light' ? '#9096a6' : '#666'} tick={{ fill: theme === 'light' ? '#6b7084' : '#666', fontSize: 12 }} />
+              <YAxis stroke={theme === 'light' ? '#9096a6' : '#666'} tick={{ fill: theme === 'light' ? '#6b7084' : '#666', fontSize: 12 }} tickFormatter={(v) => `$${v / 1000}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend
                 wrapperStyle={{ paddingTop: 10 }}

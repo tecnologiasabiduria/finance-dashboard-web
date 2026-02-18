@@ -10,15 +10,17 @@
   --bg-surface-hover: #383838;
   --border-color: #383838;
   --scrollbar-track: #1a1a1a;
+  --shadow-card: none;
 }
 
 html.light {
-  --bg-body: #f5f5f5;
-  --text-body: #1a1a1a;
+  --bg-body: #f4f5f7;
+  --text-body: #1e2028;
   --bg-surface: #ffffff;
-  --bg-surface-hover: #f0f0f0;
-  --border-color: #e3e3e3;
-  --scrollbar-track: #e3e3e3;
+  --bg-surface-hover: #f0f1f4;
+  --border-color: #e2e4e9;
+  --scrollbar-track: #edeef1;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
 }
 
 /* Reset y estilos base */
@@ -42,38 +44,157 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* ===== Light theme overrides ===== */
-html.light .bg-dark-950 { background-color: #ffffff !important; }
-html.light .bg-dark-900 { background-color: #f9fafb !important; }
-html.light .bg-dark-900\\/50 { background-color: rgba(249,250,251,0.5) !important; }
-html.light .bg-dark-800 { background-color: #f3f4f6 !important; }
-html.light .bg-dark-800\\/50 { background-color: rgba(243,244,246,0.5) !important; }
-
-html.light .border-dark-800 { border-color: #e5e7eb !important; }
-html.light .border-dark-700 { border-color: #d1d5db !important; }
-
-html.light .text-white { color: #111827 !important; }
-html.light .text-dark-400 { color: #6b7280 !important; }
-html.light .text-dark-300 { color: #4b5563 !important; }
-html.light .text-dark-200 { color: #374151 !important; }
-html.light .text-dark-500 { color: #9ca3af !important; }
-
-html.light .hover\\:text-white:hover { color: #111827 !important; }
-html.light .hover\\:bg-dark-800:hover { background-color: #f3f4f6 !important; }
-html.light .hover\\:bg-dark-800\\/50:hover { background-color: rgba(243,244,246,0.5) !important; }
-
-html.light .placeholder-dark-400::placeholder,
-html.light .placeholder-dark-500::placeholder,
-html.light .placeholder\\:text-dark-500::placeholder { color: #9ca3af !important; }
-
-html.light input, html.light select, html.light textarea {
-  color: #111827 !important;
+/* Smooth theme switching for all elements */
+html.light *,
+html.dark * {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+/* Exclude animations & transforms from theme transition to avoid jankiness */
+html.light .animate-spin,
+html.dark .animate-spin,
+html.light [class*="transition-transform"],
+html.dark [class*="transition-transform"] {
+  transition: none;
 }
 
+/* ===== Light theme overrides ===== */
+
+/* ---- Backgrounds ---- */
+html.light .bg-dark-950     { background-color: #f4f5f7 !important; }
+html.light .bg-dark-900     { background-color: #ffffff !important; }
+html.light .bg-dark-900\/50 { background-color: rgba(255,255,255,0.7) !important; }
+html.light .bg-dark-800     { background-color: #f0f1f4 !important; }
+html.light .bg-dark-800\/50 { background-color: rgba(240,241,244,0.6) !important; }
+html.light .bg-dark-800\/30 { background-color: rgba(240,241,244,0.35) !important; }
+html.light .bg-dark-800\/80 { background-color: rgba(240,241,244,0.85) !important; }
+html.light .bg-dark-800\/20 { background-color: rgba(240,241,244,0.25) !important; }
+html.light .bg-dark-700     { background-color: #e2e4e9 !important; }
+html.light .bg-dark-600     { background-color: #d5d7de !important; }
+
+/* Sidebar & header: white surface */
+html.light .bg-dark-950\/80 { background-color: rgba(255,255,255,0.85) !important; }
+
+/* ---- Borders ---- */
+html.light .border-dark-800    { border-color: #e8eaef !important; }
+html.light .border-dark-800\/50 { border-color: rgba(232,234,239,0.6) !important; }
+html.light .border-dark-700    { border-color: #dcdee4 !important; }
+html.light .border-dark-600    { border-color: #d0d3da !important; }
+
+/* ---- Text ---- */
+html.light .text-white     { color: #1e2028 !important; }
+html.light .text-dark-200  { color: #2d3040 !important; }
+html.light .text-dark-300  { color: #3d4155 !important; }
+html.light .text-dark-400  { color: #6b7084 !important; }
+html.light .text-dark-500  { color: #9096a6 !important; }
+html.light .text-dark-600  { color: #b5b9c6 !important; }
+/* text-dark-950 stays dark (used on gold buttons) — no override needed */
+
+/* ---- Hover states ---- */
+html.light .hover\:text-white:hover      { color: #1e2028 !important; }
+html.light .hover\:bg-dark-800:hover     { background-color: #ecedf1 !important; }
+html.light .hover\:bg-dark-800\/50:hover { background-color: rgba(236,237,241,0.6) !important; }
+html.light .hover\:bg-dark-800\/30:hover { background-color: rgba(236,237,241,0.35) !important; }
+html.light .hover\:bg-dark-800\/20:hover { background-color: rgba(236,237,241,0.25) !important; }
+html.light .hover\:bg-dark-900\/50:hover { background-color: rgba(255,255,255,0.6) !important; }
+html.light .hover\:bg-dark-900\/80:hover { background-color: rgba(255,255,255,0.85) !important; }
+html.light .hover\:border-dark-600:hover { border-color: #c5c8d0 !important; }
+
+/* ---- Gradient backgrounds ---- */
+html.light .from-dark-900 { --tw-gradient-from: #f4f5f7 !important; }
+html.light .to-dark-950   { --tw-gradient-to: #edeef1 !important; }
+html.light .to-dark-900   { --tw-gradient-to: #f4f5f7 !important; }
+
+/* ---- Placeholders ---- */
+html.light .placeholder-dark-400::placeholder,
+html.light .placeholder-dark-500::placeholder,
+html.light .placeholder-dark-600::placeholder,
+html.light .placeholder\:text-dark-500::placeholder { color: #9096a6 !important; }
+
+/* ---- Form elements ---- */
+html.light input,
+html.light select,
+html.light textarea {
+  color: #1e2028 !important;
+}
+
+html.light select option {
+  background-color: #ffffff !important;
+  color: #1e2028 !important;
+}
+
+/* ---- Ring offset ---- */
+html.light .ring-offset-dark-900 { --tw-ring-offset-color: #ffffff !important; }
+
+/* ---- Gold border gradient (cards) ---- */
 html.light .border-gradient-gold {
   background: linear-gradient(#ffffff, #ffffff) padding-box,
               linear-gradient(135deg, #D4AF37 0%, #F4E4BC 50%, #D4AF37 100%) border-box;
 }
+
+/* ---- Cards: subtle shadow in light mode ---- */
+html.light .bg-dark-900.border {
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- Glass effects ---- */
+html.light .glass-dark {
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* ---- Sidebar active nav: gold tint on light ---- */
+html.light .bg-gradient-to-r.from-gold-400\/20 {
+  background: linear-gradient(to right, rgba(212,175,55,0.08), transparent) !important;
+}
+
+/* ---- Backdrop overlay ---- */
+html.light .bg-dark-950\/80[class*="backdrop"] {
+  background-color: rgba(0,0,0,0.25) !important;
+}
+
+/* ---- Sticky table headers ---- */
+html.light .sticky.bg-dark-900,
+html.light .sticky.bg-dark-950 {
+  background-color: #ffffff !important;
+}
+html.light .sticky.bg-dark-800\/30 {
+  background-color: rgba(240,241,244,0.95) !important;
+}
+
+/* ---- Colored accent adjustments for readability ---- */
+html.light .text-emerald-400 { color: #059669 !important; }
+html.light .text-red-400     { color: #dc2626 !important; }
+html.light .text-gold-400    { color: #b8941f !important; }
+html.light .text-gold-300    { color: #c5a028 !important; }
+html.light .text-amber-400   { color: #d97706 !important; }
+html.light .text-blue-400    { color: #2563eb !important; }
+
+html.light .bg-emerald-500\/10  { background-color: rgba(5,150,105,0.08) !important; }
+html.light .bg-emerald-500\/20  { background-color: rgba(5,150,105,0.1) !important; }
+html.light .bg-red-500\/10      { background-color: rgba(220,38,38,0.06) !important; }
+html.light .bg-red-500\/20      { background-color: rgba(220,38,38,0.1) !important; }
+html.light .bg-gold-400\/10     { background-color: rgba(184,148,31,0.08) !important; }
+html.light .bg-gold-400\/20     { background-color: rgba(184,148,31,0.12) !important; }
+html.light .bg-amber-500\/20    { background-color: rgba(217,119,6,0.1) !important; }
+html.light .bg-blue-500\/20     { background-color: rgba(37,99,235,0.08) !important; }
+
+html.light .border-emerald-500\/20 { border-color: rgba(5,150,105,0.15) !important; }
+html.light .border-emerald-500\/30 { border-color: rgba(5,150,105,0.2) !important; }
+html.light .border-emerald-400\/30 { border-color: rgba(5,150,105,0.2) !important; }
+html.light .border-red-500\/20     { border-color: rgba(220,38,38,0.15) !important; }
+html.light .border-red-500\/30     { border-color: rgba(220,38,38,0.2) !important; }
+html.light .border-red-400\/30     { border-color: rgba(220,38,38,0.2) !important; }
+html.light .border-gold-400\/20    { border-color: rgba(184,148,31,0.2) !important; }
+html.light .border-gold-400\/30    { border-color: rgba(184,148,31,0.2) !important; }
+
+html.light .hover\:border-gold-400\/30:hover { border-color: rgba(184,148,31,0.25) !important; }
+
+/* ---- Toggle switch (notifications) ---- */
+html.light .bg-dark-700 { background-color: #d0d3da !important; }
+
+/* ---- Shadows ---- */
+html.light .shadow-2xl { box-shadow: 0 4px 24px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06) !important; }
+html.light .shadow-gold { box-shadow: 0 4px 16px rgba(184,148,31,0.12) !important; }
+html.light .shadow-xl   { box-shadow: 0 2px 16px rgba(0,0,0,0.08) !important; }
 
 /* Scrollbar personalizado */
 ::-webkit-scrollbar {
@@ -82,7 +203,7 @@ html.light .border-gradient-gold {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -94,10 +215,23 @@ html.light .border-gradient-gold {
   background: linear-gradient(180deg, #F4E4BC 0%, #D4AF37 100%);
 }
 
+/* Light scrollbar refinement */
+html.light ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #c5c8d0 0%, #a8acb8 100%);
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #a8acb8 0%, #9096a6 100%);
+}
+
 /* Selección de texto */
 ::selection {
   background-color: rgba(212, 175, 55, 0.3);
   color: #ffffff;
+}
+
+html.light ::selection {
+  background-color: rgba(184, 148, 31, 0.18);
+  color: #1e2028;
 }
 
 /* Clases de utilidad personalizadas */
@@ -170,6 +304,28 @@ html.light .border-gradient-gold {
            hover:border-gold-400/30 hover:bg-dark-900/80
            transition-all duration-300;
   }
+}
+
+/* Light theme component refinements */
+html.light .card-dark,
+html.light .stat-card {
+  box-shadow: var(--shadow-card);
+}
+
+html.light .glass-dark {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+html.light .hover-lift:hover {
+  box-shadow: 0 10px 40px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Light mode: darker gold gradient text for readability */
+html.light .text-gradient-gold {
+  background: linear-gradient(135deg, #9A7B1A 0%, #C5A028 50%, #9A7B1A 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
 }
 
 /* Animaciones adicionales */
