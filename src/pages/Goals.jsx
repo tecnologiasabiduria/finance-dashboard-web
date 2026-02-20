@@ -30,17 +30,6 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 
-const DEFAULT_POCKETS = [
-  { name: 'Utilidad', percentage: 25, sort_order: 0 },
-  { name: 'Nómina Equipo', percentage: 20, sort_order: 1 },
-  { name: 'Materia Prima', percentage: 20, sort_order: 2 },
-  { name: 'Arriendo + Servicios', percentage: 15, sort_order: 3 },
-  { name: 'Agencia Marketing', percentage: 8, sort_order: 4 },
-  { name: 'Plataformas', percentage: 5, sort_order: 5 },
-  { name: 'Impuestos', percentage: 5, sort_order: 6 },
-  { name: 'Contabilidad + CRM', percentage: 2, sort_order: 7 },
-];
-
 export default function Goals() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -140,25 +129,6 @@ export default function Goals() {
       console.error('Error saving config:', err);
     }
     setSavingConfig(false);
-  };
-
-  // Init default pockets
-  const handleInitDefaults = async () => {
-    setSavingPockets(true);
-    try {
-      const res = await api.saveBudgetPocketsBulk(DEFAULT_POCKETS);
-      setPockets(res.data.pockets);
-      // Reload categories since backend auto-creates them
-      const catRes = await api.getCategories();
-      setExpenseCategories(catRes.data.grouped?.expense || []);
-      if (config) {
-        const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
-        setOverview(overviewRes.data);
-      }
-    } catch (err) {
-      console.error('Error initializing pockets:', err);
-    }
-    setSavingPockets(false);
   };
 
   // Start editing pockets
@@ -319,7 +289,6 @@ export default function Goals() {
           cancelEditPockets={cancelEditPockets}
           savePocketEdits={savePocketEdits}
           savingPockets={savingPockets}
-          handleInitDefaults={handleInitDefaults}
           totalPercentage={totalPercentage}
           setNewPocketModal={setNewPocketModal}
           setDeleteModal={setDeleteModal}
@@ -391,7 +360,7 @@ function ConfigView({
   annualTarget, setAnnualTarget, handleSaveConfig, savingConfig,
   pockets, editingPockets, pocketDraft, setPocketDraft,
   startEditPockets, cancelEditPockets, savePocketEdits, savingPockets,
-  handleInitDefaults, totalPercentage, setNewPocketModal, setDeleteModal,
+  totalPercentage, setNewPocketModal, setDeleteModal,
   selectedYear, config,
 }) {
   const monthlyEstimate = annualTarget ? parseFloat(annualTarget) / 12 : 0;
@@ -432,11 +401,6 @@ function ConfigView({
             <p className="text-sm text-dark-400">Categorías de gasto con porcentaje asignado</p>
           </div>
           <div className="flex gap-2">
-            {pockets.length === 0 && (
-              <Button variant="secondary" size="sm" onClick={handleInitDefaults} loading={savingPockets}>
-                Cargar Por Defecto
-              </Button>
-            )}
             <Button size="sm" icon={Plus} onClick={() => setNewPocketModal(true)}>
               Agregar
             </Button>
@@ -469,7 +433,7 @@ function ConfigView({
           <div className="text-center py-10 text-dark-400">
             <Wallet className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>No hay bolsillos configurados</p>
-            <p className="text-sm mt-1">Haz clic en "Cargar Por Defecto" para empezar</p>
+            <p className="text-sm mt-1">Haz clic en "Agregar" para crear un bolsillo</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
