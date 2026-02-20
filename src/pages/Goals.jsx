@@ -1,112 +1,257 @@
-import { useState, useEffect } from 'react';
-import { Target, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
-import { Button, Card, Input, Modal, ConfirmModal } from '../components/ui';
-import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
-import { useSettings } from '../context/SettingsContext';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Target,
+  Plus,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  AlertTriangle,
+  CheckCircle,
+  TrendingUp,
+  TrendingDown,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Wallet,
+  PieChart,
+  Settings2,
+  ArrowUpRight,
+  ArrowDownRight,
+  AlertCircle,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Card, Button, Input, Modal, ConfirmModal, Spinner, CreatableSelect } from '../components/ui';
 import { formatCurrency } from '../utils/formatters';
+import { api } from '../services/api';
 
-// Colores disponibles para las metas
-const COLORS = [
-  { name: 'Dorado', value: '#D4AF37' },
-  { name: 'Verde', value: '#10B981' },
-  { name: 'Azul', value: '#3B82F6' },
-  { name: 'Morado', value: '#8B5CF6' },
-  { name: 'Rosa', value: '#EC4899' },
-  { name: 'Naranja', value: '#F97316' },
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+const DEFAULT_POCKETS = [
+  { name: 'Utilidad', percentage: 25, sort_order: 0 },
+  { name: 'Nómina Equipo', percentage: 20, sort_order: 1 },
+  { name: 'Materia Prima', percentage: 20, sort_order: 2 },
+  { name: 'Arriendo + Servicios', percentage: 15, sort_order: 3 },
+  { name: 'Agencia Marketing', percentage: 8, sort_order: 4 },
+  { name: 'Plataformas', percentage: 5, sort_order: 5 },
+  { name: 'Impuestos', percentage: 5, sort_order: 6 },
+  { name: 'Contabilidad + CRM', percentage: 2, sort_order: 7 },
 ];
 
 export default function Goals() {
-  const { user } = useAuth();
-  const { currency } = useSettings();
-  const [goals, setGoals] = useState([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingGoal, setEditingGoal] = useState(null);
-  const [deleteModal, setDeleteModal] = useState({ open: false, goal: null });
-  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'config'
 
-  // Cargar metas desde la API
+  // Budget data
+  const [config, setConfig] = useState(null);
+  const [pockets, setPockets] = useState([]);
+  const [overview, setOverview] = useState(null);
+  const [expenseCategories, setExpenseCategories] = useState([]);
+
+  // Month/year navigation
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  // Config form
+  const [annualTarget, setAnnualTarget] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  // Pocket management
+  const [editingPockets, setEditingPockets] = useState(false);
+  const [pocketDraft, setPocketDraft] = useState([]);
+  const [savingPockets, setSavingPockets] = useState(false);
+  const [newPocketModal, setNewPocketModal] = useState(false);
+  const [newPocket, setNewPocket] = useState({ name: '', percentage: '' });
+  const [deleteModal, setDeleteModal] = useState({ open: false, pocket: null });
+
+  // Load data
   useEffect(() => {
-    const loadGoals = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const response = await api.getGoals();
-        setGoals(response.data.goals || []);
-        setError(null);
+
+        const [configRes, pocketsRes, catRes] = await Promise.all([
+          api.getBudgetConfig(selectedYear),
+          api.getBudgetPockets(),
+          api.getCategories(),
+        ]);
+
+        const cfg = configRes.data.config;
+        setConfig(cfg);
+        setAnnualTarget(cfg ? cfg.annual_revenue_target.toString() : '');
+
+        const pkts = pocketsRes.data.pockets || [];
+        setPockets(pkts);
+
+        setExpenseCategories(catRes.data.grouped?.expense || []);
+
+        // Load overview if config exists
+        if (cfg) {
+          const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
+          setOverview(overviewRes.data);
+        } else {
+          setOverview(null);
+        }
       } catch (err) {
-        console.error('Error loading goals:', err);
-        setError('Error al cargar las metas');
+        console.error('Error loading budget:', err);
       } finally {
         setLoading(false);
       }
     };
-    loadGoals();
-  }, []);
+    loadData();
+  }, [selectedMonth, selectedYear]);
 
-  const handleSaveGoal = async (goalData) => {
+  // Month navigation
+  const goToPrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear((y) => y - 1);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+  const goToNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear((y) => y + 1);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+  };
+
+  // Save annual target
+  const handleSaveConfig = async () => {
+    const target = parseFloat(annualTarget);
+    if (!target || target <= 0) return;
+    setSavingConfig(true);
     try {
-      setSaving(true);
-      if (editingGoal) {
-        // Editar meta existente
-        const response = await api.updateGoal(editingGoal.id, goalData);
-        setGoals(goals.map((g) => (g.id === editingGoal.id ? response.data.goal : g)));
-      } else {
-        // Nueva meta
-        const response = await api.createGoal(goalData);
-        setGoals([response.data.goal, ...goals]);
-      }
-      setModalOpen(false);
-      setEditingGoal(null);
+      const res = await api.saveBudgetConfig({ year: selectedYear, annual_revenue_target: target });
+      setConfig(res.data.config);
+
+      // Reload overview
+      const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
+      setOverview(overviewRes.data);
     } catch (err) {
-      console.error('Error saving goal:', err);
-      setError('Error al guardar la meta');
-    } finally {
-      setSaving(false);
+      console.error('Error saving config:', err);
     }
+    setSavingConfig(false);
   };
 
-  const handleDeleteGoal = async () => {
-    if (deleteModal.goal) {
-      try {
-        setSaving(true);
-        await api.deleteGoal(deleteModal.goal.id);
-        setGoals(goals.filter((g) => g.id !== deleteModal.goal.id));
-        setDeleteModal({ open: false, goal: null });
-      } catch (err) {
-        console.error('Error deleting goal:', err);
-        setError('Error al eliminar la meta');
-      } finally {
-        setSaving(false);
-      }
-    }
-  };
-
-  const handleUpdateProgress = async (goalId, newCurrent) => {
+  // Init default pockets
+  const handleInitDefaults = async () => {
+    setSavingPockets(true);
     try {
-      const response = await api.updateGoal(goalId, { current: Math.max(0, newCurrent) });
-      setGoals(goals.map((g) => (g.id === goalId ? response.data.goal : g)));
+      const res = await api.saveBudgetPocketsBulk(DEFAULT_POCKETS);
+      setPockets(res.data.pockets);
+      // Reload categories since backend auto-creates them
+      const catRes = await api.getCategories();
+      setExpenseCategories(catRes.data.grouped?.expense || []);
+      if (config) {
+        const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
+        setOverview(overviewRes.data);
+      }
     } catch (err) {
-      console.error('Error updating progress:', err);
-      setError('Error al actualizar el progreso');
+      console.error('Error initializing pockets:', err);
+    }
+    setSavingPockets(false);
+  };
+
+  // Start editing pockets
+  const startEditPockets = () => {
+    setPocketDraft(pockets.map((p) => ({ ...p })));
+    setEditingPockets(true);
+  };
+
+  const cancelEditPockets = () => {
+    setEditingPockets(false);
+    setPocketDraft([]);
+  };
+
+  const savePocketEdits = async () => {
+    setSavingPockets(true);
+    try {
+      const res = await api.saveBudgetPocketsBulk(pocketDraft);
+      setPockets(res.data.pockets);
+      setEditingPockets(false);
+      if (config) {
+        const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
+        setOverview(overviewRes.data);
+      }
+    } catch (err) {
+      console.error('Error saving pockets:', err);
+    }
+    setSavingPockets(false);
+  };
+
+  // Create category inline (same pattern as TransactionForm)
+  const handleCreateCategory = async (name) => {
+    try {
+      await api.createCategory({ name, type: 'expense', color: '#D4AF37' });
+    } catch (err) {
+      // If category already exists, that's fine — just use it
+      if (!err.message?.includes('Ya existe')) {
+        console.error('Error creating category:', err);
+        return null;
+      }
+    }
+    // Reload categories either way
+    const catRes = await api.getCategories();
+    setExpenseCategories(catRes.data.grouped?.expense || []);
+    return name;
+  };
+
+  const handleAddPocket = async () => {
+    if (!newPocket.name.trim() || !newPocket.percentage) return;
+    try {
+      const res = await api.createBudgetPocket({
+        name: newPocket.name.trim(),
+        percentage: parseFloat(newPocket.percentage),
+        sort_order: pockets.length,
+      });
+      setPockets([...pockets, res.data.pocket]);
+      // Reload categories since backend auto-creates them
+      const catRes = await api.getCategories();
+      setExpenseCategories(catRes.data.grouped?.expense || []);
+      setNewPocketModal(false);
+      setNewPocket({ name: '', percentage: '' });
+      if (config) {
+        const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
+        setOverview(overviewRes.data);
+      }
+    } catch (err) {
+      console.error('Error adding pocket:', err);
     }
   };
 
-  const openEditModal = (goal) => {
-    setEditingGoal(goal);
-    setModalOpen(true);
+  const handleDeletePocket = async () => {
+    if (!deleteModal.pocket) return;
+    try {
+      await api.deleteBudgetPocket(deleteModal.pocket.id);
+      setPockets(pockets.filter((p) => p.id !== deleteModal.pocket.id));
+      setDeleteModal({ open: false, pocket: null });
+      if (config) {
+        const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth);
+        setOverview(overviewRes.data);
+      }
+    } catch (err) {
+      console.error('Error deleting pocket:', err);
+    }
   };
 
-  const openNewModal = () => {
-    setEditingGoal(null);
-    setModalOpen(true);
-  };
+  const totalPercentage = useMemo(() => {
+    const source = editingPockets ? pocketDraft : pockets;
+    return source.reduce((s, p) => s + (parseFloat(p.percentage) || 0), 0);
+  }, [pockets, pocketDraft, editingPockets]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin h-8 w-8 border-2 border-gold-400 border-t-transparent rounded-full" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -114,314 +259,582 @@ export default function Goals() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-white">Metas Financieras</h1>
-          <p className="text-dark-400 mt-1">Configura y sigue el progreso de tus metas</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">Presupuesto por Bolsillo</h1>
+          <p className="text-dark-400 mt-1">Planifica y controla la distribución de tus ingresos</p>
         </div>
-        <Button icon={Plus} onClick={openNewModal}>
-          Nueva Meta
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Month Navigator */}
+          <div className="flex items-center bg-dark-900 border border-dark-800 rounded-xl">
+            <button onClick={goToPrevMonth} className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2 px-3 py-2">
+              <Calendar className="h-4 w-4 text-gold-400" />
+              <span className="text-sm font-medium text-white min-w-[130px] text-center">
+                {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+              </span>
+            </div>
+            <button onClick={goToNextMonth} className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-          <p className="text-red-400">{error}</p>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-2 p-1 bg-dark-900/50 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
+            activeTab === 'overview' ? 'bg-gold-400/20 text-gold-400' : 'text-dark-400 hover:text-white hover:bg-dark-800'
+          }`}
+        >
+          <PieChart className="h-4 w-4" />
+          Resumen
+        </button>
+        <button
+          onClick={() => setActiveTab('config')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
+            activeTab === 'config' ? 'bg-gold-400/20 text-gold-400' : 'text-dark-400 hover:text-white hover:bg-dark-800'
+          }`}
+        >
+          <Settings2 className="h-4 w-4" />
+          Configurar
+        </button>
+      </div>
 
-      {/* Lista de Metas */}
-      {goals.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Target className="h-16 w-16 text-dark-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">No tienes metas</h3>
-          <p className="text-dark-400 mb-6">
-            Crea tu primera meta financiera para comenzar a hacer seguimiento
-          </p>
-          <Button icon={Plus} onClick={openNewModal}>
-            Crear Meta
-          </Button>
-        </Card>
+      {activeTab === 'config' ? (
+        <ConfigView
+          annualTarget={annualTarget}
+          setAnnualTarget={setAnnualTarget}
+          handleSaveConfig={handleSaveConfig}
+          savingConfig={savingConfig}
+          pockets={pockets}
+          editingPockets={editingPockets}
+          pocketDraft={pocketDraft}
+          setPocketDraft={setPocketDraft}
+          startEditPockets={startEditPockets}
+          cancelEditPockets={cancelEditPockets}
+          savePocketEdits={savePocketEdits}
+          savingPockets={savingPockets}
+          handleInitDefaults={handleInitDefaults}
+          totalPercentage={totalPercentage}
+          setNewPocketModal={setNewPocketModal}
+          setDeleteModal={setDeleteModal}
+          selectedYear={selectedYear}
+          config={config}
+        />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {goals.map((goal) => {
-            const progress = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
-            const remaining = Math.max(0, goal.target - goal.current);
-
-            return (
-              <Card key={goal.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${goal.color}20` }}
-                    >
-                      <Target className="h-5 w-5" style={{ color: goal.color }} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white">{goal.name}</h3>
-                      <p className="text-sm text-dark-400">
-                        {Math.round(progress)}% completado
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => openEditModal(goal)}
-                      className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteModal({ open: true, goal })}
-                      className="p-2 text-dark-400 hover:text-red-400 hover:bg-dark-800 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="h-3 bg-dark-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, progress)}%`,
-                        backgroundColor: goal.color,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Amounts */}
-                <div className="flex justify-between text-sm mb-4">
-                  <span className="text-dark-400">
-                    Actual: <span className="text-white">{formatCurrency(goal.current, currency)}</span>
-                  </span>
-                  <span className="text-dark-400">
-                    Meta: <span className="text-white">{formatCurrency(goal.target, currency)}</span>
-                  </span>
-                </div>
-
-                {/* Quick Update */}
-                <QuickUpdateInput
-                  goalId={goal.id}
-                  currentValue={goal.current}
-                  onUpdate={handleUpdateProgress}
-                />
-
-                {remaining > 0 && (
-                  <p className="text-xs text-dark-500 mt-3">
-                    Faltan {formatCurrency(remaining, currency)} para alcanzar tu meta
-                  </p>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        <OverviewView
+          overview={overview}
+          config={config}
+          pockets={pockets}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          setActiveTab={setActiveTab}
+        />
       )}
 
-      {/* Modal de Crear/Editar Meta */}
-      <GoalModal
-        open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingGoal(null);
-        }}
-        onSave={handleSaveGoal}
-        goal={editingGoal}
-        saving={saving}
-      />
+      {/* Add Pocket Modal */}
+      <Modal isOpen={newPocketModal} onClose={() => setNewPocketModal(false)} title="Nuevo Bolsillo">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-dark-200">Categoría de Gasto *</label>
+            <CreatableSelect
+              name="pocketCategory"
+              value={newPocket.name}
+              onChange={(e) => setNewPocket({ ...newPocket, name: e.target.value })}
+              options={expenseCategories
+                .filter(c => !pockets.some(p => p.name.toLowerCase() === c.name.toLowerCase()))
+                .map(c => ({ value: c.name, label: c.name }))}
+              placeholder="Selecciona o crea categoría"
+              onCreateNew={(name) => handleCreateCategory(name)}
+              createLabel="Añadir categoría"
+              emptyMessage="No hay categorías de gasto creadas"
+              emptyActionLabel="Ir a Categorías"
+              emptyAction={() => navigate('/categories')}
+            />
+          </div>
+          <Input
+            label="Porcentaje (%)"
+            type="number"
+            placeholder="20"
+            value={newPocket.percentage}
+            onChange={(e) => setNewPocket({ ...newPocket, percentage: e.target.value })}
+          />
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setNewPocketModal(false)}>Cancelar</Button>
+            <Button className="flex-1" icon={Save} onClick={handleAddPocket} disabled={!newPocket.name}>Crear</Button>
+          </div>
+        </div>
+      </Modal>
 
-      {/* Modal de Confirmación de Eliminación */}
+      {/* Delete Pocket Confirm */}
       <ConfirmModal
         isOpen={deleteModal.open}
-        onClose={() => setDeleteModal({ open: false, goal: null })}
-        onConfirm={handleDeleteGoal}
-        title="Eliminar Meta"
-        message={`¿Estás seguro de eliminar la meta "${deleteModal.goal?.name}"? Esta acción no se puede deshacer.`}
+        onClose={() => setDeleteModal({ open: false, pocket: null })}
+        onConfirm={handleDeletePocket}
+        title="Eliminar Bolsillo"
+        message={`¿Estás seguro de eliminar "${deleteModal.pocket?.name}"?`}
         confirmText="Eliminar"
-        variant="danger"
       />
     </div>
   );
 }
 
-// Componente para actualizar progreso rápidamente
-function QuickUpdateInput({ goalId, currentValue, onUpdate }) {
-  const [inputValue, setInputValue] = useState('');
-
-  const handleAdd = () => {
-    const value = parseFloat(inputValue);
-    if (!isNaN(value) && value !== 0) {
-      onUpdate(goalId, currentValue + value);
-      setInputValue('');
-    }
-  };
-
-  const handleSetValue = () => {
-    const value = parseFloat(inputValue);
-    if (!isNaN(value) && value >= 0) {
-      onUpdate(goalId, value);
-      setInputValue('');
-    }
-  };
+// ============================================================
+// CONFIG VIEW — Configurar meta y bolsillos
+// ============================================================
+function ConfigView({
+  annualTarget, setAnnualTarget, handleSaveConfig, savingConfig,
+  pockets, editingPockets, pocketDraft, setPocketDraft,
+  startEditPockets, cancelEditPockets, savePocketEdits, savingPockets,
+  handleInitDefaults, totalPercentage, setNewPocketModal, setDeleteModal,
+  selectedYear, config,
+}) {
+  const monthlyEstimate = annualTarget ? parseFloat(annualTarget) / 12 : 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          placeholder="Monto a agregar/restar"
-          className="flex-1"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              handleAdd();
-            }
-          }}
-        />
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={handleAdd}
-          title="Agregar al progreso"
-        >
-          +
-        </Button>
-      </div>
-      <button
-        onClick={handleSetValue}
-        className="text-xs text-gold-400 hover:text-gold-300 transition-colors"
-      >
-        Establecer como valor actual
-      </button>
-    </div>
-  );
-}
+    <div className="space-y-6">
+      {/* Annual Target */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-white mb-1">Meta de Facturación</h3>
+        <p className="text-sm text-dark-400 mb-4">Define tu meta de ventas para el año {selectedYear}</p>
 
-// Componente Modal para crear/editar metas
-function GoalModal({ open, onClose, onSave, goal, saving }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    target: '',
-    current: '',
-    color: COLORS[0].value,
-  });
-  const [errors, setErrors] = useState({});
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-dark-300 mb-2">Facturación Anual (COP)</label>
+            <input
+              type="number"
+              value={annualTarget}
+              onChange={(e) => setAnnualTarget(e.target.value)}
+              placeholder="914940000"
+              className="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg text-white placeholder-dark-500 focus:outline-none focus:border-gold-400/50 transition-all"
+            />
+          </div>
+          <div className="bg-dark-800/50 rounded-lg p-4">
+            <p className="text-xs text-dark-500 mb-1">Estimado Mensual</p>
+            <p className="text-xl font-bold text-gold-400">{formatCurrency(monthlyEstimate)}</p>
+          </div>
+          <Button onClick={handleSaveConfig} loading={savingConfig} icon={Save}>
+            Guardar Meta
+          </Button>
+        </div>
+      </Card>
 
-  useEffect(() => {
-    if (goal) {
-      setFormData({
-        name: goal.name,
-        target: goal.target.toString(),
-        current: goal.current.toString(),
-        color: goal.color,
-      });
-    } else {
-      setFormData({
-        name: '',
-        target: '',
-        current: '0',
-        color: COLORS[0].value,
-      });
-    }
-    setErrors({});
-  }, [goal, open]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    const newErrors = {};
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
-    }
-    if (!formData.target || parseFloat(formData.target) <= 0) {
-      newErrors.target = 'La meta debe ser mayor a 0';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    onSave({
-      name: formData.name.trim(),
-      target: parseFloat(formData.target),
-      color: formData.color,
-      current: goal ? parseFloat(formData.current) || 0 : 0,
-    });
-  };
-
-  return (
-    <Modal
-      isOpen={open}
-      onClose={onClose}
-      title={goal ? 'Editar Meta' : 'Nueva Meta'}
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Nombre de la meta"
-          placeholder="Ej: Fondo de emergencia"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          error={errors.name}
-        />
-
-        <Input
-          label="Monto objetivo"
-          type="number"
-          placeholder="20000"
-          value={formData.target}
-          onChange={(e) => setFormData({ ...formData, target: e.target.value })}
-          error={errors.target}
-        />
-
-        {goal && (
-          <Input
-            label="Progreso actual"
-            type="number"
-            placeholder="0"
-            value={formData.current}
-            onChange={(e) => setFormData({ ...formData, current: e.target.value })}
-            error={errors.current}
-          />
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-dark-300 mb-2">
-            Color
-          </label>
-          <div className="flex gap-2 flex-wrap">
-            {COLORS.map((color) => (
-              <button
-                key={color.value}
-                type="button"
-                onClick={() => setFormData({ ...formData, color: color.value })}
-                className={`w-10 h-10 rounded-lg transition-all ${
-                  formData.color === color.value
-                    ? 'ring-2 ring-white ring-offset-2 ring-offset-dark-900 scale-110'
-                    : 'hover:scale-105'
-                }`}
-                style={{ backgroundColor: color.value }}
-                title={color.name}
-              />
-            ))}
+      {/* Pockets Config */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Bolsillos de Presupuesto</h3>
+            <p className="text-sm text-dark-400">Categorías de gasto con porcentaje asignado</p>
+          </div>
+          <div className="flex gap-2">
+            {pockets.length === 0 && (
+              <Button variant="secondary" size="sm" onClick={handleInitDefaults} loading={savingPockets}>
+                Cargar Por Defecto
+              </Button>
+            )}
+            <Button size="sm" icon={Plus} onClick={() => setNewPocketModal(true)}>
+              Agregar
+            </Button>
+            {pockets.length > 0 && !editingPockets && (
+              <Button variant="secondary" size="sm" icon={Edit2} onClick={startEditPockets}>
+                Editar
+              </Button>
+            )}
+            {editingPockets && (
+              <>
+                <Button variant="secondary" size="sm" icon={X} onClick={cancelEditPockets}>Cancelar</Button>
+                <Button size="sm" icon={Save} onClick={savePocketEdits} loading={savingPockets}>Guardar</Button>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="flex gap-3 pt-4">
-          <Button type="button" variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button type="submit" className="flex-1" icon={Save} loading={saving}>
-            {goal ? 'Guardar' : 'Crear'}
-          </Button>
+        {/* Total % indicator */}
+        <div className={`mb-4 px-4 py-2 rounded-lg flex items-center gap-2 text-sm ${
+          totalPercentage === 100
+            ? 'bg-emerald-500/10 text-emerald-400'
+            : 'bg-amber-500/10 text-amber-400'
+        }`}>
+          {totalPercentage === 100 ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+          Total: {totalPercentage}%
+          {totalPercentage !== 100 && <span className="text-dark-400 ml-2">(debe sumar 100%)</span>}
         </div>
-      </form>
-    </Modal>
+
+        {pockets.length === 0 ? (
+          <div className="text-center py-10 text-dark-400">
+            <Wallet className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No hay bolsillos configurados</p>
+            <p className="text-sm mt-1">Haz clic en "Cargar Por Defecto" para empezar</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-dark-800/30">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-dark-400">Bolsillo</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">%</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">
+                    Presupuesto Mes
+                  </th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-dark-400 w-20">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(editingPockets ? pocketDraft : pockets).map((pocket, idx) => {
+                  const budget = monthlyEstimate * (pocket.percentage || 0) / 100;
+                  return (
+                    <tr key={pocket.id || idx} className="border-t border-dark-800/50 hover:bg-dark-800/20">
+                      <td className="py-3 px-4">
+                        {editingPockets ? (
+                          <input
+                            value={pocketDraft[idx]?.name || ''}
+                            onChange={(e) => {
+                              const draft = [...pocketDraft];
+                              draft[idx] = { ...draft[idx], name: e.target.value };
+                              setPocketDraft(draft);
+                            }}
+                            className="bg-dark-800 border border-dark-700 rounded px-3 py-1.5 text-white text-sm w-full focus:outline-none focus:border-gold-400/50"
+                          />
+                        ) : (
+                          <span className="text-white font-medium">{pocket.name}</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {editingPockets ? (
+                          <input
+                            type="number"
+                            value={pocketDraft[idx]?.percentage || ''}
+                            onChange={(e) => {
+                              const draft = [...pocketDraft];
+                              draft[idx] = { ...draft[idx], percentage: parseFloat(e.target.value) || 0 };
+                              setPocketDraft(draft);
+                            }}
+                            className="bg-dark-800 border border-dark-700 rounded px-3 py-1.5 text-white text-sm w-20 text-right focus:outline-none focus:border-gold-400/50"
+                          />
+                        ) : (
+                          <span className="text-gold-400 font-medium">{pocket.percentage}%</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right text-dark-300">
+                        {formatCurrency(budget)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {!editingPockets && (
+                          <button
+                            onClick={() => setDeleteModal({ open: true, pocket })}
+                            className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-dark-700 bg-dark-800/30">
+                  <td className="py-3 px-4 font-bold text-white">TOTAL</td>
+                  <td className="py-3 px-4 text-right font-bold text-gold-400">{totalPercentage}%</td>
+                  <td className="py-3 px-4 text-right font-bold text-white">{formatCurrency(monthlyEstimate)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================
+// OVERVIEW VIEW — Vista con cruce de datos reales
+// ============================================================
+function OverviewView({ overview, config, pockets, selectedMonth, selectedYear, setActiveTab }) {
+  if (!config || pockets.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <Wallet className="h-16 w-16 text-dark-600 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-white mb-2">Configura tu presupuesto</h3>
+        <p className="text-dark-400 mb-6">
+          Define tu meta de facturación anual y los bolsillos de gasto para comenzar
+        </p>
+        <Button icon={Settings2} onClick={() => setActiveTab('config')}>
+          Ir a Configurar
+        </Button>
+      </Card>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const monthName = MONTH_NAMES[selectedMonth - 1];
+  const salesDev = overview.sales_deviation;
+  const salesDevPct = overview.monthly_estimate > 0
+    ? ((overview.actual_sales - overview.monthly_estimate) / overview.monthly_estimate * 100).toFixed(1)
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Alerts */}
+      {overview.alerts && overview.alerts.length > 0 && (
+        <div className="space-y-2">
+          {overview.alerts.map((alert, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3 p-4 rounded-xl border ${
+                alert.type === 'danger'
+                  ? 'bg-red-500/10 border-red-500/30'
+                  : 'bg-amber-500/10 border-amber-500/30'
+              }`}
+            >
+              <AlertCircle className={`h-5 w-5 flex-shrink-0 ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`} />
+              <p className={`text-sm font-medium ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                {alert.message}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-5 border-gold-400/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-dark-400 uppercase tracking-wider">Ventas Estimadas</span>
+            <Target className="h-4 w-4 text-gold-400" />
+          </div>
+          <p className="text-xl font-bold text-gold-400">{formatCurrency(overview.monthly_estimate)}</p>
+          <p className="text-xs text-dark-500 mt-1">{monthName} {selectedYear}</p>
+        </Card>
+
+        <Card className={`p-5 ${salesDev >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-dark-400 uppercase tracking-wider">Ventas Reales</span>
+            {salesDev >= 0
+              ? <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+              : <ArrowDownRight className="h-4 w-4 text-red-400" />
+            }
+          </div>
+          <p className={`text-xl font-bold ${salesDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {formatCurrency(overview.actual_sales)}
+          </p>
+          <p className={`text-xs mt-1 ${salesDev >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+            {salesDev >= 0 ? '+' : ''}{salesDevPct}% vs estimado
+          </p>
+        </Card>
+
+        <Card className="p-5 border-dark-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-dark-400 uppercase tracking-wider">Presupuesto Total</span>
+            <PieChart className="h-4 w-4 text-dark-400" />
+          </div>
+          <p className="text-xl font-bold text-white">{formatCurrency(overview.total_budget)}</p>
+          <p className="text-xs text-dark-500 mt-1">Suma de bolsillos</p>
+        </Card>
+
+        <Card className={`p-5 ${overview.total_actual_expenses > overview.total_budget ? 'border-red-500/20' : 'border-emerald-500/20'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-dark-400 uppercase tracking-wider">Gastos Reales</span>
+            <TrendingDown className="h-4 w-4 text-red-400" />
+          </div>
+          <p className={`text-xl font-bold ${overview.total_actual_expenses > overview.total_budget ? 'text-red-400' : 'text-emerald-400'}`}>
+            {formatCurrency(overview.total_actual_expenses)}
+          </p>
+          <p className="text-xs text-dark-500 mt-1">De transacciones registradas</p>
+        </Card>
+      </div>
+
+      {/* Pockets Table */}
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b border-dark-800 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Detalle por Bolsillo</h3>
+            <p className="text-sm text-dark-400">{monthName} {selectedYear}</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-dark-800/50">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-dark-400">Bolsillo</th>
+                <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">% Presup.</th>
+                <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Valor Presupuesto</th>
+                <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Valor Real</th>
+                <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">% Real</th>
+                <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Desviación ($)</th>
+                <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Desviación (%)</th>
+                <th className="text-center py-3 px-4 text-xs font-medium text-dark-400">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.pockets.map((p) => {
+                const isOver = p.status === 'over';
+                const hasData = p.actual_value > 0;
+                return (
+                  <tr key={p.id} className="border-t border-dark-800/50 hover:bg-dark-800/20">
+                    <td className="py-3 px-4 font-medium text-white">{p.name}</td>
+                    <td className="py-3 px-4 text-right text-gold-400">{p.percentage}%</td>
+                    <td className="py-3 px-4 text-right text-dark-300">{formatCurrency(p.budget_value)}</td>
+                    <td className={`py-3 px-4 text-right font-medium ${hasData ? (isOver ? 'text-red-400' : 'text-emerald-400') : 'text-dark-500'}`}>
+                      {hasData ? formatCurrency(p.actual_value) : '—'}
+                    </td>
+                    <td className={`py-3 px-4 text-right ${hasData ? (isOver ? 'text-red-400' : 'text-dark-300') : 'text-dark-500'}`}>
+                      {hasData ? `${p.percentage_real}%` : '—'}
+                    </td>
+                    <td className={`py-3 px-4 text-right font-medium ${
+                      p.deviation_amount > 0 ? 'text-red-400' : p.deviation_amount < 0 ? 'text-emerald-400' : 'text-dark-500'
+                    }`}>
+                      {hasData ? (
+                        <>
+                          {p.deviation_amount > 0 ? '+' : ''}
+                          {formatCurrency(p.deviation_amount)}
+                        </>
+                      ) : '—'}
+                    </td>
+                    <td className={`py-3 px-4 text-right ${
+                      p.deviation_percent > 0 ? 'text-red-400' : p.deviation_percent < 0 ? 'text-emerald-400' : 'text-dark-500'
+                    }`}>
+                      {hasData ? `${p.deviation_percent > 0 ? '+' : ''}${p.deviation_percent}%` : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {isOver ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-lg">
+                          <AlertTriangle className="h-3 w-3" />
+                          Excedido
+                        </span>
+                      ) : hasData ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg">
+                          <CheckCircle className="h-3 w-3" />
+                          OK
+                        </span>
+                      ) : (
+                        <span className="text-dark-500 text-xs">Sin datos</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-dark-700 bg-dark-800/30">
+                <td className="py-3 px-4 font-bold text-white">TOTAL</td>
+                <td className="py-3 px-4 text-right font-bold text-gold-400">100%</td>
+                <td className="py-3 px-4 text-right font-bold text-white">{formatCurrency(overview.total_budget)}</td>
+                <td className="py-3 px-4 text-right font-bold text-white">{formatCurrency(overview.total_actual_expenses)}</td>
+                <td colSpan={4}></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Card>
+
+      {/* Progress Bars — Visual summary */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Ejecución del Presupuesto</h3>
+        <div className="space-y-4">
+          {overview.pockets.map((p) => {
+            const pct = p.budget_value > 0 ? Math.min((p.actual_value / p.budget_value) * 100, 150) : 0;
+            const isOver = p.status === 'over';
+            return (
+              <div key={p.id}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm text-dark-300">{p.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-dark-400">
+                      {formatCurrency(p.actual_value)} / {formatCurrency(p.budget_value)}
+                    </span>
+                    <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {Math.round(pct)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2.5 bg-dark-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isOver ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Annual Sales Tracking */}
+      {overview.annual_data && (
+        <Card className="overflow-hidden">
+          <div className="p-4 border-b border-dark-800">
+            <h3 className="text-lg font-semibold text-white">Ventas: Estimado vs Real — {selectedYear}</h3>
+            <p className="text-sm text-dark-400">Seguimiento mes a mes de la facturación</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-dark-800/50">
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-dark-400">Concepto</th>
+                  {MONTH_NAMES.map((m, i) => (
+                    <th key={i} className={`text-right py-3 px-3 text-xs font-medium min-w-[85px] ${
+                      i + 1 === selectedMonth ? 'text-gold-400' : 'text-dark-400'
+                    }`}>
+                      {m.substring(0, 3)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-dark-800/50">
+                  <td className="py-3 px-4 font-medium text-dark-300">Ventas Estimadas</td>
+                  {overview.annual_data.map((d, i) => (
+                    <td key={i} className="py-3 px-3 text-right text-dark-400">{formatCurrency(d.estimated_sales)}</td>
+                  ))}
+                </tr>
+                <tr className="border-t border-dark-800/50">
+                  <td className="py-3 px-4 font-medium text-emerald-400">Ventas Reales</td>
+                  {overview.annual_data.map((d, i) => (
+                    <td key={i} className={`py-3 px-3 text-right font-medium ${
+                      d.actual_sales > 0
+                        ? (d.actual_sales >= d.estimated_sales ? 'text-emerald-400' : 'text-red-400')
+                        : 'text-dark-600'
+                    }`}>
+                      {d.actual_sales > 0 ? formatCurrency(d.actual_sales) : '—'}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-t-2 border-dark-700 bg-dark-800/30">
+                  <td className="py-3 px-4 font-bold text-white">Desviación</td>
+                  {overview.annual_data.map((d, i) => {
+                    const dev = d.actual_sales - d.estimated_sales;
+                    return (
+                      <td key={i} className={`py-3 px-3 text-right font-medium ${
+                        d.actual_sales > 0
+                          ? (dev >= 0 ? 'text-emerald-400' : 'text-red-400')
+                          : 'text-dark-600'
+                      }`}>
+                        {d.actual_sales > 0 ? formatCurrency(dev) : '—'}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }

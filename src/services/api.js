@@ -206,6 +206,53 @@ class ApiService {
       method: 'PUT',
     });
   }
+
+  // Budget (Presupuesto por Bolsillo)
+  getBudgetConfig(year) {
+    return this.request(`/budget/config?year=${year}`);
+  }
+
+  saveBudgetConfig(data) {
+    return this.request('/budget/config', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  getBudgetPockets() {
+    return this.request('/budget/pockets');
+  }
+
+  createBudgetPocket(data) {
+    return this.request('/budget/pockets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateBudgetPocket(id, data) {
+    return this.request(`/budget/pockets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteBudgetPocket(id) {
+    return this.request(`/budget/pockets/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  saveBudgetPocketsBulk(pockets) {
+    return this.request('/budget/pockets/bulk', {
+      method: 'PUT',
+      body: JSON.stringify({ pockets }),
+    });
+  }
+
+  getBudgetOverview(year, month) {
+    return this.request(`/budget/overview?year=${year}&month=${month}`);
+  }
 }
 
 export const api = new ApiService();

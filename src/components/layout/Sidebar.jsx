@@ -11,6 +11,7 @@ import {
   Target,
   Tag,
   BarChart3,
+  Wallet,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -36,9 +37,9 @@ const navigation = [
     icon: BarChart3,
   },
   {
-    name: 'Metas',
+    name: 'Presupuesto',
     href: '/goals',
-    icon: Target,
+    icon: Wallet,
   },
   {
     name: 'Categorías',
