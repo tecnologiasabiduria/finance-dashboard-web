@@ -33,7 +33,12 @@ export function DashboardLayout() {
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <Sidebar collapsed={false} onToggle={() => setMobileMenuOpen(false)} />
+        <Sidebar
+          collapsed={false}
+          mobile={true}
+          onToggle={() => setMobileMenuOpen(false)}
+          onNavigate={() => setMobileMenuOpen(false)}
+        />
       </div>
 
       {/* Main Content */}
@@ -48,7 +53,7 @@ export function DashboardLayout() {
           onMenuClick={() => setMobileMenuOpen(true)}
         />
 
-        <main className="p-6 lg:p-8">
+        <main className="p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

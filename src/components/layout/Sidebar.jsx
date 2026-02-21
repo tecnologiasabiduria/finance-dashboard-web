@@ -12,6 +12,7 @@ import {
   Tag,
   BarChart3,
   Wallet,
+  X,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -53,20 +54,31 @@ const navigation = [
   },
 ];
 
-export function Sidebar({ collapsed, onToggle }) {
+export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
   const location = useLocation();
 
   return (
     <aside
       className={clsx(
-        'fixed left-0 top-0 h-screen bg-dark-950 border-r border-dark-800',
-        'flex flex-col transition-all duration-300 z-40',
-        collapsed ? 'w-20' : 'w-64'
+        'bg-dark-950 border-r border-dark-800',
+        'flex flex-col transition-all duration-300',
+        mobile
+          ? 'h-full w-64'
+          : 'fixed left-0 top-0 h-screen z-40',
+        !mobile && (collapsed ? 'w-20' : 'w-64')
       )}
     >
-      {/* Logo */}
-      <div className="h-20 flex items-center justify-center border-b border-dark-800 px-4">
+      {/* Logo + Close on mobile */}
+      <div className="h-20 flex items-center justify-between border-b border-dark-800 px-4">
         <Logo size="md" showText={!collapsed} />
+        {mobile && (
+          <button
+            onClick={onToggle}
+            className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -80,6 +92,7 @@ export function Sidebar({ collapsed, onToggle }) {
             <Link
               key={item.name}
               to={item.href}
+              onClick={() => onNavigate?.()}
               className={clsx(
                 'flex items-center gap-3 px-4 py-3 rounded-xl',
                 'transition-all duration-200 group',
@@ -103,26 +116,28 @@ export function Sidebar({ collapsed, onToggle }) {
         })}
       </nav>
 
-      {/* Collapse Toggle */}
-      <div className="p-4 border-t border-dark-800">
-        <button
-          onClick={onToggle}
-          className={clsx(
-            'w-full flex items-center justify-center gap-2 px-4 py-3',
-            'text-dark-400 hover:text-white hover:bg-dark-800/50',
-            'rounded-xl transition-all duration-200'
-          )}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-5 w-5" />
-          ) : (
-            <>
-              <ChevronLeft className="h-5 w-5" />
-              <span className="text-sm">Colapsar</span>
-            </>
-          )}
-        </button>
-      </div>
+      {/* Collapse Toggle - only on desktop */}
+      {!mobile && (
+        <div className="p-4 border-t border-dark-800">
+          <button
+            onClick={onToggle}
+            className={clsx(
+              'w-full flex items-center justify-center gap-2 px-4 py-3',
+              'text-dark-400 hover:text-white hover:bg-dark-800/50',
+              'rounded-xl transition-all duration-200'
+            )}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <>
+                <ChevronLeft className="h-5 w-5" />
+                <span className="text-sm">Colapsar</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

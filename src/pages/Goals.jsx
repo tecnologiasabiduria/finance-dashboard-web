@@ -40,6 +40,8 @@ export default function Goals() {
   const [newPocketModal, setNewPocketModal] = useState(false);
   const [newPocket, setNewPocket] = useState({ name: '', percentage: '' });
   const [deleteModal, setDeleteModal] = useState({ open: false, pocket: null });
+  const [pocketWarning, setPocketWarning] = useState({ open: false, issues: [] });
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Load data
   useEffect(() => {
@@ -70,14 +72,36 @@ export default function Goals() {
     loadData();
   }, [selectedYear]);
 
-  // Save annual target
-  const handleSaveConfig = async () => {
+  // Validate pockets before saving
+  const validateAndSave = () => {
     const target = parseFloat(annualTarget);
     if (!target || target <= 0) return;
+
+    const issues = [];
+    if (pockets.length === 0) {
+      issues.push('No hay bolsillos configurados. Sin bolsillos, el presupuesto no se distribuirá en categorías de gasto.');
+    } else if (totalPercentage !== 100) {
+      issues.push(`Los bolsillos suman ${totalPercentage}% en lugar de 100%. El presupuesto no se distribuirá correctamente.`);
+    }
+
+    if (issues.length > 0) {
+      setPocketWarning({ open: true, issues });
+    } else {
+      doSaveConfig();
+    }
+  };
+
+  // Save annual target
+  const doSaveConfig = async () => {
+    const target = parseFloat(annualTarget);
+    if (!target || target <= 0) return;
+    setPocketWarning({ open: false, issues: [] });
     setSavingConfig(true);
     try {
       const res = await api.saveBudgetConfig({ year: selectedYear, annual_revenue_target: target });
       setConfig(res.data.config);
+      setSuccessMsg('Meta guardada correctamente');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       console.error('Error saving config:', err);
     }
@@ -206,6 +230,14 @@ export default function Goals() {
         </div>
       </div>
 
+      {/* Success message */}
+      {successMsg && (
+        <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl animate-fade-in">
+          <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+          <p className="text-sm font-medium text-emerald-400">{successMsg}</p>
+        </div>
+      )}
+
       {/* Annual Target */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-white mb-1">Meta de Facturación</h3>
@@ -226,7 +258,7 @@ export default function Goals() {
             <p className="text-xs text-dark-500 mb-1">Estimado Mensual</p>
             <p className="text-xl font-bold text-gold-400">{formatCurrency(monthlyEstimate)}</p>
           </div>
-          <Button onClick={handleSaveConfig} loading={savingConfig} icon={Save}>
+          <Button onClick={validateAndSave} loading={savingConfig} icon={Save}>
             Guardar Meta
           </Button>
         </div>
@@ -377,13 +409,21 @@ export default function Goals() {
               emptyAction={() => navigate('/categories')}
             />
           </div>
-          <Input
-            label="Porcentaje (%)"
-            type="number"
-            placeholder="20"
-            value={newPocket.percentage}
-            onChange={(e) => setNewPocket({ ...newPocket, percentage: e.target.value })}
-          />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-dark-200">Porcentaje</label>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="0"
+                value={newPocket.percentage}
+                onChange={(e) => setNewPocket({ ...newPocket, percentage: e.target.value })}
+                className="w-full px-4 py-3 pr-10 bg-dark-900 border border-dark-700 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20 transition-all"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 font-medium pointer-events-none">%</span>
+            </div>
+          </div>
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" className="flex-1" onClick={() => setNewPocketModal(false)}>Cancelar</Button>
             <Button className="flex-1" icon={Save} onClick={handleAddPocket} disabled={!newPocket.name}>Crear</Button>
@@ -400,6 +440,35 @@ export default function Goals() {
         message={`¿Estás seguro de eliminar "${deleteModal.pocket?.name}"?`}
         confirmText="Eliminar"
       />
+
+      {/* Pocket validation warning */}
+      <Modal
+        isOpen={pocketWarning.open}
+        onClose={() => setPocketWarning({ open: false, issues: [] })}
+        title="Bolsillos sin configurar"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+            <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              {pocketWarning.issues.map((issue, i) => (
+                <p key={i} className="text-sm text-red-300">{issue}</p>
+              ))}
+            </div>
+          </div>
+          <p className="text-sm text-dark-400">
+            Configura los bolsillos correctamente antes de guardar la meta. Los porcentajes deben sumar exactamente 100%.
+          </p>
+          <div className="pt-2">
+            <Button
+              className="w-full"
+              onClick={() => setPocketWarning({ open: false, issues: [] })}
+            >
+              Entendido
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

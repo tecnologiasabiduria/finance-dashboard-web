@@ -127,8 +127,8 @@ export function Header({ onMenuClick, showMenuButton }) {
   };
 
   return (
-    <header className="h-20 bg-dark-950/80 backdrop-blur-lg border-b border-dark-800 sticky top-0 z-30">
-      <div className="h-full px-6 flex items-center justify-between">
+    <header className="h-16 sm:h-20 bg-dark-950/80 backdrop-blur-lg border-b border-dark-800 sticky top-0 z-30">
+      <div className="h-full px-3 sm:px-6 flex items-center justify-between">
         {/* Left side */}
         <div className="flex items-center gap-4">
           {showMenuButton && (
@@ -173,7 +173,7 @@ export function Header({ onMenuClick, showMenuButton }) {
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-96 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl animate-slide-up overflow-hidden">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl animate-slide-up overflow-hidden">
                 {/* Header */}
                 <div className="p-4 border-b border-dark-800 flex items-center justify-between">
                   <h3 className="font-semibold text-white">Notificaciones</h3>
