@@ -9,16 +9,37 @@ import {
   Palette,
   Check,
   X,
+  ChevronDown,
+  ChevronRight,
+  User,
+  Hash,
+  Building,
+  CreditCard,
+  Mail,
+  Phone,
+  MapPin,
 } from 'lucide-react';
-import { Button, Card, Input, Modal, ConfirmModal, Spinner } from '../components/ui';
+import { Button, Card, Input, Select, Modal, ConfirmModal, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-// Colores predefinidos para elegir
 const PRESET_COLORS = [
   '#D4AF37', '#22C55E', '#EF4444', '#3B82F6', '#8B5CF6',
   '#F97316', '#EC4899', '#10B981', '#F59E0B', '#6B7280',
   '#14B8A6', '#6366F1', '#E11D48', '#0EA5E9', '#84CC16',
+];
+
+const PAYMENT_METHODS = [
+  { value: 'Bancolombia', label: 'Bancolombia' },
+  { value: 'Davivienda', label: 'Davivienda' },
+  { value: 'Nequi', label: 'Nequi' },
+  { value: 'Daviplata', label: 'Daviplata' },
+  { value: 'Efectivo', label: 'Efectivo' },
+  { value: 'Tarjeta de Crédito', label: 'Tarjeta de Crédito' },
+  { value: 'Tarjeta de Débito', label: 'Tarjeta de Débito' },
+  { value: 'Transferencia', label: 'Transferencia' },
+  { value: 'PSE', label: 'PSE' },
+  { value: 'Otro', label: 'Otro' },
 ];
 
 export default function Categories() {
@@ -26,20 +47,33 @@ export default function Categories() {
 
   const [categories, setCategories] = useState({ income: [], expense: [] });
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
   const [activeTab, setActiveTab] = useState('expense');
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Category modal
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [savingCat, setSavingCat] = useState(false);
+  const [catForm, setCatForm] = useState({ name: '', type: 'expense', color: '#D4AF37' });
+
+  // Subcategory modal
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [parentCategory, setParentCategory] = useState(null);
+  const [savingSub, setSavingSub] = useState(false);
+  const [subForm, setSubForm] = useState({
+    name: '',
+    provider_name: '', provider_document: '', payment_method: '',
+    client_name: '', client_document: '', client_email: '', client_phone: '', client_address: '',
+  });
+
+  // Delete
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteType, setDeleteType] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'expense',
-    color: '#D4AF37',
-  });
+  // Expanded categories
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     loadCategories();
@@ -57,75 +91,134 @@ export default function Categories() {
     }
   };
 
-  const handleOpenModal = (category = null) => {
+  // ─── Category CRUD ───
+
+  const handleOpenCatModal = (category = null) => {
     if (category) {
       setEditingCategory(category);
-      setFormData({
-        name: category.name,
-        type: category.type,
-        color: category.color || '#D4AF37',
-      });
+      setCatForm({ name: category.name, type: category.type, color: category.color || '#D4AF37' });
     } else {
       setEditingCategory(null);
-      setFormData({
-        name: '',
-        type: activeTab,
-        color: '#D4AF37',
-      });
+      setCatForm({ name: '', type: activeTab, color: '#D4AF37' });
     }
     setError('');
-    setShowModal(true);
+    setShowCatModal(true);
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
+  const handleCloseCatModal = () => {
+    setShowCatModal(false);
     setEditingCategory(null);
-    setFormData({ name: '', type: 'expense', color: '#D4AF37' });
+    setCatForm({ name: '', type: 'expense', color: '#D4AF37' });
     setError('');
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmitCat = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      setError('El nombre es requerido');
-      return;
-    }
-
-    setSaving(true);
+    if (!catForm.name.trim()) { setError('El nombre es requerido'); return; }
+    setSavingCat(true);
     setError('');
-
     try {
       if (editingCategory) {
-        await api.updateCategory(editingCategory.id, formData);
+        await api.updateCategory(editingCategory.id, catForm);
       } else {
-        await api.createCategory(formData);
+        await api.createCategory(catForm);
       }
       await loadCategories();
-      handleCloseModal();
+      handleCloseCatModal();
     } catch (err) {
       setError(err.message || 'Error al guardar categoría');
     } finally {
-      setSaving(false);
+      setSavingCat(false);
     }
   };
 
-  const handleDelete = async (category) => {
-    setDeleteTarget(category);
+  // ─── Subcategory CRUD ───
+
+  const handleOpenSubModal = (category, subcategory = null) => {
+    setParentCategory(category);
+    if (subcategory) {
+      setEditingSubcategory(subcategory);
+      setSubForm({
+        name: subcategory.name || '',
+        provider_name: subcategory.provider_name || '',
+        provider_document: subcategory.provider_document || '',
+        payment_method: subcategory.payment_method || '',
+        client_name: subcategory.client_name || '',
+        client_document: subcategory.client_document || '',
+        client_email: subcategory.client_email || '',
+        client_phone: subcategory.client_phone || '',
+        client_address: subcategory.client_address || '',
+      });
+    } else {
+      setEditingSubcategory(null);
+      setSubForm({
+        name: '',
+        provider_name: '', provider_document: '', payment_method: '',
+        client_name: '', client_document: '', client_email: '', client_phone: '', client_address: '',
+      });
+    }
+    setError('');
+    setShowSubModal(true);
+  };
+
+  const handleCloseSubModal = () => {
+    setShowSubModal(false);
+    setEditingSubcategory(null);
+    setParentCategory(null);
+    setError('');
+  };
+
+  const handleSubmitSub = async (e) => {
+    e.preventDefault();
+    if (!subForm.name.trim()) { setError('El nombre es requerido'); return; }
+    setSavingSub(true);
+    setError('');
+    try {
+      const payload = { ...subForm, category_id: parentCategory.id };
+      if (editingSubcategory) {
+        await api.updateSubcategory(editingSubcategory.id, payload);
+      } else {
+        await api.createSubcategory(payload);
+      }
+      await loadCategories();
+      handleCloseSubModal();
+    } catch (err) {
+      setError(err.message || 'Error al guardar subcategoría');
+    } finally {
+      setSavingSub(false);
+    }
+  };
+
+  // ─── Delete (category or subcategory) ───
+
+  const handleDeleteClick = (target, type) => {
+    setDeleteTarget(target);
+    setDeleteType(type);
   };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await api.deleteCategory(deleteTarget.id);
+      if (deleteType === 'category') {
+        await api.deleteCategory(deleteTarget.id);
+      } else {
+        await api.deleteSubcategory(deleteTarget.id);
+      }
       await loadCategories();
       setDeleteTarget(null);
+      setDeleteType(null);
     } catch (err) {
       setDeleteTarget(null);
-      setError(err.message || 'Error al eliminar categoría');
+      setDeleteType(null);
+      setError(err.message || 'Error al eliminar');
     } finally {
       setDeleting(false);
     }
+  };
+
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
   };
 
   if (loading) {
@@ -136,6 +229,10 @@ export default function Categories() {
     );
   }
 
+  const inputClass = `w-full pl-12 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-lg
+    text-white placeholder-dark-500 focus:outline-none focus:border-gold-400
+    focus:ring-2 focus:ring-gold-400/20 transition-all duration-300`;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -143,10 +240,10 @@ export default function Categories() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-white">Categorías</h1>
           <p className="text-dark-400 mt-1">
-            Personaliza las categorías para tus ingresos y gastos
+            Personaliza las categorías y subcategorías para tus ingresos y gastos
           </p>
         </div>
-        <Button icon={Plus} onClick={() => handleOpenModal()}>
+        <Button icon={Plus} onClick={() => handleOpenCatModal()}>
           Nueva Categoría
         </Button>
       </div>
@@ -178,43 +275,132 @@ export default function Categories() {
       </div>
 
       {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {(categories[activeTab] || []).map((category) => (
-          <Card key={category.id} className="p-4 hover:border-gold-400/30 transition-all group">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: `${category.color}20` }}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {(categories[activeTab] || []).map((category) => {
+          const isExpanded = expandedId === category.id;
+          const subs = category.subcategories || [];
+
+          return (
+            <Card key={category.id} className="hover:border-gold-400/30 transition-all">
+              {/* Category header */}
+              <div className="p-4 flex items-start justify-between">
+                <button
+                  onClick={() => toggleExpand(category.id)}
+                  className="flex items-center gap-3 flex-1 text-left"
                 >
-                  <Tag className="h-5 w-5" style={{ color: category.color }} />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white">{category.name}</h3>
-                  <p className="text-xs text-dark-500 capitalize">{category.type === 'income' ? 'Ingreso' : 'Gasto'}</p>
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${category.color}20` }}
+                  >
+                    <Tag className="h-5 w-5" style={{ color: category.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-white">{category.name}</h3>
+                    <p className="text-xs text-dark-500">
+                      {category.type === 'income' ? 'Ingreso' : 'Gasto'}
+                      {subs.length > 0 && ` · ${subs.length} sub`}
+                    </p>
+                  </div>
+                  {subs.length > 0 && (
+                    isExpanded
+                      ? <ChevronDown className="h-4 w-4 text-dark-400 flex-shrink-0" />
+                      : <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
+                  )}
+                </button>
+                <div className="flex gap-1 ml-2">
+                  <button
+                    onClick={() => handleOpenCatModal(category)}
+                    className="p-1.5 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(category, 'category')}
+                    className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+              {/* Expanded subcategories */}
+              {isExpanded && (
+                <div className="border-t border-dark-800 px-4 pb-4 pt-3 space-y-2">
+                  {subs.length === 0 ? (
+                    <p className="text-xs text-dark-500 py-1">Sin subcategorías</p>
+                  ) : (
+                    subs.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className="flex items-center justify-between py-2 px-3 bg-dark-800/50 rounded-lg group"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm text-white font-medium truncate">{sub.name}</p>
+                          <p className="text-xs text-dark-500 truncate">
+                            {category.type === 'expense'
+                              ? [sub.provider_name, sub.payment_method].filter(Boolean).join(' · ') || 'Sin datos'
+                              : [sub.client_name, sub.client_document].filter(Boolean).join(' · ') || 'Sin datos'
+                            }
+                          </p>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2">
+                          <button
+                            onClick={() => handleOpenSubModal(category, sub)}
+                            className="p-1 rounded text-dark-400 hover:text-gold-400 transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(sub, 'subcategory')}
+                            className="p-1 rounded text-dark-400 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <button
+                    onClick={() => handleOpenSubModal(category)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-dark-400 hover:text-gold-400 border border-dashed border-dark-700 hover:border-gold-400/50 rounded-lg transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Agregar subcategoría
+                  </button>
+                </div>
+              )}
+
+              {/* Collapsed hint to expand */}
+              {!isExpanded && subs.length > 0 && (
                 <button
-                  onClick={() => handleOpenModal(category)}
-                  className="p-1.5 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
+                  onClick={() => toggleExpand(category.id)}
+                  className="w-full px-4 pb-3 text-left"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <p className="text-xs text-dark-500 hover:text-dark-300 transition-colors">
+                    {subs.length} subcategoría{subs.length > 1 ? 's' : ''} — click para ver
+                  </p>
                 </button>
-                <button
-                  onClick={() => handleDelete(category)}
-                  className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </Card>
-        ))}
+              )}
+
+              {/* Always show add sub button when collapsed and no subs */}
+              {!isExpanded && subs.length === 0 && (
+                <div className="px-4 pb-3">
+                  <button
+                    onClick={() => { setExpandedId(category.id); handleOpenSubModal(category); }}
+                    className="text-xs text-dark-500 hover:text-gold-400 transition-colors flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Agregar subcategoría
+                  </button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
 
         {/* Add new card */}
         <button
-          onClick={() => handleOpenModal()}
+          onClick={() => handleOpenCatModal()}
           className="p-4 border-2 border-dashed border-dark-700 rounded-xl hover:border-gold-400/50 hover:bg-dark-900/50 transition-all flex items-center justify-center gap-2 text-dark-400 hover:text-gold-400 min-h-[88px]"
         >
           <Plus className="h-5 w-5" />
@@ -222,13 +408,13 @@ export default function Categories() {
         </button>
       </div>
 
-      {/* Modal */}
+      {/* ─── Category Modal ─── */}
       <Modal
-        isOpen={showModal}
-        onClose={handleCloseModal}
+        isOpen={showCatModal}
+        onClose={handleCloseCatModal}
         title={editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmitCat} className="space-y-5">
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
               <p className="text-red-400 text-sm">{error}</p>
@@ -237,9 +423,9 @@ export default function Categories() {
 
           <Input
             label="Nombre"
-            placeholder="Ej: Comida rápida"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Ej: Nómina"
+            value={catForm.name}
+            onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
             icon={Tag}
           />
 
@@ -248,9 +434,9 @@ export default function Categories() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, type: 'expense' })}
+                onClick={() => setCatForm({ ...catForm, type: 'expense' })}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all ${
-                  formData.type === 'expense'
+                  catForm.type === 'expense'
                     ? 'border-red-500 bg-red-500/10 text-red-400'
                     : 'border-dark-700 text-dark-400 hover:border-dark-600'
                 }`}
@@ -260,9 +446,9 @@ export default function Categories() {
               </button>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, type: 'income' })}
+                onClick={() => setCatForm({ ...catForm, type: 'income' })}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all ${
-                  formData.type === 'income'
+                  catForm.type === 'income'
                     ? 'border-green-500 bg-green-500/10 text-green-400'
                     : 'border-dark-700 text-dark-400 hover:border-dark-600'
                 }`}
@@ -283,15 +469,15 @@ export default function Categories() {
                 <button
                   key={color}
                   type="button"
-                  onClick={() => setFormData({ ...formData, color })}
+                  onClick={() => setCatForm({ ...catForm, color })}
                   className={`w-8 h-8 rounded-lg transition-all ${
-                    formData.color === color
+                    catForm.color === color
                       ? 'ring-2 ring-offset-2 ring-offset-dark-900 ring-white scale-110'
                       : 'hover:scale-105'
                   }`}
                   style={{ backgroundColor: color }}
                 >
-                  {formData.color === color && (
+                  {catForm.color === color && (
                     <Check className="h-4 w-4 text-white mx-auto" />
                   )}
                 </button>
@@ -305,33 +491,182 @@ export default function Categories() {
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: `${formData.color}20` }}
+                style={{ backgroundColor: `${catForm.color}20` }}
               >
-                <Tag className="h-5 w-5" style={{ color: formData.color }} />
+                <Tag className="h-5 w-5" style={{ color: catForm.color }} />
               </div>
               <div>
-                <p className="font-medium text-white">{formData.name || 'Nombre de categoría'}</p>
-                <p className="text-xs text-dark-500">{formData.type === 'income' ? 'Ingreso' : 'Gasto'}</p>
+                <p className="font-medium text-white">{catForm.name || 'Nombre de categoría'}</p>
+                <p className="text-xs text-dark-500">{catForm.type === 'income' ? 'Ingreso' : 'Gasto'}</p>
               </div>
             </div>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              className="flex-1"
-              onClick={handleCloseModal}
-            >
+            <Button type="button" variant="ghost" className="flex-1" onClick={handleCloseCatModal}>
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              loading={saving}
-              icon={Check}
-            >
+            <Button type="submit" className="flex-1" loading={savingCat} icon={Check}>
               {editingCategory ? 'Guardar' : 'Crear'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ─── Subcategory Modal ─── */}
+      <Modal
+        isOpen={showSubModal}
+        onClose={handleCloseSubModal}
+        title={editingSubcategory ? 'Editar Subcategoría' : `Nueva Subcategoría en "${parentCategory?.name || ''}"`}
+      >
+        <form onSubmit={handleSubmitSub} className="space-y-5">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          <Input
+            label="Nombre de la subcategoría *"
+            placeholder="Ej: Pago Sebas"
+            value={subForm.name}
+            onChange={(e) => setSubForm({ ...subForm, name: e.target.value })}
+            icon={Tag}
+          />
+
+          {/* Expense prefill fields */}
+          {parentCategory?.type === 'expense' && (
+            <div className="border-t border-dark-800 pt-4 space-y-4">
+              <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Datos del Proveedor (auto-relleno)
+              </h3>
+              <div className="space-y-3">
+                <div className="relative">
+                  <label className="block text-xs text-dark-400 mb-1">Nombre del proveedor</label>
+                  <div className="relative">
+                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input
+                      type="text"
+                      placeholder="Ej: Sebastian Garzón"
+                      value={subForm.provider_name}
+                      onChange={(e) => setSubForm({ ...subForm, provider_name: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div className="relative">
+                  <label className="block text-xs text-dark-400 mb-1">Documento del proveedor</label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input
+                      type="text"
+                      placeholder="NIT o CC"
+                      value={subForm.provider_document}
+                      onChange={(e) => setSubForm({ ...subForm, provider_document: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-dark-400 mb-1">Método de pago</label>
+                  <Select
+                    name="payment_method"
+                    value={subForm.payment_method}
+                    onChange={(e) => setSubForm({ ...subForm, payment_method: e.target.value })}
+                    options={PAYMENT_METHODS}
+                    placeholder="Selecciona método"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Income prefill fields */}
+          {parentCategory?.type === 'income' && (
+            <div className="border-t border-dark-800 pt-4 space-y-4">
+              <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Datos del Cliente (auto-relleno)
+              </h3>
+              <div className="space-y-3">
+                <div className="relative">
+                  <label className="block text-xs text-dark-400 mb-1">Nombre del cliente</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input
+                      type="text"
+                      placeholder="Nombre completo"
+                      value={subForm.client_name}
+                      onChange={(e) => setSubForm({ ...subForm, client_name: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div className="relative">
+                  <label className="block text-xs text-dark-400 mb-1">Documento</label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input
+                      type="text"
+                      placeholder="NIT o CC"
+                      value={subForm.client_document}
+                      onChange={(e) => setSubForm({ ...subForm, client_document: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <label className="block text-xs text-dark-400 mb-1">Correo</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input
+                        type="email"
+                        placeholder="correo@ejemplo.com"
+                        value={subForm.client_email}
+                        onChange={(e) => setSubForm({ ...subForm, client_email: e.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <label className="block text-xs text-dark-400 mb-1">Teléfono</label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                      <input
+                        type="tel"
+                        placeholder="+57 300..."
+                        value={subForm.client_phone}
+                        onChange={(e) => setSubForm({ ...subForm, client_phone: e.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="relative">
+                  <label className="block text-xs text-dark-400 mb-1">Dirección</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input
+                      type="text"
+                      placeholder="Dirección del cliente"
+                      value={subForm.client_address}
+                      onChange={(e) => setSubForm({ ...subForm, client_address: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="ghost" className="flex-1" onClick={handleCloseSubModal}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1" loading={savingSub} icon={Check}>
+              {editingSubcategory ? 'Guardar' : 'Crear'}
             </Button>
           </div>
         </form>
@@ -340,10 +675,10 @@ export default function Categories() {
       {/* Confirm Delete Modal */}
       <ConfirmModal
         isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => { setDeleteTarget(null); setDeleteType(null); }}
         onConfirm={confirmDelete}
-        title="Eliminar categoría"
-        message={`¿Estás seguro de eliminar la categoría "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
+        title={deleteType === 'category' ? 'Eliminar categoría' : 'Eliminar subcategoría'}
+        message={`¿Estás seguro de eliminar "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         cancelText="Cancelar"
         variant="danger"

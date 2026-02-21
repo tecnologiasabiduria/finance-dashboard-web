@@ -234,6 +234,15 @@ html.light ::selection {
   color: #1e2028;
 }
 
+/* Scrollbar oculta para scroll horizontal (tabs) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Clases de utilidad personalizadas */
 @layer components {
   .text-gradient-gold {

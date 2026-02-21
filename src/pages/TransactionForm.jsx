@@ -5,6 +5,7 @@ import {
   Save,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowLeftRight,
   Calendar,
   DollarSign,
   FileText,
@@ -44,6 +45,19 @@ const PAYMENT_METHODS = [
   { value: 'Otro', label: 'Otro' },
 ];
 
+// Cuentas para transferencias entre cuentas propias
+const ACCOUNT_OPTIONS = [
+  { value: 'Bancolombia', label: 'Bancolombia' },
+  { value: 'Davivienda', label: 'Davivienda' },
+  { value: 'Nequi', label: 'Nequi' },
+  { value: 'Daviplata', label: 'Daviplata' },
+  { value: 'Efectivo', label: 'Efectivo' },
+  { value: 'Banco Popular', label: 'Banco Popular' },
+  { value: 'Banco de Bogotá', label: 'Banco de Bogotá' },
+  { value: 'BBVA', label: 'BBVA' },
+  { value: 'Otro', label: 'Otro' },
+];
+
 export default function TransactionForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -70,35 +84,63 @@ export default function TransactionForm() {
     provider_document: '',
     provider_name: '',
     payment_method: '',
+    // Campos de transferencia
+    source_account: '',
+    destination_account: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditing);
   const [expenseCategories, setExpenseCategories] = useState([]);
   const [incomeCategories, setIncomeCategories] = useState([]);
+  const [categoriesRaw, setCategoriesRaw] = useState({ income: [], expense: [] });
+  const [selectedSubId, setSelectedSubId] = useState(null);
 
-  // Cargar categorías personalizadas (ingreso y gasto)
   const loadCategories = async () => {
     try {
       const response = await api.getCategories();
-      if (response.data.grouped?.expense) {
-        setExpenseCategories(
-          response.data.grouped.expense.map((c) => ({
-            value: c.name,
-            label: c.name,
-          }))
-        );
+      const grouped = response.data.grouped || { income: [], expense: [] };
+      setCategoriesRaw(grouped);
+      if (grouped.expense) {
+        setExpenseCategories(grouped.expense.map((c) => ({ value: c.name, label: c.name })));
       }
-      if (response.data.grouped?.income) {
-        setIncomeCategories(
-          response.data.grouped.income.map((c) => ({
-            value: c.name,
-            label: c.name,
-          }))
-        );
+      if (grouped.income) {
+        setIncomeCategories(grouped.income.map((c) => ({ value: c.name, label: c.name })));
       }
     } catch (err) {
       console.error('Error loading categories:', err);
+    }
+  };
+
+  const getCurrentSubcategories = () => {
+    if (!formData.category || formData.type === 'transfer') return [];
+    const list = formData.type === 'income' ? categoriesRaw.income : categoriesRaw.expense;
+    const cat = (list || []).find((c) => c.name === formData.category);
+    return cat?.subcategories || [];
+  };
+
+  const handleSubcategorySelect = (sub) => {
+    if (selectedSubId === sub.id) {
+      setSelectedSubId(null);
+      return;
+    }
+    setSelectedSubId(sub.id);
+    if (formData.type === 'expense') {
+      setFormData((prev) => ({
+        ...prev,
+        provider_name: sub.provider_name || prev.provider_name,
+        provider_document: sub.provider_document || prev.provider_document,
+        payment_method: sub.payment_method || prev.payment_method,
+      }));
+    } else if (formData.type === 'income') {
+      setFormData((prev) => ({
+        ...prev,
+        client_name: sub.client_name || prev.client_name,
+        client_document: sub.client_document || prev.client_document,
+        client_email: sub.client_email || prev.client_email,
+        client_phone: sub.client_phone || prev.client_phone,
+        client_address: sub.client_address || prev.client_address,
+      }));
     }
   };
 
@@ -140,6 +182,8 @@ export default function TransactionForm() {
             provider_document: t.provider_document || '',
             provider_name: t.provider_name || '',
             payment_method: t.payment_method || '',
+            source_account: t.source_account || '',
+            destination_account: t.destination_account || '',
           });
         } catch (err) {
           console.error('Error loading transaction:', err);
@@ -165,6 +209,17 @@ export default function TransactionForm() {
     if (formData.type === 'expense' && !formData.category) {
       newErrors.category = 'Selecciona una categoría';
     }
+    if (formData.type === 'transfer') {
+      if (!formData.source_account) {
+        newErrors.source_account = 'Selecciona la cuenta de origen';
+      }
+      if (!formData.destination_account) {
+        newErrors.destination_account = 'Selecciona la cuenta de destino';
+      }
+      if (formData.source_account && formData.destination_account && formData.source_account === formData.destination_account) {
+        newErrors.destination_account = 'La cuenta destino debe ser diferente a la de origen';
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -172,12 +227,14 @@ export default function TransactionForm() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'category') setSelectedSubId(null);
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const handleTypeChange = (type) => {
+    setSelectedSubId(null);
     setFormData((prev) => ({
       ...prev,
       type,
@@ -185,7 +242,7 @@ export default function TransactionForm() {
       invoice_number: '', client_document: '', client_name: '',
       client_address: '', client_email: '', client_phone: '',
       invoice_status: '', provider_document: '', provider_name: '',
-      payment_method: '',
+      payment_method: '', source_account: '', destination_account: '',
     }));
   };
 
@@ -211,10 +268,13 @@ export default function TransactionForm() {
         transactionData.client_email = formData.client_email || null;
         transactionData.client_phone = formData.client_phone || null;
         transactionData.invoice_status = formData.invoice_status || null;
-      } else {
+      } else if (formData.type === 'expense') {
         transactionData.provider_document = formData.provider_document || null;
         transactionData.provider_name = formData.provider_name || null;
         transactionData.payment_method = formData.payment_method || null;
+      } else if (formData.type === 'transfer') {
+        transactionData.source_account = formData.source_account || null;
+        transactionData.destination_account = formData.destination_account || null;
       }
 
       if (isEditing) {
@@ -268,7 +328,7 @@ export default function TransactionForm() {
           <p className="text-dark-400 mt-1">
             {isEditing
               ? 'Modifica los detalles del registro'
-              : 'Registra un nuevo ingreso o gasto'}
+              : 'Registra un nuevo ingreso, gasto o transferencia'}
           </p>
         </div>
       </div>
@@ -281,20 +341,20 @@ export default function TransactionForm() {
             <label className="block text-sm font-medium text-dark-200">
               Tipo de registro
             </label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <button
                 type="button"
                 onClick={() => handleTypeChange('income')}
-                className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-3 p-2.5 sm:p-4 rounded-xl border-2 transition-all ${
                   formData.type === 'income'
                     ? 'border-emerald-500 bg-emerald-500/10'
                     : 'border-dark-700 hover:border-dark-600'
                 }`}
               >
-                <div className={`p-2 rounded-lg ${formData.type === 'income' ? 'bg-emerald-500/20' : 'bg-dark-800'}`}>
-                  <ArrowUpRight className={`h-5 w-5 ${formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'}`} />
+                <div className={`p-1.5 sm:p-2 rounded-lg ${formData.type === 'income' ? 'bg-emerald-500/20' : 'bg-dark-800'}`}>
+                  <ArrowUpRight className={`h-4 w-4 sm:h-5 sm:w-5 ${formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'}`} />
                 </div>
-                <span className={`font-medium ${formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'}`}>
+                <span className={`font-medium text-xs sm:text-base ${formData.type === 'income' ? 'text-emerald-400' : 'text-dark-400'}`}>
                   Ingreso
                 </span>
               </button>
@@ -302,17 +362,35 @@ export default function TransactionForm() {
               <button
                 type="button"
                 onClick={() => handleTypeChange('expense')}
-                className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-3 p-2.5 sm:p-4 rounded-xl border-2 transition-all ${
                   formData.type === 'expense'
                     ? 'border-red-500 bg-red-500/10'
                     : 'border-dark-700 hover:border-dark-600'
                 }`}
               >
-                <div className={`p-2 rounded-lg ${formData.type === 'expense' ? 'bg-red-500/20' : 'bg-dark-800'}`}>
-                  <ArrowDownRight className={`h-5 w-5 ${formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'}`} />
+                <div className={`p-1.5 sm:p-2 rounded-lg ${formData.type === 'expense' ? 'bg-red-500/20' : 'bg-dark-800'}`}>
+                  <ArrowDownRight className={`h-4 w-4 sm:h-5 sm:w-5 ${formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'}`} />
                 </div>
-                <span className={`font-medium ${formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'}`}>
+                <span className={`font-medium text-xs sm:text-base ${formData.type === 'expense' ? 'text-red-400' : 'text-dark-400'}`}>
                   Gasto
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange('transfer')}
+                className={`flex items-center justify-center gap-1.5 sm:gap-3 p-2.5 sm:p-4 rounded-xl border-2 transition-all ${
+                  formData.type === 'transfer'
+                    ? 'border-white/60 bg-white/5'
+                    : 'border-dark-700 hover:border-dark-600'
+                }`}
+              >
+                <div className={`p-1.5 sm:p-2 rounded-lg ${formData.type === 'transfer' ? 'bg-white/10' : 'bg-dark-800'}`}>
+                  <ArrowLeftRight className={`h-4 w-4 sm:h-5 sm:w-5 ${formData.type === 'transfer' ? 'text-white' : 'text-dark-400'}`} />
+                </div>
+                <span className={`font-medium text-xs sm:text-base ${formData.type === 'transfer' ? 'text-white' : 'text-dark-400'}`}>
+                  <span className="hidden sm:inline">Transferencia</span>
+                  <span className="sm:hidden">Transf.</span>
                 </span>
               </button>
             </div>
@@ -333,7 +411,7 @@ export default function TransactionForm() {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-dark-200">
-                {formData.type === 'income' ? `Ingreso ${currency} *` : `Gasto Total ${currency} *`}
+                {formData.type === 'income' ? `Ingreso ${currency} *` : formData.type === 'transfer' ? `Monto ${currency} *` : `Gasto Total ${currency} *`}
               </label>
               <div className="relative">
                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
@@ -388,6 +466,31 @@ export default function TransactionForm() {
                   />
                 </div>
               </div>
+
+              {/* Subcategory chips for income */}
+              {getCurrentSubcategories().length > 0 && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-dark-400">
+                    Subcategorías — selecciona para auto-rellenar datos del cliente
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {getCurrentSubcategories().map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => handleSubcategorySelect(sub)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          selectedSubId === sub.id
+                            ? 'bg-gold-400/20 text-gold-400 ring-1 ring-gold-400/50'
+                            : 'bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white'
+                        }`}
+                      >
+                        {sub.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Client Info */}
               <div className="border-t border-dark-800 pt-6">
@@ -452,23 +555,7 @@ export default function TransactionForm() {
           {/* ======= EXPENSE FIELDS ======= */}
           {formData.type === 'expense' && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-dark-200">Documento Proveedor</label>
-                  <div className="relative">
-                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                    <input type="text" name="provider_document" placeholder="NIT o documento" value={formData.provider_document} onChange={handleChange} className={inputClass} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-dark-200">Proveedor</label>
-                  <div className="relative">
-                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                    <input type="text" name="provider_name" placeholder="Nombre del proveedor" value={formData.provider_name} onChange={handleChange} className={inputClass} />
-                  </div>
-                </div>
-              </div>
-
+              {/* Category + Payment method */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -500,6 +587,105 @@ export default function TransactionForm() {
                     options={PAYMENT_METHODS}
                     placeholder="Selecciona método"
                   />
+                </div>
+              </div>
+
+              {/* Subcategory chips for expense */}
+              {getCurrentSubcategories().length > 0 && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-dark-400">
+                    Subcategorías — selecciona para auto-rellenar datos del proveedor
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {getCurrentSubcategories().map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => handleSubcategorySelect(sub)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          selectedSubId === sub.id
+                            ? 'bg-gold-400/20 text-gold-400 ring-1 ring-gold-400/50'
+                            : 'bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white'
+                        }`}
+                      >
+                        {sub.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Documento Proveedor</label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input type="text" name="provider_document" placeholder="NIT o documento" value={formData.provider_document} onChange={handleChange} className={inputClass} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-dark-200">Proveedor</label>
+                  <div className="relative">
+                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                    <input type="text" name="provider_name" placeholder="Nombre del proveedor" value={formData.provider_name} onChange={handleChange} className={inputClass} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-dark-200">Notas</label>
+                <div className="relative">
+                  <FileText className="absolute left-4 top-4 h-5 w-5 text-dark-400" />
+                  <textarea
+                    name="description"
+                    placeholder="Notas adicionales..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full pl-12 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-lg
+                             text-white placeholder-dark-500
+                             focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20
+                             transition-all duration-300 resize-none"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ======= TRANSFER FIELDS ======= */}
+          {formData.type === 'transfer' && (
+            <>
+              <div className="border-t border-dark-800 pt-6">
+                <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <ArrowLeftRight className="h-4 w-4" />
+                  Datos de la Transferencia
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-dark-200">Cuenta Origen *</label>
+                    <Select
+                      name="source_account"
+                      value={formData.source_account}
+                      onChange={handleChange}
+                      options={ACCOUNT_OPTIONS}
+                      placeholder="Selecciona cuenta origen"
+                      error={errors.source_account}
+                    />
+                    {errors.source_account && <p className="text-sm text-red-400">{errors.source_account}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-dark-200">Cuenta Destino *</label>
+                    <Select
+                      name="destination_account"
+                      value={formData.destination_account}
+                      onChange={handleChange}
+                      options={ACCOUNT_OPTIONS}
+                      placeholder="Selecciona cuenta destino"
+                      error={errors.destination_account}
+                    />
+                    {errors.destination_account && <p className="text-sm text-red-400">{errors.destination_account}</p>}
+                  </div>
                 </div>
               </div>
 

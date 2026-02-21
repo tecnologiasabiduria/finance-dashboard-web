@@ -186,6 +186,32 @@ class ApiService {
     });
   }
 
+  // Subcategories
+  getSubcategories(categoryId) {
+    const query = categoryId ? `?category_id=${categoryId}` : '';
+    return this.request(`/subcategories${query}`);
+  }
+
+  createSubcategory(data) {
+    return this.request('/subcategories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateSubcategory(id, data) {
+    return this.request(`/subcategories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteSubcategory(id) {
+    return this.request(`/subcategories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Notifications
   getNotifications(limit = 50) {
     return this.request(`/notifications?limit=${limit}`);

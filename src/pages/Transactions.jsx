@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus,
   Search,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowLeftRight,
   Edit2,
   Trash2,
   Calendar,
@@ -16,12 +17,45 @@ import {
   Building,
   CreditCard,
   FileCheck,
+  Layers,
 } from 'lucide-react';
 import { Button, Card, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
+
+const TAB_LABELS = {
+  income: 'Nuevo Ingreso',
+  expense: 'Nuevo Gasto',
+  transfer: 'Nueva Transferencia',
+  all: 'Nuevo Registro',
+};
+
+const SEARCH_PLACEHOLDERS = {
+  income: 'Buscar por cliente, factura, tipo...',
+  expense: 'Buscar por proveedor, categoría, método...',
+  transfer: 'Buscar por cuenta, notas...',
+  all: 'Buscar por nombre, proveedor, cuenta...',
+};
+
+const EMPTY_LABELS = {
+  income: 'ingresos',
+  expense: 'gastos',
+  transfer: 'transferencias',
+  all: 'transacciones',
+};
+
+function getTransactionDetail(t) {
+  if (t.type === 'income') return t.client_name || t.category || '—';
+  if (t.type === 'expense') return t.provider_name || t.category || '—';
+  if (t.type === 'transfer') {
+    const src = t.source_account || '?';
+    const dst = t.destination_account || '?';
+    return `${src} → ${dst}`;
+  }
+  return '—';
+}
 
 export default function Transactions() {
   const { token } = useAuth();
@@ -30,23 +64,18 @@ export default function Transactions() {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Active tab: 'income' or 'expense'
   const [activeTab, setActiveTab] = useState('income');
 
-  // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
 
-  // Delete modal
   const [deleteModal, setDeleteModal] = useState({ open: false, transaction: null });
   const [deleting, setDeleting] = useState(false);
 
-  // Cargar transacciones
   useEffect(() => {
     const loadTransactions = async () => {
       try {
@@ -64,24 +93,32 @@ export default function Transactions() {
   }, [token]);
 
   useEffect(() => {
-    let filtered = transactions.filter((t) => t.type === activeTab);
+    let filtered = activeTab === 'all'
+      ? [...transactions]
+      : transactions.filter((t) => t.type === activeTab);
 
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter((t) => {
-        if (activeTab === 'income') {
+        if (t.type === 'income') {
           return (
             (t.client_name || '').toLowerCase().includes(search) ||
             (t.invoice_number || '').toLowerCase().includes(search) ||
             (t.category || '').toLowerCase().includes(search) ||
             (t.description || '').toLowerCase().includes(search)
           );
-        } else {
+        } else if (t.type === 'expense') {
           return (
             (t.provider_name || '').toLowerCase().includes(search) ||
             (t.category || '').toLowerCase().includes(search) ||
             (t.description || '').toLowerCase().includes(search) ||
             (t.payment_method || '').toLowerCase().includes(search)
+          );
+        } else {
+          return (
+            (t.source_account || '').toLowerCase().includes(search) ||
+            (t.destination_account || '').toLowerCase().includes(search) ||
+            (t.description || '').toLowerCase().includes(search)
           );
         }
       });
@@ -90,7 +127,11 @@ export default function Transactions() {
     if (dateFrom) filtered = filtered.filter((t) => t.date >= dateFrom);
     if (dateTo) filtered = filtered.filter((t) => t.date <= dateTo);
 
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.sort((a, b) => {
+      const dateDiff = new Date(b.date) - new Date(a.date);
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
     setFilteredTransactions(filtered);
     setCurrentPage(1);
   }, [transactions, activeTab, searchTerm, dateFrom, dateTo]);
@@ -100,6 +141,24 @@ export default function Transactions() {
     currentPage * itemsPerPage
   );
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+
+  // Running balance: ordenado de más antiguo a más nuevo, acumulando saldo
+  const runningBalanceMap = useMemo(() => {
+    if (activeTab !== 'all') return {};
+    const sorted = [...filteredTransactions].sort((a, b) => {
+      const dateDiff = new Date(a.date) - new Date(b.date);
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+    const map = {};
+    let balance = 0;
+    for (const t of sorted) {
+      if (t.type === 'income') balance += parseFloat(t.amount);
+      else if (t.type === 'expense') balance -= parseFloat(t.amount);
+      map[t.id] = balance;
+    }
+    return map;
+  }, [filteredTransactions, activeTab]);
 
   const handleDelete = async () => {
     if (!deleteModal.transaction) return;
@@ -124,7 +183,16 @@ export default function Transactions() {
 
   const incomeTotal = transactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
   const expenseTotal = transactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  const filteredTotal = filteredTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  const filteredTotal = filteredTransactions.reduce((sum, t) => {
+    if (t.type === 'transfer') return sum;
+    return sum + (t.type === 'income' ? parseFloat(t.amount) : -parseFloat(t.amount));
+  }, 0);
+
+  const incomeCount = transactions.filter((t) => t.type === 'income').length;
+  const expenseCount = transactions.filter((t) => t.type === 'expense').length;
+  const transferCount = transactions.filter((t) => t.type === 'transfer').length;
+
+  const newLinkType = activeTab === 'all' ? 'income' : activeTab;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -133,16 +201,16 @@ export default function Transactions() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-white">Transacciones</h1>
           <p className="text-dark-400 mt-1">
-            Gestiona tus ingresos y gastos
+            Gestiona tus ingresos, gastos y transferencias
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="secondary" size="sm" icon={Download}>
             Exportar
           </Button>
-          <Link to={`/transactions/new?type=${activeTab}`}>
+          <Link to={`/transactions/new?type=${newLinkType}`}>
             <Button size="sm" icon={Plus}>
-              {activeTab === 'income' ? 'Nuevo Ingreso' : 'Nuevo Gasto'}
+              {TAB_LABELS[activeTab]}
             </Button>
           </Link>
         </div>
@@ -182,29 +250,56 @@ export default function Transactions() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-dark-900/50 rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab('income')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
-            activeTab === 'income'
-              ? 'bg-emerald-500/20 text-emerald-400'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800'
-          }`}
-        >
-          <ArrowUpRight className="h-4 w-4" />
-          Ingresos ({transactions.filter((t) => t.type === 'income').length})
-        </button>
-        <button
-          onClick={() => setActiveTab('expense')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
-            activeTab === 'expense'
-              ? 'bg-red-500/20 text-red-400'
-              : 'text-dark-400 hover:text-white hover:bg-dark-800'
-          }`}
-        >
-          <ArrowDownRight className="h-4 w-4" />
-          Gastos ({transactions.filter((t) => t.type === 'expense').length})
-        </button>
+      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-1.5 sm:gap-2 p-1 bg-dark-900/50 rounded-xl w-max sm:w-fit">
+          <button
+            onClick={() => setActiveTab('income')}
+            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
+              activeTab === 'income'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'text-dark-400 hover:text-white hover:bg-dark-800'
+            }`}
+          >
+            <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            <span className="hidden sm:inline">Ingresos ({incomeCount})</span>
+            <span className="sm:hidden">Ing. ({incomeCount})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('expense')}
+            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
+              activeTab === 'expense'
+                ? 'bg-red-500/20 text-red-400'
+                : 'text-dark-400 hover:text-white hover:bg-dark-800'
+            }`}
+          >
+            <ArrowDownRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            <span className="hidden sm:inline">Gastos ({expenseCount})</span>
+            <span className="sm:hidden">Gast. ({expenseCount})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('transfer')}
+            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
+              activeTab === 'transfer'
+                ? 'bg-white/10 text-white'
+                : 'text-dark-400 hover:text-white hover:bg-dark-800'
+            }`}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            <span className="hidden sm:inline">Transferencias ({transferCount})</span>
+            <span className="sm:hidden">Transf. ({transferCount})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
+              activeTab === 'all'
+                ? 'bg-gold-400/20 text-gold-400'
+                : 'text-dark-400 hover:text-white hover:bg-dark-800'
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            Todos ({transactions.length})
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -214,7 +309,7 @@ export default function Transactions() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
             <input
               type="text"
-              placeholder={activeTab === 'income' ? 'Buscar por cliente, factura, tipo...' : 'Buscar por proveedor, categoría, método...'}
+              placeholder={SEARCH_PLACEHOLDERS[activeTab]}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-2.5 bg-dark-800 border border-dark-700 rounded-lg
@@ -243,7 +338,12 @@ export default function Transactions() {
       {/* Total filtrado */}
       {(searchTerm || dateFrom || dateTo) && (
         <div className="text-sm text-dark-400">
-          {filteredTransactions.length} resultados — Total: <span className={`font-semibold ${activeTab === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(filteredTotal, currency)}</span>
+          {filteredTransactions.length} resultados — Total: <span className={`font-semibold ${
+            activeTab === 'income' ? 'text-emerald-400' :
+            activeTab === 'expense' ? 'text-red-400' :
+            activeTab === 'transfer' ? 'text-white' :
+            'text-gold-400'
+          }`}>{formatCurrency(activeTab === 'transfer' ? filteredTransactions.reduce((s, t) => s + parseFloat(t.amount), 0) : Math.abs(filteredTotal), currency)}</span>
         </div>
       )}
 
@@ -253,7 +353,7 @@ export default function Transactions() {
           <table className="w-full">
             <thead>
               <tr className="bg-dark-800/50">
-                {activeTab === 'income' ? (
+                {activeTab === 'income' && (
                   <>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Fecha</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Factura Nº</th>
@@ -264,7 +364,8 @@ export default function Transactions() {
                     <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Status</th>
                     <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Acciones</th>
                   </>
-                ) : (
+                )}
+                {activeTab === 'expense' && (
                   <>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Fecha</th>
                     <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Documento</th>
@@ -276,19 +377,39 @@ export default function Transactions() {
                     <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Acciones</th>
                   </>
                 )}
+                {activeTab === 'transfer' && (
+                  <>
+                    <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Fecha</th>
+                    <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Cuenta Origen</th>
+                    <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Cuenta Destino</th>
+                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Monto {currency}</th>
+                    <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Notas</th>
+                    <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Acciones</th>
+                  </>
+                )}
+                {activeTab === 'all' && (
+                  <>
+                    <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Fecha</th>
+                    <th className="text-left py-4 px-4 text-sm font-medium text-dark-400">Detalle</th>
+                    <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Tipo</th>
+                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Monto {currency}</th>
+                    <th className="text-right py-4 px-4 text-sm font-medium text-dark-400">Saldo {currency}</th>
+                    <th className="text-center py-4 px-4 text-sm font-medium text-dark-400">Acciones</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-dark-400">
-                    No se encontraron {activeTab === 'income' ? 'ingresos' : 'gastos'}
+                  <td colSpan={activeTab === 'transfer' ? 6 : 8} className="py-12 text-center text-dark-400">
+                    No se encontraron {EMPTY_LABELS[activeTab]}
                   </td>
                 </tr>
               ) : (
                 paginatedTransactions.map((t) => (
                   <tr key={t.id} className="border-t border-dark-800/50 hover:bg-dark-800/30 transition-colors">
-                    {activeTab === 'income' ? (
+                    {activeTab === 'income' && (
                       <>
                         <td className="py-3 px-4 text-dark-300 text-sm">{formatDate(t.date, 'medium')}</td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.invoice_number || '—'}</td>
@@ -328,7 +449,8 @@ export default function Transactions() {
                           </div>
                         </td>
                       </>
-                    ) : (
+                    )}
+                    {activeTab === 'expense' && (
                       <>
                         <td className="py-3 px-4 text-dark-300 text-sm">{formatDate(t.date, 'medium')}</td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.provider_document || '—'}</td>
@@ -343,6 +465,71 @@ export default function Transactions() {
                           <span className="font-semibold text-red-400">{formatCurrency(t.amount, currency)}</span>
                         </td>
                         <td className="py-3 px-4 text-dark-400 text-sm max-w-[200px] truncate">{t.description || '—'}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-1">
+                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
+                              <Edit2 className="h-4 w-4" />
+                            </Link>
+                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                    {activeTab === 'transfer' && (
+                      <>
+                        <td className="py-3 px-4 text-dark-300 text-sm">{formatDate(t.date, 'medium')}</td>
+                        <td className="py-3 px-4 text-white font-medium text-sm">{t.source_account || '—'}</td>
+                        <td className="py-3 px-4 text-white font-medium text-sm">{t.destination_account || '—'}</td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="font-semibold text-white">{formatCurrency(t.amount, currency)}</span>
+                        </td>
+                        <td className="py-3 px-4 text-dark-400 text-sm max-w-[200px] truncate">{t.description || '—'}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-1">
+                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
+                              <Edit2 className="h-4 w-4" />
+                            </Link>
+                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                    {activeTab === 'all' && (
+                      <>
+                        <td className="py-3 px-4 text-dark-300 text-sm">{formatDate(t.date, 'medium')}</td>
+                        <td className="py-3 px-4 text-white font-medium text-sm">{getTransactionDetail(t)}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg font-medium ${
+                            t.type === 'income' ? 'bg-emerald-500/20 text-emerald-400' :
+                            t.type === 'expense' ? 'bg-red-500/20 text-red-400' :
+                            'bg-white/10 text-white'
+                          }`}>
+                            {t.type === 'income' && <ArrowUpRight className="h-3 w-3" />}
+                            {t.type === 'expense' && <ArrowDownRight className="h-3 w-3" />}
+                            {t.type === 'transfer' && <ArrowLeftRight className="h-3 w-3" />}
+                            {t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : 'Transferencia'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className={`font-semibold ${
+                            t.type === 'income' ? 'text-emerald-400' :
+                            t.type === 'expense' ? 'text-red-400' :
+                            'text-white'
+                          }`}>
+                            {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount, currency)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className={`font-semibold ${
+                            (runningBalanceMap[t.id] ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {formatCurrency(runningBalanceMap[t.id] ?? 0, currency)}
+                          </span>
+                        </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-center gap-1">
                             <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
