@@ -71,6 +71,13 @@ class ApiService {
     return this.request('/auth/me');
   }
 
+  forgotPassword(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   // Dashboard
   getDashboardSummary(params = {}) {
     const query = new URLSearchParams(params).toString();

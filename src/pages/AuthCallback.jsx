@@ -7,15 +7,17 @@ import { Button } from '../components/ui';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 
 /**
- * AuthCallback - Handles the redirect after clicking a Supabase magic link / invite link.
+ * AuthCallback - Handles the redirect after clicking a Supabase magic link / invite link / recovery link.
  *
  * Supabase (with PKCE enabled, which is default) redirects to:
  *   /auth/callback?code=XXXXX
+ *   /auth/callback?code=XXXXX&type=recovery  (password reset)
  *
  * This page:
  *  1. Exchanges the code for a session
- *  2. Detects if it's an invite (new user) → redirect to /create-password
- *  3. Otherwise → redirect to /dashboard
+ *  2. Detects if it's a recovery (password reset) → redirect to /reset-password
+ *  3. Detects if it's an invite (new user) → redirect to /create-password
+ *  4. Otherwise → redirect to /dashboard
  */
 export default function AuthCallback() {
   const [error, setError] = useState(null);
@@ -25,7 +27,6 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Check for error params from Supabase
         const errorParam = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
 
@@ -34,8 +35,8 @@ export default function AuthCallback() {
           return;
         }
 
-        // PKCE flow: exchange code for session
         const code = searchParams.get('code');
+        const type = searchParams.get('type');
 
         if (code) {
           const { data, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
@@ -46,24 +47,17 @@ export default function AuthCallback() {
             return;
           }
 
-          // Session established successfully
           if (data?.session) {
-            // Check if this is an invited user (type=invite or no password set yet)
-            // Users created via inviteUserByEmail need to set their password
-            const user = data.session.user;
-            const isInvitedUser =
-              user?.user_metadata?.source === 'ghl_webhook' ||
-              user?.app_metadata?.provider === 'email' && !user?.user_metadata?.has_password;
+            if (type === 'recovery') {
+              navigate('/reset-password', { replace: true });
+              return;
+            }
 
-            // Always redirect invited users to create-password
-            // The session is active so they can call updateUser
             navigate('/create-password', { replace: true });
             return;
           }
         }
 
-        // Hash fragment flow (legacy, some Supabase versions)
-        // Supabase client auto-detects hash fragments on init
         const { data: { session }, error: getSessionError } = await supabase.auth.getSession();
 
         if (getSessionError) {
@@ -72,11 +66,15 @@ export default function AuthCallback() {
         }
 
         if (session) {
+          if (type === 'recovery') {
+            navigate('/reset-password', { replace: true });
+            return;
+          }
+
           navigate('/create-password', { replace: true });
           return;
         }
 
-        // No code, no hash, no session
         setError('No se encontró un enlace válido. El enlace puede haber expirado.');
       } catch (err) {
         console.error('Auth callback error:', err);

@@ -7,6 +7,8 @@ import { DashboardLayout } from './components/layout';
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AuthCallback from './pages/AuthCallback';
 import CreatePassword from './pages/CreatePassword';
 import SubscriptionRequired from './pages/SubscriptionRequired';
@@ -41,6 +43,15 @@ function App() {
               </PublicRoute>
             }
           />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            }
+          />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/subscription-required" element={<SubscriptionRequired />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/create-password" element={<CreatePassword />} />
