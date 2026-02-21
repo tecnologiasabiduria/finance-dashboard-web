@@ -17,14 +17,9 @@ import { Logo } from './Logo';
 
 const navigation = [
   {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    name: 'Transacciones',
-    href: '/transactions',
-    icon: ArrowLeftRight,
+    name: 'Categorías',
+    href: '/categories',
+    icon: Tag,
   },
   {
     name: 'Nuevo Registro',
@@ -32,19 +27,24 @@ const navigation = [
     icon: PlusCircle,
   },
   {
+    name: 'Transacciones',
+    href: '/transactions',
+    icon: ArrowLeftRight,
+  },
+  {
+    name: 'Informe Mensual',
+    href: '/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
     name: 'Informe Anual',
     href: '/annual-report',
     icon: BarChart3,
   },
   {
-    name: 'Presupuesto',
+    name: 'Metas',
     href: '/goals',
     icon: Wallet,
-  },
-  {
-    name: 'Categorías',
-    href: '/categories',
-    icon: Tag,
   },
   {
     name: 'Configuración',

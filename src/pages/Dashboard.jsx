@@ -15,6 +15,10 @@ import {
   ChevronRight,
   FileText,
   BarChart3,
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle,
+  PieChart,
 } from 'lucide-react';
 import {
   PieChart as RechartsPie,
@@ -60,6 +64,10 @@ export default function Dashboard() {
   const [summaryData, setSummaryData] = useState(null);
   const [monthTransactions, setMonthTransactions] = useState([]);
   const [categoryColors, setCategoryColors] = useState({});
+  const [incomeCategoryColors, setIncomeCategoryColors] = useState({});
+
+  // Budget data
+  const [budgetOverview, setBudgetOverview] = useState(null);
 
   // Navigate months
   const goToPrevMonth = () => {
@@ -87,8 +95,9 @@ export default function Dashboard() {
         setLoading(true);
         setError(null);
 
-        // Load categories for colors
+        // Load categories for colors (both income and expense)
         let userCategoryColors = {};
+        let userIncomeCategoryColors = {};
         try {
           const catRes = await api.getCategories();
           if (catRes.data.grouped?.expense) {
@@ -96,10 +105,16 @@ export default function Dashboard() {
               userCategoryColors[cat.name] = cat.color;
             });
           }
+          if (catRes.data.grouped?.income) {
+            catRes.data.grouped.income.forEach((cat) => {
+              userIncomeCategoryColors[cat.name] = cat.color;
+            });
+          }
         } catch (e) {
           // Ignore — use fallbacks
         }
         setCategoryColors(userCategoryColors);
+        setIncomeCategoryColors(userIncomeCategoryColors);
 
         // Load summary for selected month and all transactions
         const [summaryRes, txRes] = await Promise.all([
@@ -118,6 +133,20 @@ export default function Dashboard() {
         const allTx = txRes.data.transactions || [];
         const monthTx = allTx.filter((t) => t.date >= startStr && t.date <= endStr);
         setMonthTransactions(monthTx);
+
+        // Load budget overview
+        try {
+          const budgetConfigRes = await api.getBudgetConfig(selectedYear);
+          if (budgetConfigRes.data.config) {
+            const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth + 1);
+            setBudgetOverview(overviewRes.data);
+          } else {
+            setBudgetOverview(null);
+          }
+        } catch (e) {
+          // Budget not configured — ignore
+          setBudgetOverview(null);
+        }
 
       } catch (err) {
         console.error('Dashboard load error:', err);
@@ -149,11 +178,11 @@ export default function Dashboard() {
       .map(([name, value]) => ({
         name,
         value: Math.round(value * 100) / 100,
-        color: INCOME_TYPE_COLORS[name] || '#D4AF37',
+        color: incomeCategoryColors[name] || INCOME_TYPE_COLORS[name] || '#D4AF37',
         percentage: totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0.0',
       }))
       .sort((a, b) => b.value - a.value);
-  }, [incomes, totalIncome]);
+  }, [incomes, totalIncome, incomeCategoryColors]);
 
   // Expenses grouped by category
   const expenseByCategory = useMemo(() => {
@@ -235,19 +264,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* RESULTADO Principal */}
+      {/* Resumen Principal */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6 md:col-span-1 bg-gradient-to-br from-dark-900 to-dark-950 border-gold-400/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Resultado</span>
-            <Wallet className="h-5 w-5 text-gold-400" />
-          </div>
-          <p className={`text-3xl font-bold ${resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatCurrency(resultado, currency)}
-          </p>
-          <p className="text-xs text-dark-500 mt-2">Ingresos − Gastos</p>
-        </Card>
-
         <Card className="p-6 border-emerald-500/20">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Total Ingresos</span>
@@ -268,6 +286,17 @@ export default function Dashboard() {
           </div>
           <p className="text-3xl font-bold text-red-400">{formatCurrency(totalExpense, currency)}</p>
           <p className="text-xs text-dark-500 mt-2">{expenses.length} registros</p>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-dark-900 to-dark-950 border-gold-400/30">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Utilidad</span>
+            <Wallet className="h-5 w-5 text-gold-400" />
+          </div>
+          <p className={`text-3xl font-bold ${resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {formatCurrency(resultado, currency)}
+          </p>
+          <p className="text-xs text-dark-500 mt-2">Ingresos − Gastos</p>
         </Card>
       </div>
 
@@ -576,6 +605,276 @@ export default function Dashboard() {
           </Card>
         </Link>
       </div>
+
+      {/* ============================================================ */}
+      {/* BUDGET OVERVIEW — Rendimiento del Presupuesto */}
+      {/* ============================================================ */}
+      {budgetOverview && (
+        <>
+          {/* Section divider */}
+          <div className="border-t border-dark-800 pt-6">
+            <h2 className="text-xl font-bold text-white mb-1">Rendimiento del Presupuesto</h2>
+            <p className="text-sm text-dark-400 mb-4">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+          </div>
+
+          {/* Budget Alerts */}
+          {budgetOverview.alerts && budgetOverview.alerts.length > 0 && (
+            <div className="space-y-2">
+              {budgetOverview.alerts.map((alert, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 p-4 rounded-xl border ${
+                    alert.type === 'danger'
+                      ? 'bg-red-500/10 border-red-500/30'
+                      : 'bg-amber-500/10 border-amber-500/30'
+                  }`}
+                >
+                  <AlertCircle className={`h-5 w-5 flex-shrink-0 ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`} />
+                  <p className={`text-sm font-medium ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                    {alert.message}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Budget Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="p-5 border-gold-400/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-dark-400 uppercase tracking-wider">Ventas Estimadas</span>
+                <Target className="h-4 w-4 text-gold-400" />
+              </div>
+              <p className="text-xl font-bold text-gold-400">{formatCurrency(budgetOverview.monthly_estimate)}</p>
+              <p className="text-xs text-dark-500 mt-1">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+            </Card>
+
+            {(() => {
+              const salesDev = budgetOverview.sales_deviation;
+              const salesDevPct = budgetOverview.monthly_estimate > 0
+                ? ((budgetOverview.actual_sales - budgetOverview.monthly_estimate) / budgetOverview.monthly_estimate * 100).toFixed(1)
+                : 0;
+              return (
+                <Card className={`p-5 ${salesDev >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-dark-400 uppercase tracking-wider">Ventas Reales</span>
+                    {salesDev >= 0
+                      ? <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                      : <ArrowDownRight className="h-4 w-4 text-red-400" />
+                    }
+                  </div>
+                  <p className={`text-xl font-bold ${salesDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatCurrency(budgetOverview.actual_sales)}
+                  </p>
+                  <p className={`text-xs mt-1 ${salesDev >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {salesDev >= 0 ? '+' : ''}{salesDevPct}% vs estimado
+                  </p>
+                </Card>
+              );
+            })()}
+
+            <Card className="p-5 border-dark-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-dark-400 uppercase tracking-wider">Presupuesto Total</span>
+                <PieChart className="h-4 w-4 text-dark-400" />
+              </div>
+              <p className="text-xl font-bold text-white">{formatCurrency(budgetOverview.total_budget)}</p>
+              <p className="text-xs text-dark-500 mt-1">Suma de bolsillos</p>
+            </Card>
+
+            <Card className={`p-5 ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'border-red-500/20' : 'border-emerald-500/20'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-dark-400 uppercase tracking-wider">Gastos Reales</span>
+                <TrendingDown className="h-4 w-4 text-red-400" />
+              </div>
+              <p className={`text-xl font-bold ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'text-red-400' : 'text-emerald-400'}`}>
+                {formatCurrency(budgetOverview.total_actual_expenses)}
+              </p>
+              <p className="text-xs text-dark-500 mt-1">De transacciones registradas</p>
+            </Card>
+          </div>
+
+          {/* Pockets Detail Table */}
+          <Card className="overflow-hidden">
+            <div className="p-4 border-b border-dark-800">
+              <h3 className="text-lg font-semibold text-white">Detalle por Bolsillo</h3>
+              <p className="text-sm text-dark-400">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-dark-800/50">
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-dark-400">Bolsillo</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">% Presup.</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Presup. Anual</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Presup. Mensual</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Valor Real</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">% Real</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Desviación ($)</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-dark-400">Desviación (%)</th>
+                    <th className="text-center py-3 px-4 text-xs font-medium text-dark-400">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {budgetOverview.pockets.map((p) => {
+                    const isOver = p.status === 'over';
+                    const hasData = p.actual_value > 0;
+                    return (
+                      <tr key={p.id} className="border-t border-dark-800/50 hover:bg-dark-800/20">
+                        <td className="py-3 px-4 font-medium text-white">{p.name}</td>
+                        <td className="py-3 px-4 text-right text-gold-400">{p.percentage}%</td>
+                        <td className="py-3 px-4 text-right text-dark-400">{formatCurrency(p.budget_value * 12)}</td>
+                        <td className="py-3 px-4 text-right text-dark-300">{formatCurrency(p.budget_value)}</td>
+                        <td className={`py-3 px-4 text-right font-medium ${hasData ? (isOver ? 'text-red-400' : 'text-emerald-400') : 'text-dark-500'}`}>
+                          {hasData ? formatCurrency(p.actual_value) : '—'}
+                        </td>
+                        <td className={`py-3 px-4 text-right ${hasData ? (isOver ? 'text-red-400' : 'text-dark-300') : 'text-dark-500'}`}>
+                          {hasData ? `${p.percentage_real}%` : '—'}
+                        </td>
+                        <td className={`py-3 px-4 text-right font-medium ${
+                          p.deviation_amount > 0 ? 'text-red-400' : p.deviation_amount < 0 ? 'text-emerald-400' : 'text-dark-500'
+                        }`}>
+                          {hasData ? (
+                            <>
+                              {p.deviation_amount > 0 ? '+' : ''}
+                              {formatCurrency(p.deviation_amount)}
+                            </>
+                          ) : '—'}
+                        </td>
+                        <td className={`py-3 px-4 text-right ${
+                          p.deviation_percent > 0 ? 'text-red-400' : p.deviation_percent < 0 ? 'text-emerald-400' : 'text-dark-500'
+                        }`}>
+                          {hasData ? `${p.deviation_percent > 0 ? '+' : ''}${p.deviation_percent}%` : '—'}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {isOver ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-lg">
+                              <AlertTriangle className="h-3 w-3" />
+                              Excedido
+                            </span>
+                          ) : hasData ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg">
+                              <CheckCircle className="h-3 w-3" />
+                              OK
+                            </span>
+                          ) : (
+                            <span className="text-dark-500 text-xs">Sin datos</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-dark-700 bg-dark-800/30">
+                    <td className="py-3 px-4 font-bold text-white">TOTAL</td>
+                    <td className="py-3 px-4 text-right font-bold text-gold-400">100%</td>
+                    <td className="py-3 px-4 text-right font-bold text-dark-400">{formatCurrency(budgetOverview.total_budget * 12)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-white">{formatCurrency(budgetOverview.total_budget)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-white">{formatCurrency(budgetOverview.total_actual_expenses)}</td>
+                    <td colSpan={4}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </Card>
+
+          {/* Progress Bars */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Ejecución del Presupuesto</h3>
+            <div className="space-y-4">
+              {budgetOverview.pockets.map((p) => {
+                const pct = p.budget_value > 0 ? Math.min((p.actual_value / p.budget_value) * 100, 150) : 0;
+                const isOver = p.status === 'over';
+                return (
+                  <div key={p.id}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm text-dark-300">{p.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-dark-400">
+                          {formatCurrency(p.actual_value)} / {formatCurrency(p.budget_value)}
+                        </span>
+                        <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {Math.round(pct)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2.5 bg-dark-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          isOver ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Annual Sales Tracking */}
+          {budgetOverview.annual_data && (
+            <Card className="overflow-hidden">
+              <div className="p-4 border-b border-dark-800">
+                <h3 className="text-lg font-semibold text-white">Ventas: Estimado vs Real — {selectedYear}</h3>
+                <p className="text-sm text-dark-400">Seguimiento mes a mes de la facturación</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-dark-800/50">
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-dark-400">Concepto</th>
+                      {MONTH_NAMES.map((m, i) => (
+                        <th key={i} className={`text-right py-3 px-3 text-xs font-medium min-w-[85px] ${
+                          i === selectedMonth ? 'text-gold-400' : 'text-dark-400'
+                        }`}>
+                          {m.substring(0, 3)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-dark-800/50">
+                      <td className="py-3 px-4 font-medium text-dark-300">Ventas Estimadas</td>
+                      {budgetOverview.annual_data.map((d, i) => (
+                        <td key={i} className="py-3 px-3 text-right text-dark-400">{formatCurrency(d.estimated_sales)}</td>
+                      ))}
+                    </tr>
+                    <tr className="border-t border-dark-800/50">
+                      <td className="py-3 px-4 font-medium text-emerald-400">Ventas Reales</td>
+                      {budgetOverview.annual_data.map((d, i) => (
+                        <td key={i} className={`py-3 px-3 text-right font-medium ${
+                          d.actual_sales > 0
+                            ? (d.actual_sales >= d.estimated_sales ? 'text-emerald-400' : 'text-red-400')
+                            : 'text-dark-600'
+                        }`}>
+                          {d.actual_sales > 0 ? formatCurrency(d.actual_sales) : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-t-2 border-dark-700 bg-dark-800/30">
+                      <td className="py-3 px-4 font-bold text-white">Desviación</td>
+                      {budgetOverview.annual_data.map((d, i) => {
+                        const dev = d.actual_sales - d.estimated_sales;
+                        return (
+                          <td key={i} className={`py-3 px-3 text-right font-medium ${
+                            d.actual_sales > 0
+                              ? (dev >= 0 ? 'text-emerald-400' : 'text-red-400')
+                              : 'text-dark-600'
+                          }`}>
+                            {d.actual_sales > 0 ? formatCurrency(dev) : '—'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }
