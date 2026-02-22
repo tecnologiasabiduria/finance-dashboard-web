@@ -17,11 +17,13 @@ import {
   Hash,
   Building,
   Receipt,
+  Tag,
 } from 'lucide-react';
 import { Button, Select, Card, CreatableSelect, DatePicker } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
+import { getCategoryIcon } from '../utils/categoryIcons';
 
 
 
@@ -102,10 +104,10 @@ export default function TransactionForm() {
       const grouped = response.data.grouped || { income: [], expense: [] };
       setCategoriesRaw(grouped);
       if (grouped.expense) {
-        setExpenseCategories(grouped.expense.map((c) => ({ value: c.name, label: c.name })));
+        setExpenseCategories(grouped.expense.map((c) => ({ value: c.name, label: c.name, icon: c.icon, color: c.color })));
       }
       if (grouped.income) {
-        setIncomeCategories(grouped.income.map((c) => ({ value: c.name, label: c.name })));
+        setIncomeCategories(grouped.income.map((c) => ({ value: c.name, label: c.name, icon: c.icon, color: c.color })));
       }
     } catch (err) {
       console.error('Error loading categories:', err);
@@ -555,9 +557,8 @@ export default function TransactionForm() {
           {/* ======= EXPENSE FIELDS ======= */}
           {formData.type === 'expense' && (
             <>
-              {/* Category + Payment method */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 order-1">
                   <div className="flex items-center justify-between">
                     <label className="block text-sm font-medium text-dark-200">Categoría *</label>
                     <Link to="/categories" className="text-xs text-gold-400 hover:text-gold-300 flex items-center gap-1">
@@ -578,7 +579,32 @@ export default function TransactionForm() {
                     emptyAction={() => navigate('/categories')}
                   />
                 </div>
-                <div className="space-y-2">
+
+                {getCurrentSubcategories().length > 0 && (
+                  <div className="space-y-2 order-2 md:order-3 md:col-span-2">
+                    <label className="block text-xs font-medium text-dark-400">
+                      Subcategorías — selecciona para auto-rellenar datos del proveedor
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {getCurrentSubcategories().map((sub) => (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => handleSubcategorySelect(sub)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            selectedSubId === sub.id
+                              ? 'bg-gold-400/20 text-gold-400 ring-1 ring-gold-400/50'
+                              : 'bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white'
+                          }`}
+                        >
+                          {sub.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2 order-3 md:order-2">
                   <label className="block text-sm font-medium text-dark-200">Método de Pago</label>
                   <Select
                     name="payment_method"
@@ -589,31 +615,6 @@ export default function TransactionForm() {
                   />
                 </div>
               </div>
-
-              {/* Subcategory chips for expense */}
-              {getCurrentSubcategories().length > 0 && (
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium text-dark-400">
-                    Subcategorías — selecciona para auto-rellenar datos del proveedor
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {getCurrentSubcategories().map((sub) => (
-                      <button
-                        key={sub.id}
-                        type="button"
-                        onClick={() => handleSubcategorySelect(sub)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                          selectedSubId === sub.id
-                            ? 'bg-gold-400/20 text-gold-400 ring-1 ring-gold-400/50'
-                            : 'bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white'
-                        }`}
-                      >
-                        {sub.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">

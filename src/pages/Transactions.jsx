@@ -18,12 +18,14 @@ import {
   CreditCard,
   FileCheck,
   Layers,
+  Tag,
 } from 'lucide-react';
 import { Button, Card, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
+import { getCategoryIcon } from '../utils/categoryIcons';
 
 const TAB_LABELS = {
   income: 'Nuevo Ingreso',
@@ -75,21 +77,31 @@ export default function Transactions() {
 
   const [deleteModal, setDeleteModal] = useState({ open: false, transaction: null });
   const [deleting, setDeleting] = useState(false);
+  const [categoryMap, setCategoryMap] = useState({});
 
   useEffect(() => {
-    const loadTransactions = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const response = await api.getTransactions({ limit: 500 });
-        setTransactions(response.data.transactions || []);
+        const [txRes, catRes] = await Promise.all([
+          api.getTransactions({ limit: 500 }),
+          api.getCategories(),
+        ]);
+        setTransactions(txRes.data.transactions || []);
+        const cats = catRes.data.categories || [];
+        const map = {};
+        for (const c of cats) {
+          map[c.name] = { icon: c.icon, color: c.color };
+        }
+        setCategoryMap(map);
       } catch (err) {
-        console.error('Error loading transactions:', err);
+        console.error('Error loading data:', err);
         setTransactions([]);
       } finally {
         setLoading(false);
       }
     };
-    loadTransactions();
+    loadData();
   }, [token]);
 
   useEffect(() => {
@@ -414,13 +426,20 @@ export default function Transactions() {
                         <td className="py-3 px-4 text-dark-300 text-sm">{formatDate(t.date, 'medium')}</td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.invoice_number || '—'}</td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 text-xs rounded-lg font-medium ${
-                            t.category === 'VENTA' ? 'bg-emerald-500/20 text-emerald-400' :
-                            t.category === 'CARTERA' ? 'bg-blue-500/20 text-blue-400' :
-                            'bg-amber-500/20 text-amber-400'
-                          }`}>
-                            {t.category || '—'}
-                          </span>
+                          {(() => {
+                            const catInfo = categoryMap[t.category];
+                            const Icon = catInfo ? getCategoryIcon(catInfo.icon) : Tag;
+                            const color = catInfo?.color || '#F59E0B';
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg font-medium"
+                                style={{ backgroundColor: `${color}20`, color }}
+                              >
+                                <Icon className="h-3.5 w-3.5" />
+                                {t.category || '—'}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 px-4 text-white font-medium text-sm">{t.client_name || '—'}</td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.client_document || '—'}</td>
@@ -456,9 +475,20 @@ export default function Transactions() {
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.provider_document || '—'}</td>
                         <td className="py-3 px-4 text-white font-medium text-sm">{t.provider_name || '—'}</td>
                         <td className="py-3 px-4">
-                          <span className="inline-flex items-center px-2.5 py-1 bg-dark-800 text-dark-300 text-xs rounded-lg">
-                            {t.category || '—'}
-                          </span>
+                          {(() => {
+                            const catInfo = categoryMap[t.category];
+                            const Icon = catInfo ? getCategoryIcon(catInfo.icon) : Tag;
+                            const color = catInfo?.color || '#6B7280';
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg font-medium"
+                                style={{ backgroundColor: `${color}20`, color }}
+                              >
+                                <Icon className="h-3.5 w-3.5" />
+                                {t.category || '—'}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 px-4 text-dark-300 text-sm">{t.payment_method || '—'}</td>
                         <td className="py-3 px-4 text-right">

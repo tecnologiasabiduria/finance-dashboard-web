@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Mail, Lock, Bell, Shield, Palette, Save, Sun, Moon } from 'lucide-react';
+import { User, Mail, Lock, Shield, Palette, Save, Sun, Moon } from 'lucide-react';
 import { Button, Input, Card, Select } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -24,12 +24,8 @@ export default function Settings() {
     confirmPassword: '',
   });
 
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    weekly: true,
-    monthly: false,
-  });
+
+
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
@@ -39,10 +35,6 @@ export default function Settings() {
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleNotificationChange = (key) => {
-    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleSaveProfile = async () => {
@@ -95,7 +87,6 @@ export default function Settings() {
   const tabs = [
     { id: 'profile', label: 'Perfil', icon: User },
     { id: 'security', label: 'Seguridad', icon: Shield },
-    { id: 'notifications', label: 'Notificaciones', icon: Bell },
     { id: 'appearance', label: 'Apariencia', icon: Palette },
   ];
 
@@ -257,70 +248,6 @@ export default function Settings() {
                     </span>
                   </div>
                 </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Notifications Tab */}
-          {activeTab === 'notifications' && (
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-white mb-6">
-                Preferencias de notificaciones
-              </h2>
-
-              <div className="space-y-4">
-                {[
-                  {
-                    key: 'email',
-                    title: 'Notificaciones por email',
-                    description: 'Recibe alertas importantes en tu correo',
-                  },
-                  {
-                    key: 'push',
-                    title: 'Notificaciones push',
-                    description: 'Alertas en tiempo real en tu navegador',
-                  },
-                  {
-                    key: 'weekly',
-                    title: 'Resumen semanal',
-                    description: 'Recibe un resumen de tu actividad cada semana',
-                  },
-                  {
-                    key: 'monthly',
-                    title: 'Reporte mensual',
-                    description: 'Análisis detallado de tus finanzas cada mes',
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between p-4 bg-dark-800/50 rounded-lg"
-                  >
-                    <div>
-                      <p className="text-white font-medium">{item.title}</p>
-                      <p className="text-dark-400 text-sm">{item.description}</p>
-                    </div>
-                    <button
-                      onClick={() => handleNotificationChange(item.key)}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        notifications[item.key] ? 'bg-gold-400' : 'bg-dark-700'
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                          notifications[item.key]
-                            ? 'translate-x-7'
-                            : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-dark-800">
-                <Button onClick={handleSave} loading={loading} icon={Save}>
-                  Guardar preferencias
-                </Button>
               </div>
             </Card>
           )}

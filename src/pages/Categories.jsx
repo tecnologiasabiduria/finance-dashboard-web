@@ -18,10 +18,12 @@ import {
   Mail,
   Phone,
   MapPin,
+  Search,
 } from 'lucide-react';
 import { Button, Card, Input, Select, Modal, ConfirmModal, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { getCategoryIcon, ICON_GROUPS } from '../utils/categoryIcons';
 
 const PRESET_COLORS = [
   '#D4AF37', '#22C55E', '#EF4444', '#3B82F6', '#8B5CF6',
@@ -54,7 +56,9 @@ export default function Categories() {
   const [showCatModal, setShowCatModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [savingCat, setSavingCat] = useState(false);
-  const [catForm, setCatForm] = useState({ name: '', type: 'expense', color: '#D4AF37' });
+  const [catForm, setCatForm] = useState({ name: '', type: 'expense', color: '#D4AF37', icon: 'tag' });
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [iconSearch, setIconSearch] = useState('');
 
   // Subcategory modal
   const [showSubModal, setShowSubModal] = useState(false);
@@ -96,11 +100,13 @@ export default function Categories() {
   const handleOpenCatModal = (category = null) => {
     if (category) {
       setEditingCategory(category);
-      setCatForm({ name: category.name, type: category.type, color: category.color || '#D4AF37' });
+      setCatForm({ name: category.name, type: category.type, color: category.color || '#D4AF37', icon: category.icon || 'tag' });
     } else {
       setEditingCategory(null);
-      setCatForm({ name: '', type: activeTab, color: '#D4AF37' });
+      setCatForm({ name: '', type: activeTab, color: '#D4AF37', icon: 'tag' });
     }
+    setShowIconPicker(false);
+    setIconSearch('');
     setError('');
     setShowCatModal(true);
   };
@@ -108,7 +114,9 @@ export default function Categories() {
   const handleCloseCatModal = () => {
     setShowCatModal(false);
     setEditingCategory(null);
-    setCatForm({ name: '', type: 'expense', color: '#D4AF37' });
+    setCatForm({ name: '', type: 'expense', color: '#D4AF37', icon: 'tag' });
+    setShowIconPicker(false);
+    setIconSearch('');
     setError('');
   };
 
@@ -118,10 +126,11 @@ export default function Categories() {
     setSavingCat(true);
     setError('');
     try {
+      const payload = { name: catForm.name, type: catForm.type, color: catForm.color, icon: catForm.icon };
       if (editingCategory) {
-        await api.updateCategory(editingCategory.id, catForm);
+        await api.updateCategory(editingCategory.id, payload);
       } else {
-        await api.createCategory(catForm);
+        await api.createCategory(payload);
       }
       await loadCategories();
       handleCloseCatModal();
@@ -292,7 +301,7 @@ export default function Categories() {
                     className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${category.color}20` }}
                   >
-                    <Tag className="h-5 w-5" style={{ color: category.color }} />
+                    {(() => { const Icon = getCategoryIcon(category.icon); return <Icon className="h-5 w-5" style={{ color: category.color }} />; })()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-white">{category.name}</h3>
@@ -459,6 +468,71 @@ export default function Categories() {
             </div>
           </div>
 
+          {/* Icon picker */}
+          <div>
+            <label className="block text-sm font-medium text-dark-300 mb-2">Icono</label>
+            <button
+              type="button"
+              onClick={() => setShowIconPicker(!showIconPicker)}
+              className="flex items-center gap-3 w-full px-4 py-3 bg-dark-900 border border-dark-700 rounded-lg hover:border-dark-600 transition-all"
+            >
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: `${catForm.color}20` }}
+              >
+                {(() => { const Icon = getCategoryIcon(catForm.icon); return <Icon className="h-4 w-4" style={{ color: catForm.color }} />; })()}
+              </div>
+              <span className="text-dark-300 text-sm flex-1 text-left">{catForm.icon}</span>
+              <ChevronDown className={`h-4 w-4 text-dark-400 transition-transform ${showIconPicker ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showIconPicker && (
+              <div className="mt-2 p-3 bg-dark-900 border border-dark-700 rounded-lg max-h-64 overflow-y-auto space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-500" />
+                  <input
+                    type="text"
+                    placeholder="Buscar icono..."
+                    value={iconSearch}
+                    onChange={(e) => setIconSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-white text-sm placeholder-dark-500 focus:outline-none focus:border-gold-400/50"
+                  />
+                </div>
+                {ICON_GROUPS.map((group) => {
+                  const filteredIcons = iconSearch
+                    ? group.icons.filter(name => name.includes(iconSearch.toLowerCase()))
+                    : group.icons;
+                  if (filteredIcons.length === 0) return null;
+                  return (
+                    <div key={group.label}>
+                      <p className="text-xs text-dark-500 font-medium mb-1.5">{group.label}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {filteredIcons.map((iconName) => {
+                          const Icon = getCategoryIcon(iconName);
+                          return (
+                            <button
+                              key={iconName}
+                              type="button"
+                              onClick={() => { setCatForm({ ...catForm, icon: iconName }); setShowIconPicker(false); setIconSearch(''); }}
+                              title={iconName}
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
+                                catForm.icon === iconName
+                                  ? 'ring-2 ring-gold-400 bg-gold-400/10'
+                                  : 'bg-dark-800 hover:bg-dark-700'
+                              }`}
+                            >
+                              <Icon className="h-4 w-4" style={{ color: catForm.icon === iconName ? catForm.color : '#9CA3AF' }} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-dark-300 mb-2">
               <Palette className="h-4 w-4 inline mr-1" />
@@ -493,7 +567,7 @@ export default function Categories() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: `${catForm.color}20` }}
               >
-                <Tag className="h-5 w-5" style={{ color: catForm.color }} />
+                {(() => { const Icon = getCategoryIcon(catForm.icon); return <Icon className="h-5 w-5" style={{ color: catForm.color }} />; })()}
               </div>
               <div>
                 <p className="font-medium text-white">{catForm.name || 'Nombre de categoría'}</p>

@@ -52,13 +52,13 @@ export function Modal({
         ref={modalRef}
         className={clsx(
           'relative w-full bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl',
-          'animate-slide-up',
+          'animate-slide-up max-h-[90vh] flex flex-col',
           sizes[size]
         )}
       >
         {/* Header */}
         {(title || showClose) && (
-          <div className="flex items-center justify-between p-6 border-b border-dark-800">
+          <div className="flex items-center justify-between p-6 border-b border-dark-800 flex-shrink-0">
             {title && (
               <h2 className="text-xl font-semibold text-white">{title}</h2>
             )}
@@ -74,7 +74,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

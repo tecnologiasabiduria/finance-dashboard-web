@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { ChevronDown, Plus, Search, Tag, Loader2 } from 'lucide-react';
+import { getCategoryIcon } from '../../utils/categoryIcons';
 
 /**
  * Select con búsqueda y opción de crear nueva categoría inline
@@ -96,7 +97,11 @@ export function CreatableSelect({
             className
           )}
         >
-          <span className={selectedOption ? 'text-white' : 'text-dark-400'}>
+          <span className={clsx('flex items-center gap-2', selectedOption ? 'text-white' : 'text-dark-400')}>
+            {selectedOption?.icon && (() => {
+              const Icon = getCategoryIcon(selectedOption.icon);
+              return <Icon className="h-4 w-4 flex-shrink-0" style={{ color: selectedOption.color || '#9CA3AF' }} />;
+            })()}
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           <ChevronDown
@@ -142,22 +147,25 @@ export function CreatableSelect({
             {/* Options list */}
             <div className="max-h-48 overflow-y-auto">
               {filtered.length > 0 ? (
-                filtered.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleSelect(option.value)}
-                    className={clsx(
-                      'w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 transition-colors',
-                      option.value === value
-                        ? 'bg-gold-400/10 text-gold-400'
-                        : 'text-white hover:bg-dark-800'
-                    )}
-                  >
-                    <Tag className="h-3.5 w-3.5 flex-shrink-0 text-dark-500" />
-                    {option.label}
-                  </button>
-                ))
+                filtered.map((option) => {
+                  const OptionIcon = option.icon ? getCategoryIcon(option.icon) : Tag;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleSelect(option.value)}
+                      className={clsx(
+                        'w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 transition-colors',
+                        option.value === value
+                          ? 'bg-gold-400/10 text-gold-400'
+                          : 'text-white hover:bg-dark-800'
+                      )}
+                    >
+                      <OptionIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: option.color || '#6B7280' }} />
+                      {option.label}
+                    </button>
+                  );
+                })
               ) : !showCreateOption ? (
                 <div className="py-6 px-4 text-center">
                   <p className="text-dark-500 text-sm mb-3">{emptyMessage}</p>

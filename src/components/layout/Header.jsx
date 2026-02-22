@@ -173,7 +173,7 @@ export function Header({ onMenuClick, showMenuButton }) {
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl animate-slide-up overflow-hidden">
+              <div className="fixed sm:absolute right-4 sm:right-0 left-4 sm:left-auto top-[4.5rem] sm:top-auto mt-0 sm:mt-2 sm:w-96 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl animate-slide-up overflow-hidden z-50">
                 {/* Header */}
                 <div className="p-4 border-b border-dark-800 flex items-center justify-between">
                   <h3 className="font-semibold text-white">Notificaciones</h3>

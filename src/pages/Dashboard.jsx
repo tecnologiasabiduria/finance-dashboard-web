@@ -32,6 +32,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, formatDate, calculatePercentage } from '../utils/formatters';
 import { api } from '../services/api';
+import { getCategoryIcon } from '../utils/categoryIcons';
 
 const INCOME_TYPE_COLORS = {
   'VENTA': '#10B981',
@@ -65,6 +66,7 @@ export default function Dashboard() {
   const [monthTransactions, setMonthTransactions] = useState([]);
   const [categoryColors, setCategoryColors] = useState({});
   const [incomeCategoryColors, setIncomeCategoryColors] = useState({});
+  const [categoryIconMap, setCategoryIconMap] = useState({});
 
   // Budget data
   const [budgetOverview, setBudgetOverview] = useState(null);
@@ -95,19 +97,22 @@ export default function Dashboard() {
         setLoading(true);
         setError(null);
 
-        // Load categories for colors (both income and expense)
+        // Load categories for colors and icons
         let userCategoryColors = {};
         let userIncomeCategoryColors = {};
+        let iconMap = {};
         try {
           const catRes = await api.getCategories();
           if (catRes.data.grouped?.expense) {
             catRes.data.grouped.expense.forEach((cat) => {
               userCategoryColors[cat.name] = cat.color;
+              iconMap[cat.name] = { icon: cat.icon, color: cat.color };
             });
           }
           if (catRes.data.grouped?.income) {
             catRes.data.grouped.income.forEach((cat) => {
               userIncomeCategoryColors[cat.name] = cat.color;
+              iconMap[cat.name] = { icon: cat.icon, color: cat.color };
             });
           }
         } catch (e) {
@@ -115,6 +120,7 @@ export default function Dashboard() {
         }
         setCategoryColors(userCategoryColors);
         setIncomeCategoryColors(userIncomeCategoryColors);
+        setCategoryIconMap(iconMap);
 
         // Load summary for selected month and all transactions
         const [summaryRes, txRes] = await Promise.all([
@@ -338,18 +344,28 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                {incomeByType.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-dark-300">{item.name}</span>
+                {incomeByType.map((item) => {
+                  const catInfo = categoryIconMap[item.name];
+                  const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
+                  return (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {Icon ? (
+                          <div className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: `${item.color}20` }}>
+                            <Icon className="h-3.5 w-3.5" style={{ color: item.color }} />
+                          </div>
+                        ) : (
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        )}
+                        <span className="text-sm text-dark-300">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
+                        <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
-                      <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="flex items-center justify-between pt-3 border-t border-dark-800">
                   <span className="text-sm font-semibold text-white">TOTAL</span>
                   <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</span>
@@ -400,18 +416,28 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                {expenseByCategory.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-dark-300">{item.name}</span>
+                {expenseByCategory.map((item) => {
+                  const catInfo = categoryIconMap[item.name];
+                  const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
+                  return (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {Icon ? (
+                          <div className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: `${item.color}20` }}>
+                            <Icon className="h-3.5 w-3.5" style={{ color: item.color }} />
+                          </div>
+                        ) : (
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        )}
+                        <span className="text-sm text-dark-300">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
+                        <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
-                      <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="flex items-center justify-between pt-3 border-t border-dark-800">
                   <span className="text-sm font-semibold text-white">TOTAL</span>
                   <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense, currency)}</span>
@@ -466,13 +492,20 @@ export default function Dashboard() {
                         <td className="py-2.5 px-3 text-dark-400">{formatDate(t.date, 'short')}</td>
                         <td className="py-2.5 px-3 text-dark-300">{t.invoice_number || '—'}</td>
                         <td className="py-2.5 px-3">
-                          <span className={`inline-flex px-2 py-0.5 text-xs rounded font-medium ${
-                            t.category === 'VENTA' ? 'bg-emerald-500/20 text-emerald-400'
-                            : t.category === 'CARTERA' ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-amber-500/20 text-amber-400'
-                          }`}>
-                            {t.category || 'OTRO'}
-                          </span>
+                          {(() => {
+                            const catInfo = categoryIconMap[t.category];
+                            const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
+                            const color = catInfo?.color || '#F59E0B';
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded font-medium"
+                                style={{ backgroundColor: `${color}20`, color }}
+                              >
+                                {Icon && <Icon className="h-3 w-3" />}
+                                {t.category || 'OTRO'}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="py-2.5 px-3 text-white font-medium">{t.client_name || '—'}</td>
                         <td className="py-2.5 px-3 text-right text-emerald-400 font-medium">{formatCurrency(t.amount, currency)}</td>
@@ -537,9 +570,20 @@ export default function Dashboard() {
                         <td className="py-2.5 px-3 text-dark-400">{formatDate(t.date, 'short')}</td>
                         <td className="py-2.5 px-3 text-white font-medium">{t.provider_name || '—'}</td>
                         <td className="py-2.5 px-3">
-                          <span className="inline-flex px-2 py-0.5 bg-dark-800 text-dark-300 text-xs rounded">
-                            {t.category || '—'}
-                          </span>
+                          {(() => {
+                            const catInfo = categoryIconMap[t.category];
+                            const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
+                            const color = catInfo?.color || '#6B7280';
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded font-medium"
+                                style={{ backgroundColor: `${color}20`, color }}
+                              >
+                                {Icon && <Icon className="h-3 w-3" />}
+                                {t.category || '—'}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="py-2.5 px-3 text-dark-400">{t.payment_method || '—'}</td>
                         <td className="py-2.5 px-3 text-right text-red-400 font-medium">{formatCurrency(t.amount, currency)}</td>
