@@ -19,6 +19,7 @@ import {
   Phone,
   MapPin,
   Search,
+  ListPlus,
 } from 'lucide-react';
 import { Button, Card, Input, Select, Modal, ConfirmModal, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -76,6 +77,10 @@ export default function Categories() {
   const [deleteType, setDeleteType] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Default categories
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
+  const [defaultsMessage, setDefaultsMessage] = useState('');
+
   // Expanded categories
   const [expandedId, setExpandedId] = useState(null);
 
@@ -92,6 +97,21 @@ export default function Categories() {
       setError('Error al cargar categorías');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadDefaults = async () => {
+    setLoadingDefaults(true);
+    setDefaultsMessage('');
+    try {
+      const response = await api.initCategories();
+      await loadCategories();
+      setDefaultsMessage(response.data.message);
+      setTimeout(() => setDefaultsMessage(''), 4000);
+    } catch (err) {
+      setError(err.message || 'Error al cargar categorías por defecto');
+    } finally {
+      setLoadingDefaults(false);
     }
   };
 
@@ -252,10 +272,30 @@ export default function Categories() {
             Personaliza las categorías y subcategorías para tus ingresos y gastos
           </p>
         </div>
-        <Button icon={Plus} onClick={() => handleOpenCatModal()}>
-          Nueva Categoría
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            icon={ListPlus}
+            onClick={handleLoadDefaults}
+            loading={loadingDefaults}
+          >
+            Cargar por defecto
+          </Button>
+          <Button icon={Plus} onClick={() => handleOpenCatModal()}>
+            Nueva Categoría
+          </Button>
+        </div>
       </div>
+
+      {/* Mensaje de categorías por defecto */}
+      {defaultsMessage && (
+        <div className="p-3 bg-green-500/10 border border-green-500/50 rounded-lg flex items-center justify-between">
+          <p className="text-green-400 text-sm">{defaultsMessage}</p>
+          <button onClick={() => setDefaultsMessage('')} className="text-green-400 hover:text-green-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 bg-dark-900/50 rounded-xl w-fit">
