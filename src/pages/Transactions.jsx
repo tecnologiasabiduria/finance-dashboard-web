@@ -66,7 +66,7 @@ export default function Transactions() {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState('income');
+  const [activeTab, setActiveTab] = useState('all');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -265,6 +265,17 @@ export default function Transactions() {
       <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
         <div className="flex gap-1.5 sm:gap-2 p-1 bg-dark-900/50 rounded-xl w-max sm:w-fit">
           <button
+            onClick={() => setActiveTab('all')}
+            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
+              activeTab === 'all'
+                ? 'bg-gold-400/20 text-gold-400'
+                : 'text-dark-400 hover:text-white hover:bg-dark-800'
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            Todos ({transactions.length})
+          </button>
+          <button
             onClick={() => setActiveTab('income')}
             className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
               activeTab === 'income'
@@ -299,17 +310,6 @@ export default function Transactions() {
             <ArrowLeftRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="hidden sm:inline">Transferencias ({transferCount})</span>
             <span className="sm:hidden">Transf. ({transferCount})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'bg-gold-400/20 text-gold-400'
-                : 'text-dark-400 hover:text-white hover:bg-dark-800'
-            }`}
-          >
-            <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-            Todos ({transactions.length})
           </button>
         </div>
       </div>
