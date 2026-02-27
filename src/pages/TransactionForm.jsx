@@ -226,6 +226,20 @@ export default function TransactionForm() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const formatAmountDisplay = (raw) => {
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return '';
+    return Number(digits).toLocaleString('es-CO');
+  };
+
+  const handleAmountChange = (e) => {
+    const raw = e.target.value.replace(/\./g, '').replace(/\D/g, '');
+    setFormData((prev) => ({ ...prev, amount: raw }));
+    if (errors.amount) {
+      setErrors((prev) => ({ ...prev, amount: '' }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -418,13 +432,12 @@ export default function TransactionForm() {
               <div className="relative">
                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   name="amount"
-                  step="1"
-                  min="0"
                   placeholder="0"
-                  value={formData.amount}
-                  onChange={handleChange}
+                  value={formatAmountDisplay(formData.amount)}
+                  onChange={handleAmountChange}
                   className={`${errors.amount ? inputErrorClass : inputClass} text-xl font-bold`}
                 />
               </div>
