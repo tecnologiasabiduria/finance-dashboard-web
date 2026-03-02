@@ -11,7 +11,6 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Download,
   Filter,
   Receipt,
   Building,
@@ -34,6 +33,11 @@ const TAB_LABELS = {
   transfer: 'Nueva Transferencia',
   all: 'Nuevo Registro',
 };
+
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
 
 const SEARCH_PLACEHOLDERS = {
   income: 'Buscar por cliente, factura, tipo...',
@@ -69,6 +73,32 @@ export default function Transactions() {
 
   const [activeTab, setActiveTab] = useState('all');
 
+  // Month navigator
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [showAllMonths, setShowAllMonths] = useState(false);
+
+  const goToPrevMonth = () => {
+    setShowAllMonths(false);
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear((y) => y - 1);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    setShowAllMonths(false);
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear((y) => y + 1);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -84,8 +114,17 @@ export default function Transactions() {
     const loadData = async () => {
       try {
         setLoading(true);
+
+        const txParams = { limit: 500 };
+        if (!showAllMonths) {
+          const startDate = new Date(selectedYear, selectedMonth, 1);
+          const endDate = new Date(selectedYear, selectedMonth + 1, 0);
+          txParams.from = startDate.toISOString().split('T')[0];
+          txParams.to = endDate.toISOString().split('T')[0];
+        }
+
         const [txRes, catRes] = await Promise.all([
-          api.getTransactions({ limit: 500 }),
+          api.getTransactions(txParams),
           getCachedCategories(),
         ]);
         setTransactions(txRes.data.transactions || []);
@@ -103,7 +142,7 @@ export default function Transactions() {
       }
     };
     loadData();
-  }, [token]);
+  }, [token, selectedMonth, selectedYear, showAllMonths]);
 
   useEffect(() => {
     let filtered = activeTab === 'all'
@@ -211,10 +250,74 @@ export default function Transactions() {
     }, 0);
   }, [filteredTransactions]);
 
+  // Skeleton pulse helper
+  const Skeleton = ({ className }) => (
+    <div className={`animate-pulse bg-dark-800 rounded-lg ${className}`} />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner size="lg" />
+      <div className="space-y-6 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-56 rounded-xl" />
+            <Skeleton className="h-10 w-16 rounded-xl" />
+            <Skeleton className="h-10 w-36 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Summary cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-dark-900/50 border border-dark-800 rounded-xl p-4 flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-7 w-36" />
+              </div>
+              <Skeleton className="h-11 w-11 rounded-lg" />
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs skeleton */}
+        <Skeleton className="h-11 w-full max-w-lg rounded-xl" />
+
+        {/* Filters skeleton */}
+        <div className="bg-dark-900/50 border border-dark-800 rounded-xl p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <Skeleton className="h-10 flex-1 rounded-lg" />
+            <div className="flex gap-2 items-center">
+              <Skeleton className="h-10 w-36 rounded-lg" />
+              <Skeleton className="h-4 w-4" />
+              <Skeleton className="h-10 w-36 rounded-lg" />
+            </div>
+          </div>
+        </div>
+
+        {/* Table skeleton */}
+        <div className="bg-dark-900/50 border border-dark-800 rounded-xl overflow-hidden">
+          <div className="bg-dark-800/50 px-4 py-4">
+            <div className="flex gap-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-4 w-24" />
+              ))}
+            </div>
+          </div>
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-4 border-t border-dark-800/50">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20 ml-auto" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -232,9 +335,37 @@ export default function Transactions() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" size="sm" icon={Download}>
-            Exportar
-          </Button>
+          {/* Month Navigator */}
+          <div className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl">
+            <button
+              onClick={goToPrevMonth}
+              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2 px-3 py-2">
+              <Calendar className="h-4 w-4 text-gold-400" />
+              <span className="text-sm font-medium text-white min-w-[130px] text-center">
+                {showAllMonths ? 'Todos los meses' : `${MONTH_NAMES[selectedMonth]} ${selectedYear}`}
+              </span>
+            </div>
+            <button
+              onClick={goToNextMonth}
+              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+          <button
+            onClick={() => setShowAllMonths(!showAllMonths)}
+            className={`px-4 py-2.5 text-sm font-medium rounded-xl border transition-all ${
+              showAllMonths
+                ? 'bg-gold-400/20 text-gold-400 border-gold-400/30'
+                : 'bg-dark-900 text-dark-400 border-dark-800 hover:text-white hover:bg-dark-800'
+            }`}
+          >
+            Todos
+          </button>
           <Link to={`/transactions/new?type=${newLinkType}`}>
             <Button size="sm" icon={Plus}>
               {TAB_LABELS[activeTab]}
