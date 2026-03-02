@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Wallet,
@@ -13,6 +13,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   FileText,
   BarChart3,
   AlertCircle,
@@ -27,6 +28,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import anime from 'animejs';
 import { Card, Button, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -45,6 +47,201 @@ const EXPENSE_CATEGORY_COLORS = [
   '#EF4444', '#F97316', '#8B5CF6', '#EC4899', '#3B82F6',
   '#F59E0B', '#14B8A6', '#6366F1', '#D4AF37', '#6B7280',
 ];
+
+// ── Collapsible section with anime.js ── PREMIUM ANIMATIONS ──────
+function CollapsibleSection({ icon, iconBg, title, subtitle, children, accentColor = '#D4AF37' }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const cardRef = useRef(null);
+  const contentRef = useRef(null);
+  const innerRef = useRef(null);
+  const iconBoxRef = useRef(null);
+  const glowRef = useRef(null);
+  const animating = useRef(false);
+
+  const toggle = useCallback(() => {
+    if (animating.current) return;
+    const next = !isOpen;
+    setIsOpen(next);
+    animating.current = true;
+
+    const card = cardRef.current;
+    const contentEl = contentRef.current;
+    const innerEl = innerRef.current;
+    const iconBox = iconBoxRef.current;
+    const glow = glowRef.current;
+
+    if (next) {
+      // ── OPEN ──────────────────────────────────────────
+      // 1) Card border glow pulse
+      anime({
+        targets: card,
+        borderColor: [
+          { value: accentColor, duration: 300 },
+          { value: accentColor + '60', duration: 600 },
+        ],
+        boxShadow: [
+          { value: `0 0 20px ${accentColor}30, 0 0 40px ${accentColor}15`, duration: 300 },
+          { value: `0 0 8px ${accentColor}15, 0 0 0px transparent`, duration: 800 },
+        ],
+        easing: 'easeOutQuad',
+      });
+
+      // 2) Glow sweep (horizontal light sweep across the header)
+      anime({
+        targets: glow,
+        translateX: ['-100%', '200%'],
+        opacity: [0, 0.6, 0],
+        duration: 700,
+        easing: 'easeInOutQuad',
+      });
+
+      // 3) Icon bounce
+      anime({
+        targets: iconBox,
+        scale: [1, 1.25, 1],
+        rotate: [0, -8, 8, 0],
+        duration: 500,
+        easing: 'easeOutElastic(1, .6)',
+      });
+
+      // 4) Content reveal — height + staggered children
+      contentEl.style.display = 'block';
+      const h = innerEl.scrollHeight;
+      anime.remove(contentEl);
+      anime({
+        targets: contentEl,
+        height: [0, h],
+        duration: 600,
+        easing: 'easeOutExpo',
+        complete: () => {
+          contentEl.style.height = 'auto';
+          contentEl.style.overflow = 'visible';
+          animating.current = false;
+        },
+      });
+
+      // 5) Inner content — scale + fade from center
+      anime({
+        targets: innerEl,
+        opacity: [0, 1],
+        scale: [0.97, 1],
+        translateY: [-8, 0],
+        duration: 500,
+        delay: 150,
+        easing: 'easeOutCubic',
+      });
+
+      // 6) Stagger rows/children inside
+      const rows = innerEl.querySelectorAll('tr, .stagger-item');
+      if (rows.length > 0) {
+        anime({
+          targets: rows,
+          opacity: [0, 1],
+          translateX: [-15, 0],
+          delay: anime.stagger(30, { start: 200 }),
+          duration: 400,
+          easing: 'easeOutCubic',
+        });
+      }
+    } else {
+      // ── CLOSE ─────────────────────────────────────────
+      contentEl.style.overflow = 'hidden';
+
+      // 1) Remove glow, reset border
+      anime({
+        targets: card,
+        borderColor: 'rgba(38, 38, 38, 1)',
+        boxShadow: '0 0 0px transparent',
+        duration: 400,
+        easing: 'easeOutQuad',
+      });
+
+      // 2) Icon shrink
+      anime({
+        targets: iconBox,
+        scale: [1, 0.9, 1],
+        duration: 300,
+        easing: 'easeInOutQuad',
+      });
+
+      // 3) Content collapse
+      const h = contentEl.scrollHeight;
+      contentEl.style.height = h + 'px';
+      anime.remove(contentEl);
+
+      anime({
+        targets: innerEl,
+        opacity: [1, 0],
+        scale: [1, 0.97],
+        translateY: [0, -6],
+        duration: 250,
+        easing: 'easeInCubic',
+      });
+
+      anime({
+        targets: contentEl,
+        height: [h, 0],
+        duration: 450,
+        delay: 120,
+        easing: 'easeInOutCubic',
+        complete: () => {
+          contentEl.style.display = 'none';
+          animating.current = false;
+        },
+      });
+    }
+  }, [isOpen, accentColor]);
+
+  return (
+    <div
+      ref={cardRef}
+      className="rounded-xl border border-dark-800 bg-dark-900 overflow-hidden relative"
+      style={{ transition: 'background-color 0.2s' }}
+    >
+      {/* Glow sweep overlay */}
+      <div
+        ref={glowRef}
+        className="absolute top-0 left-0 w-1/3 h-full pointer-events-none"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${accentColor}20, transparent)`,
+          transform: 'translateX(-100%)',
+          opacity: 0,
+        }}
+      />
+
+      <button
+        onClick={toggle}
+        className="w-full flex items-center justify-between p-4 hover:bg-dark-800/40 transition-colors duration-200 cursor-pointer select-none relative z-10"
+      >
+        <div className="flex items-center gap-3">
+          {icon && (
+            <div ref={iconBoxRef} className={`p-2 rounded-lg ${iconBg || 'bg-gold-400/10'}`}>
+              {icon}
+            </div>
+          )}
+          <div className="text-left">
+            <h3 className="text-sm font-semibold text-white">{title}</h3>
+            {subtitle && <p className="text-xs text-dark-400">{subtitle}</p>}
+          </div>
+        </div>
+        <div
+          className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ${
+            isOpen ? 'bg-gold-400/20 rotate-180' : 'bg-dark-800/50 rotate-0'
+          }`}
+        >
+          <ChevronDown className={`h-4 w-4 transition-colors duration-300 ${isOpen ? 'text-gold-400' : 'text-dark-400'}`} />
+        </div>
+      </button>
+      <div ref={contentRef} style={{ height: 0, overflow: 'hidden', display: 'none' }}>
+        <div ref={innerRef} style={{ opacity: 0, transformOrigin: 'top center' }}>
+          <div className="border-t border-dark-800">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -329,7 +526,28 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Budget Summary Cards — arriba */}
+      {/* Budget Alerts — arriba */}
+      {budgetOverview && budgetOverview.alerts && budgetOverview.alerts.length > 0 && (
+        <div className="space-y-2">
+          {budgetOverview.alerts.map((alert, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3 p-4 rounded-xl border ${
+                alert.type === 'danger'
+                  ? 'bg-red-500/10 border-red-500/30'
+                  : 'bg-amber-500/10 border-amber-500/30'
+              }`}
+            >
+              <AlertCircle className={`h-5 w-5 flex-shrink-0 ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`} />
+              <p className={`text-sm font-medium ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                {alert.message}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Budget Summary Cards */}
       {budgetOverview && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-5 border-gold-400/20">
@@ -696,92 +914,19 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/transactions/new?type=income" className="block">
-          <Card className="p-4 border-emerald-500/10 hover:border-emerald-500/30 transition-all group">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-emerald-500/10 rounded-lg">
-                <ArrowUpRight className="h-5 w-5 text-emerald-400" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-white">Registrar Ingreso</p>
-                <p className="text-xs text-dark-400">Añadir nuevo ingreso</p>
-              </div>
-              <ArrowRight className="h-5 w-5 text-dark-600 group-hover:text-emerald-400 transition-colors" />
-            </div>
-          </Card>
-        </Link>
-
-        <Link to="/transactions/new?type=expense" className="block">
-          <Card className="p-4 border-red-500/10 hover:border-red-500/30 transition-all group">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-500/10 rounded-lg">
-                <ArrowDownRight className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-white">Registrar Gasto</p>
-                <p className="text-xs text-dark-400">Añadir nuevo gasto</p>
-              </div>
-              <ArrowRight className="h-5 w-5 text-dark-600 group-hover:text-red-400 transition-colors" />
-            </div>
-          </Card>
-        </Link>
-
-        <Link to="/annual-report" className="block">
-          <Card className="p-4 border-gold-400/10 hover:border-gold-400/30 transition-all group">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gold-400/10 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-gold-400" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-white">Informe Anual</p>
-                <p className="text-xs text-dark-400">Ver resumen del año</p>
-              </div>
-              <ArrowRight className="h-5 w-5 text-dark-600 group-hover:text-gold-400 transition-colors" />
-            </div>
-          </Card>
-        </Link>
-      </div>
-
       {/* ============================================================ */}
-      {/* BUDGET OVERVIEW — Rendimiento del Presupuesto */}
+      {/* COLLAPSIBLE SECTIONS */}
       {/* ============================================================ */}
       {budgetOverview && (
-        <>
-          {/* Section divider */}
-          <div className="border-t border-dark-800 pt-6">
-            <h2 className="text-xl font-bold text-white mb-1">Rendimiento del Presupuesto</h2>
-            <p className="text-sm text-dark-400 mb-4">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
-          </div>
-
-          {/* Budget Alerts */}
-          {budgetOverview.alerts && budgetOverview.alerts.length > 0 && (
-            <div className="space-y-2">
-              {budgetOverview.alerts.map((alert, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-3 p-4 rounded-xl border ${
-                    alert.type === 'danger'
-                      ? 'bg-red-500/10 border-red-500/30'
-                      : 'bg-amber-500/10 border-amber-500/30'
-                  }`}
-                >
-                  <AlertCircle className={`h-5 w-5 flex-shrink-0 ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`} />
-                  <p className={`text-sm font-medium ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
-                    {alert.message}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Pockets Detail Table */}
-          <Card className="overflow-hidden">
-            <div className="p-4 border-b border-dark-800">
-              <h3 className="text-lg font-semibold text-white">Detalle por Bolsillo</h3>
-              <p className="text-sm text-dark-400">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
-            </div>
+        <div className="space-y-3">
+          {/* Detalle por Bolsillo */}
+          <CollapsibleSection
+            icon={<PieChart className="h-5 w-5 text-gold-400" />}
+            iconBg="bg-gold-400/10"
+            title="Detalle por Bolsillo"
+            subtitle={`${MONTH_NAMES[selectedMonth]} ${selectedYear}`}
+            accentColor="#D4AF37"
+          >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -859,49 +1004,58 @@ export default function Dashboard() {
                 </tfoot>
               </table>
             </div>
-          </Card>
+          </CollapsibleSection>
 
-          {/* Progress Bars */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Ejecución del Presupuesto</h3>
-            <div className="space-y-4">
-              {budgetOverview.pockets.map((p) => {
-                const pct = p.budget_value > 0 ? Math.min((p.actual_value / p.budget_value) * 100, 150) : 0;
-                const isOver = p.status === 'over';
-                return (
-                  <div key={p.id}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm text-dark-300">{p.name}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-dark-400">
-                          {formatCurrency(p.actual_value)} / {formatCurrency(p.budget_value)}
-                        </span>
-                        <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-emerald-400'}`}>
-                          {Math.round(pct)}%
-                        </span>
+          {/* Ejecución del Presupuesto */}
+          <CollapsibleSection
+            icon={<Activity className="h-5 w-5 text-emerald-400" />}
+            iconBg="bg-emerald-500/10"
+            title="Ejecución del Presupuesto"
+            subtitle="Barras de progreso por bolsillo"
+            accentColor="#10B981"
+          >
+            <div className="px-6 pb-6 pt-4">
+              <div className="space-y-4">
+                {budgetOverview.pockets.map((p) => {
+                  const pct = p.budget_value > 0 ? Math.min((p.actual_value / p.budget_value) * 100, 150) : 0;
+                  const isOver = p.status === 'over';
+                  return (
+                    <div key={p.id}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm text-dark-300">{p.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-dark-400">
+                            {formatCurrency(p.actual_value)} / {formatCurrency(p.budget_value)}
+                          </span>
+                          <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {Math.round(pct)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-2.5 bg-dark-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isOver ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
                       </div>
                     </div>
-                    <div className="h-2.5 bg-dark-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          isOver ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${Math.min(pct, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-          {/* Annual Sales Tracking */}
-          {budgetOverview.annual_data && (
-            <Card className="overflow-hidden">
-              <div className="p-4 border-b border-dark-800">
-                <h3 className="text-lg font-semibold text-white">Ventas: Estimado vs Real — {selectedYear}</h3>
-                <p className="text-sm text-dark-400">Seguimiento mes a mes de la facturación</p>
+                  );
+                })}
               </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* Ventas: Estimado vs Real */}
+          {budgetOverview.annual_data && (
+            <CollapsibleSection
+              icon={<BarChart3 className="h-5 w-5 text-blue-400" />}
+              iconBg="bg-blue-500/10"
+              title={`Ventas: Estimado vs Real — ${selectedYear}`}
+              subtitle="Seguimiento mes a mes"
+              accentColor="#3B82F6"
+            >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -953,9 +1107,56 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </CollapsibleSection>
           )}
-        </>
+
+          {/* Acciones Rápidas */}
+          <CollapsibleSection
+            icon={<Plus className="h-5 w-5 text-gold-400" />}
+            iconBg="bg-gold-400/10"
+            title="Acciones Rápidas"
+            subtitle="Registrar ingreso, gasto o ver informe"
+            accentColor="#D4AF37"
+          >
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Link to="/transactions/new?type=income" className="block">
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-500/10 hover:border-emerald-500/30 hover:bg-dark-800/30 transition-all duration-200 group">
+                    <div className="p-2 bg-emerald-500/10 rounded-lg">
+                      <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Registrar Ingreso</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-dark-600 group-hover:text-emerald-400 transition-colors" />
+                  </div>
+                </Link>
+                <Link to="/transactions/new?type=expense" className="block">
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-red-500/10 hover:border-red-500/30 hover:bg-dark-800/30 transition-all duration-200 group">
+                    <div className="p-2 bg-red-500/10 rounded-lg">
+                      <ArrowDownRight className="h-4 w-4 text-red-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Registrar Gasto</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-dark-600 group-hover:text-red-400 transition-colors" />
+                  </div>
+                </Link>
+                <Link to="/annual-report" className="block">
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-gold-400/10 hover:border-gold-400/30 hover:bg-dark-800/30 transition-all duration-200 group">
+                    <div className="p-2 bg-gold-400/10 rounded-lg">
+                      <BarChart3 className="h-4 w-4 text-gold-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Informe Anual</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-dark-600 group-hover:text-gold-400 transition-colors" />
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </CollapsibleSection>
+        </div>
       )}
     </div>
   );
