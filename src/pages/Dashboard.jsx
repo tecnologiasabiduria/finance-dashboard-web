@@ -329,41 +329,76 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Resumen Principal */}
-      <div data-tour="summary-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6 border-emerald-500/20">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Total Ingresos</span>
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+      {/* Budget Summary Cards — arriba */}
+      {budgetOverview && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-5 border-gold-400/20">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-dark-400 uppercase tracking-wider">Meta del Mes</span>
+              <Target className="h-4 w-4 text-gold-400" />
             </div>
-          </div>
-          <p className="text-3xl font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</p>
-          <p className="text-xs text-dark-500 mt-2">{incomes.length} registros</p>
-        </Card>
+            <p className="text-xl font-bold text-gold-400">{formatCurrency(budgetOverview.monthly_estimate)}</p>
+            <p className="text-xs text-dark-500 mt-1">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+          </Card>
 
-        <Card className="p-6 border-red-500/20">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Total Gastos</span>
-            <div className="p-2 bg-red-500/10 rounded-lg">
-              <ArrowDownRight className="h-4 w-4 text-red-400" />
+          {(() => {
+            const salesDev = budgetOverview.sales_deviation;
+            const salesDevPct = budgetOverview.monthly_estimate > 0
+              ? ((budgetOverview.actual_sales - budgetOverview.monthly_estimate) / budgetOverview.monthly_estimate * 100).toFixed(1)
+              : 0;
+            return (
+              <Card className={`p-5 ${salesDev >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-dark-400 uppercase tracking-wider">Ingreso Real</span>
+                  {salesDev >= 0
+                    ? <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                    : <ArrowDownRight className="h-4 w-4 text-red-400" />
+                  }
+                </div>
+                <p className={`text-xl font-bold ${salesDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(budgetOverview.actual_sales)}
+                </p>
+                <p className={`text-xs mt-1 ${salesDev >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {salesDev >= 0 ? '+' : ''}{salesDevPct}% vs estimado
+                </p>
+              </Card>
+            );
+          })()}
+
+          {(() => {
+            const missing = Math.max(0, budgetOverview.monthly_estimate - budgetOverview.actual_sales);
+            const missingPct = budgetOverview.monthly_estimate > 0
+              ? Math.max(0, ((1 - budgetOverview.actual_sales / budgetOverview.monthly_estimate) * 100)).toFixed(1)
+              : 0;
+            const reached = Number(missingPct) === 0;
+            return (
+              <Card className={`p-5 ${reached ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-dark-400 uppercase tracking-wider">Falta para la Meta</span>
+                  <Target className="h-4 w-4 text-red-400" />
+                </div>
+                <p className={`text-xl font-bold ${reached ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {reached ? '¡Meta alcanzada!' : formatCurrency(missing)}
+                </p>
+                <p className={`text-xs mt-1 ${reached ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {reached ? '100% completado' : `${missingPct}% pendiente`}
+                </p>
+              </Card>
+            );
+          })()}
+
+          <Card className={`p-5 ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'border-red-500/20' : 'border-emerald-500/20'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-dark-400 uppercase tracking-wider">Gastos Reales</span>
+              <TrendingDown className="h-4 w-4 text-red-400" />
             </div>
-          </div>
-          <p className="text-3xl font-bold text-red-400">{formatCurrency(totalExpense, currency)}</p>
-          <p className="text-xs text-dark-500 mt-2">{expenses.length} registros</p>
-        </Card>
-
-        <Card className="p-6 bg-gradient-to-br from-dark-900 to-dark-950 border-gold-400/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Utilidad</span>
-            <Wallet className="h-5 w-5 text-gold-400" />
-          </div>
-          <p className={`text-3xl font-bold ${resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatCurrency(resultado, currency)}
-          </p>
-          <p className="text-xs text-dark-500 mt-2">Ingresos − Gastos</p>
-        </Card>
-      </div>
+            <p className={`text-xl font-bold ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'text-red-400' : 'text-emerald-400'}`}>
+              {formatCurrency(budgetOverview.total_actual_expenses)}
+            </p>
+            <p className="text-xs text-dark-500 mt-1">De transacciones registradas</p>
+          </Card>
+        </div>
+      )}
 
       {/* Breakdown: Income by Type + Expenses by Category */}
       <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -740,62 +775,6 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-
-          {/* Budget Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="p-5 border-gold-400/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-dark-400 uppercase tracking-wider">Ventas Estimadas</span>
-                <Target className="h-4 w-4 text-gold-400" />
-              </div>
-              <p className="text-xl font-bold text-gold-400">{formatCurrency(budgetOverview.monthly_estimate)}</p>
-              <p className="text-xs text-dark-500 mt-1">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
-            </Card>
-
-            {(() => {
-              const salesDev = budgetOverview.sales_deviation;
-              const salesDevPct = budgetOverview.monthly_estimate > 0
-                ? ((budgetOverview.actual_sales - budgetOverview.monthly_estimate) / budgetOverview.monthly_estimate * 100).toFixed(1)
-                : 0;
-              return (
-                <Card className={`p-5 ${salesDev >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-dark-400 uppercase tracking-wider">Ventas Reales</span>
-                    {salesDev >= 0
-                      ? <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                      : <ArrowDownRight className="h-4 w-4 text-red-400" />
-                    }
-                  </div>
-                  <p className={`text-xl font-bold ${salesDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatCurrency(budgetOverview.actual_sales)}
-                  </p>
-                  <p className={`text-xs mt-1 ${salesDev >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {salesDev >= 0 ? '+' : ''}{salesDevPct}% vs estimado
-                  </p>
-                </Card>
-              );
-            })()}
-
-            <Card className="p-5 border-dark-700">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-dark-400 uppercase tracking-wider">Presupuesto Total</span>
-                <PieChart className="h-4 w-4 text-dark-400" />
-              </div>
-              <p className="text-xl font-bold text-white">{formatCurrency(budgetOverview.total_budget)}</p>
-              <p className="text-xs text-dark-500 mt-1">Suma de bolsillos</p>
-            </Card>
-
-            <Card className={`p-5 ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'border-red-500/20' : 'border-emerald-500/20'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-dark-400 uppercase tracking-wider">Gastos Reales</span>
-                <TrendingDown className="h-4 w-4 text-red-400" />
-              </div>
-              <p className={`text-xl font-bold ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'text-red-400' : 'text-emerald-400'}`}>
-                {formatCurrency(budgetOverview.total_actual_expenses)}
-              </p>
-              <p className="text-xs text-dark-500 mt-1">De transacciones registradas</p>
-            </Card>
-          </div>
 
           {/* Pockets Detail Table */}
           <Card className="overflow-hidden">
