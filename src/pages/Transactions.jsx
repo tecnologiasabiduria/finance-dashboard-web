@@ -25,6 +25,7 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
+import { getCachedCategories, invalidateDashboardCache } from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
 
 const TAB_LABELS = {
@@ -85,7 +86,7 @@ export default function Transactions() {
         setLoading(true);
         const [txRes, catRes] = await Promise.all([
           api.getTransactions({ limit: 500 }),
-          api.getCategories(),
+          getCachedCategories(),
         ]);
         setTransactions(txRes.data.transactions || []);
         const cats = catRes.data.categories || [];
@@ -177,6 +178,7 @@ export default function Transactions() {
     setDeleting(true);
     try {
       await api.deleteTransaction(deleteModal.transaction.id);
+      invalidateDashboardCache();
       setTransactions((prev) => prev.filter((t) => t.id !== deleteModal.transaction.id));
     } catch (err) {
       console.error('Error deleting:', err);
@@ -185,6 +187,30 @@ export default function Transactions() {
     setDeleteModal({ open: false, transaction: null });
   };
 
+  // Memoized totals — solo se recalculan cuando transactions/filteredTransactions cambian
+  const { incomeTotal, expenseTotal, incomeCount, expenseCount, transferCount } = useMemo(() => {
+    let incTotal = 0, expTotal = 0, incCount = 0, expCount = 0, transCount = 0;
+    for (const t of transactions) {
+      if (t.type === 'income') {
+        incTotal += parseFloat(t.amount);
+        incCount++;
+      } else if (t.type === 'expense') {
+        expTotal += parseFloat(t.amount);
+        expCount++;
+      } else if (t.type === 'transfer') {
+        transCount++;
+      }
+    }
+    return { incomeTotal: incTotal, expenseTotal: expTotal, incomeCount: incCount, expenseCount: expCount, transferCount: transCount };
+  }, [transactions]);
+
+  const filteredTotal = useMemo(() => {
+    return filteredTransactions.reduce((sum, t) => {
+      if (t.type === 'transfer') return sum;
+      return sum + (t.type === 'income' ? parseFloat(t.amount) : -parseFloat(t.amount));
+    }, 0);
+  }, [filteredTransactions]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -192,17 +218,6 @@ export default function Transactions() {
       </div>
     );
   }
-
-  const incomeTotal = transactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  const expenseTotal = transactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  const filteredTotal = filteredTransactions.reduce((sum, t) => {
-    if (t.type === 'transfer') return sum;
-    return sum + (t.type === 'income' ? parseFloat(t.amount) : -parseFloat(t.amount));
-  }, 0);
-
-  const incomeCount = transactions.filter((t) => t.type === 'income').length;
-  const expenseCount = transactions.filter((t) => t.type === 'expense').length;
-  const transferCount = transactions.filter((t) => t.type === 'transfer').length;
 
   const newLinkType = activeTab === 'all' ? 'income' : activeTab;
 

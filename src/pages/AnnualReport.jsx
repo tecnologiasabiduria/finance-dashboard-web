@@ -25,6 +25,7 @@ import { Card, Button, Spinner } from '../components/ui';
 import { useSettings } from '../context/SettingsContext';
 import { formatCurrency } from '../utils/formatters';
 import { api } from '../services/api';
+import { getCachedCategories } from '../services/cache';
 
 const MONTH_NAMES_SHORT = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
@@ -59,10 +60,10 @@ export default function AnnualReport() {
       try {
         setLoading(true);
 
-        // Load categories for colors
+        // Load categories for colors (shared cache)
         let userCatColors = {};
         try {
-          const catRes = await api.getCategories();
+          const catRes = await getCachedCategories();
           if (catRes.data.grouped?.expense) {
             catRes.data.grouped.expense.forEach((cat) => {
               userCatColors[cat.name] = cat.color;

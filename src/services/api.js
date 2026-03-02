@@ -162,6 +162,12 @@ class ApiService {
     });
   }
 
+  completeOnboarding() {
+    return this.request('/auth/onboarding', {
+      method: 'PUT',
+    });
+  }
+
   // Categories
   getCategories() {
     return this.request('/categories');

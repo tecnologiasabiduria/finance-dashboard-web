@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { supabase } from '../../lib/supabase';
 
 const TYPE_CONFIG = {
   info:    { icon: Info,           color: 'text-blue-400',   bg: 'bg-blue-400/10' },
@@ -67,7 +68,7 @@ export function Header({ onMenuClick, showMenuButton }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch unread count on mount + every 30 seconds
+  // Fetch unread count on mount + subscribe to Realtime inserts
   const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await api.getUnreadNotificationCount();
@@ -78,9 +79,25 @@ export function Header({ onMenuClick, showMenuButton }) {
   }, []);
 
   useEffect(() => {
+    // Fetch initial count once
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
+
+    // Subscribe to new notifications via Supabase Realtime (no polling)
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        () => {
+          // A new notification was inserted — bump the counter
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchUnreadCount]);
 
   // Fetch full list when dropdown opens
@@ -159,7 +176,7 @@ export function Header({ onMenuClick, showMenuButton }) {
         {/* Right side */}
         <div className="flex items-center gap-3">
           {/* Notifications */}
-          <div className="relative" ref={notifRef}>
+          <div className="relative" ref={notifRef} data-tour="header-notifications">
             <button
               onClick={handleToggleNotifications}
               className="relative p-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition-colors"
@@ -255,7 +272,7 @@ export function Header({ onMenuClick, showMenuButton }) {
           </div>
 
           {/* User Menu */}
-          <div className="relative" ref={userMenuRef}>
+          <div className="relative" ref={userMenuRef} data-tour="header-user">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-3 p-2 pr-4 hover:bg-dark-800 rounded-xl transition-colors"

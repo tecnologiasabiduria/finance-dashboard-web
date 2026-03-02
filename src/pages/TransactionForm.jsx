@@ -23,6 +23,7 @@ import { Button, Select, Card, CreatableSelect, DatePicker } from '../components
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
+import { getCachedCategories, invalidateDashboardCache, invalidateCategoriesCache } from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
 
 
@@ -100,7 +101,7 @@ export default function TransactionForm() {
 
   const loadCategories = async () => {
     try {
-      const response = await api.getCategories();
+      const response = await getCachedCategories();
       const grouped = response.data.grouped || { income: [], expense: [] };
       setCategoriesRaw(grouped);
       if (grouped.expense) {
@@ -154,6 +155,7 @@ export default function TransactionForm() {
   const handleCreateCategory = async (name, type) => {
     try {
       await api.createCategory({ name, type, color: '#D4AF37' });
+      invalidateCategoriesCache();
       await loadCategories();
       return name;
     } catch (err) {
@@ -298,6 +300,7 @@ export default function TransactionForm() {
       } else {
         await api.createTransaction(transactionData);
       }
+      invalidateDashboardCache();
       navigate('/transactions');
     } catch (err) {
       console.error('Error saving transaction:', err);

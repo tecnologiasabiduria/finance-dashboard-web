@@ -82,17 +82,19 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+      <nav data-tour="sidebar-nav" className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href || 
                           location.pathname.startsWith(item.href.split('?')[0]);
           const Icon = item.icon;
+          const tourId = item.href === '/transactions/new' ? 'sidebar-new' : undefined;
 
           return (
             <Link
               key={item.name}
               to={item.href}
               onClick={() => onNavigate?.()}
+              {...(tourId && { 'data-tour': tourId })}
               className={clsx(
                 'flex items-center gap-3 px-4 py-3 rounded-xl',
                 'transition-all duration-200 group',

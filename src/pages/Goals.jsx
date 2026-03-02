@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Modal, ConfirmModal, Spinner, CreatableSelect } from '../components/ui';
 import { formatCurrency } from '../utils/formatters';
 import { api } from '../services/api';
+import { getCachedCategories, invalidateCategoriesCache } from '../services/cache';
 
 export default function Goals() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export default function Goals() {
         const [configRes, pocketsRes, catRes] = await Promise.all([
           api.getBudgetConfig(selectedYear),
           api.getBudgetPockets(),
-          api.getCategories(),
+          getCachedCategories(),
         ]);
 
         const cfg = configRes.data.config;
@@ -141,7 +142,8 @@ export default function Goals() {
         return null;
       }
     }
-    const catRes = await api.getCategories();
+    invalidateCategoriesCache();
+    const catRes = await getCachedCategories();
     setExpenseCategories(catRes.data.grouped?.expense || []);
     return name;
   };
@@ -155,7 +157,8 @@ export default function Goals() {
         sort_order: pockets.length,
       });
       setPockets([...pockets, res.data.pocket]);
-      const catRes = await api.getCategories();
+      invalidateCategoriesCache();
+      const catRes = await getCachedCategories();
       setExpenseCategories(catRes.data.grouped?.expense || []);
       setNewPocketModal(false);
       setNewPocket({ name: '', percentage: '' });

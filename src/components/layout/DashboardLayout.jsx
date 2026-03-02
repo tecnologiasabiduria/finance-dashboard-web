@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import OnboardingTour from '../OnboardingTour';
 
 export function DashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -10,6 +11,9 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-dark-950">
+      {/* Onboarding Tour for new users */}
+      <OnboardingTour />
+
       {/* Sidebar */}
       <div className="hidden lg:block">
         <Sidebar

@@ -32,6 +32,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, formatDate, calculatePercentage } from '../utils/formatters';
 import { api } from '../services/api';
+import { getCachedCategories, getDashboardMonthCache, setDashboardMonthCache } from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
 
 const INCOME_TYPE_COLORS = {
@@ -49,7 +50,6 @@ const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
-
 export default function Dashboard() {
   const { user } = useAuth();
   const { currency } = useSettings();
@@ -92,67 +92,81 @@ export default function Dashboard() {
 
   // Load data
   useEffect(() => {
+    const cacheKey = `${selectedYear}-${selectedMonth}`;
+
     const loadData = async () => {
       try {
-        setLoading(true);
         setError(null);
 
-        // Load categories for colors and icons
-        let userCategoryColors = {};
-        let userIncomeCategoryColors = {};
-        let iconMap = {};
+        // ── 1. Categories: shared cache (1 request per session) ──
+        let catColors = {};
+        let catIncomeColors = {};
+        let catIconMap = {};
         try {
-          const catRes = await api.getCategories();
+          const catRes = await getCachedCategories();
           if (catRes.data.grouped?.expense) {
             catRes.data.grouped.expense.forEach((cat) => {
-              userCategoryColors[cat.name] = cat.color;
-              iconMap[cat.name] = { icon: cat.icon, color: cat.color };
+              catColors[cat.name] = cat.color;
+              catIconMap[cat.name] = { icon: cat.icon, color: cat.color };
             });
           }
           if (catRes.data.grouped?.income) {
             catRes.data.grouped.income.forEach((cat) => {
-              userIncomeCategoryColors[cat.name] = cat.color;
-              iconMap[cat.name] = { icon: cat.icon, color: cat.color };
+              catIncomeColors[cat.name] = cat.color;
+              catIconMap[cat.name] = { icon: cat.icon, color: cat.color };
             });
           }
-        } catch (e) {
+        } catch {
           // Ignore — use fallbacks
         }
-        setCategoryColors(userCategoryColors);
-        setIncomeCategoryColors(userIncomeCategoryColors);
-        setCategoryIconMap(iconMap);
+        setCategoryColors(catColors);
+        setIncomeCategoryColors(catIncomeColors);
+        setCategoryIconMap(catIconMap);
 
-        // Load summary for selected month and all transactions
-        const [summaryRes, txRes] = await Promise.all([
-          api.getDashboardSummary({ month: selectedMonth + 1, year: selectedYear }),
-          api.getTransactions({ limit: 1000 }),
-        ]);
+        // ── 2. Check month cache ──
+        const cached = getDashboardMonthCache(cacheKey);
+        if (cached) {
+          setSummaryData(cached.summary);
+          setMonthTransactions(cached.transactions);
+          setBudgetOverview(cached.budget);
+          setLoading(false);
+          return;
+        }
 
-        setSummaryData(summaryRes.data);
+        // ── 3. Fetch month data — ALL in parallel ──
+        setLoading(true);
 
-        // Filter transactions for selected month
         const startDate = new Date(selectedYear, selectedMonth, 1);
         const endDate = new Date(selectedYear, selectedMonth + 1, 0);
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
+        const fromStr = startDate.toISOString().split('T')[0];
+        const toStr = endDate.toISOString().split('T')[0];
 
-        const allTx = txRes.data.transactions || [];
-        const monthTx = allTx.filter((t) => t.date >= startStr && t.date <= endStr);
-        setMonthTransactions(monthTx);
+        const [summaryRes, txRes, budgetConfigRes] = await Promise.all([
+          api.getDashboardSummary({ month: selectedMonth + 1, year: selectedYear }),
+          api.getTransactions({ from: fromStr, to: toStr, limit: 100 }),
+          api.getBudgetConfig(selectedYear).catch(() => ({ data: { config: null } })),
+        ]);
 
-        // Load budget overview
-        try {
-          const budgetConfigRes = await api.getBudgetConfig(selectedYear);
-          if (budgetConfigRes.data.config) {
+        const summary = summaryRes.data;
+        const transactions = txRes.data.transactions || [];
+
+        // Budget overview — only if config exists (1 extra call, but parallel wasn't possible)
+        let budget = null;
+        if (budgetConfigRes.data.config) {
+          try {
             const overviewRes = await api.getBudgetOverview(selectedYear, selectedMonth + 1);
-            setBudgetOverview(overviewRes.data);
-          } else {
-            setBudgetOverview(null);
+            budget = overviewRes.data;
+          } catch {
+            budget = null;
           }
-        } catch (e) {
-          // Budget not configured — ignore
-          setBudgetOverview(null);
         }
+
+        // Save to cache
+        setDashboardMonthCache(cacheKey, { summary, transactions, budget });
+
+        setSummaryData(summary);
+        setMonthTransactions(transactions);
+        setBudgetOverview(budget);
 
       } catch (err) {
         console.error('Dashboard load error:', err);
@@ -242,7 +256,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl">
+          <div data-tour="month-navigator" className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl">
             <button
               onClick={goToPrevMonth}
               className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
@@ -271,7 +285,7 @@ export default function Dashboard() {
       </div>
 
       {/* Resumen Principal */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div data-tour="summary-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6 border-emerald-500/20">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-dark-400 uppercase tracking-wider">Total Ingresos</span>
@@ -307,7 +321,7 @@ export default function Dashboard() {
       </div>
 
       {/* Breakdown: Income by Type + Expenses by Category */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* INGRESOS por Tipo */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">

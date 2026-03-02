@@ -23,6 +23,7 @@ import {
 import { Button, Card, Input, Select, Modal, ConfirmModal, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { invalidateCategoriesCache } from '../services/cache';
 import { getCategoryIcon, ICON_GROUPS } from '../utils/categoryIcons';
 
 const PRESET_COLORS = [
@@ -85,6 +86,7 @@ export default function Categories() {
 
   const loadCategories = async () => {
     try {
+      invalidateCategoriesCache();
       const response = await api.getCategories();
       setCategories(response.data.grouped || { income: [], expense: [] });
     } catch (err) {
