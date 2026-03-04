@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Modal, ConfirmModal, Spinner, CreatableSelect } from '../components/ui';
 import { formatCurrency } from '../utils/formatters';
 import { api } from '../services/api';
-import { getCachedCategories, invalidateCategoriesCache } from '../services/cache';
+import { getCachedCategories, invalidateCategoriesCache, invalidateDashboardCache } from '../services/cache';
 
 export default function Goals() {
   const navigate = useNavigate();
@@ -43,6 +43,9 @@ export default function Goals() {
   const [deleteModal, setDeleteModal] = useState({ open: false, pocket: null });
   const [pocketWarning, setPocketWarning] = useState({ open: false, issues: [] });
   const [successMsg, setSuccessMsg] = useState('');
+  const [configError, setConfigError] = useState('');
+  const [deleteConfigModal, setDeleteConfigModal] = useState(false);
+  const [deletingConfig, setDeletingConfig] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -76,7 +79,12 @@ export default function Goals() {
   // Validate pockets before saving
   const validateAndSave = () => {
     const target = parseFloat(annualTarget);
-    if (!target || target <= 0) return;
+    if (!target || target <= 0) {
+      setConfigError('La meta debe ser un valor mayor a cero');
+      setTimeout(() => setConfigError(''), 4000);
+      return;
+    }
+    setConfigError('');
 
     const issues = [];
     if (pockets.length === 0) {
@@ -95,18 +103,42 @@ export default function Goals() {
   // Save annual target
   const doSaveConfig = async () => {
     const target = parseFloat(annualTarget);
-    if (!target || target <= 0) return;
+    if (!target || target <= 0) {
+      setConfigError('La meta debe ser un valor mayor a cero');
+      setTimeout(() => setConfigError(''), 4000);
+      return;
+    }
     setPocketWarning({ open: false, issues: [] });
     setSavingConfig(true);
     try {
       const res = await api.saveBudgetConfig({ year: selectedYear, annual_revenue_target: target });
       setConfig(res.data.config);
+      invalidateDashboardCache();
       setSuccessMsg('Meta guardada correctamente');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       console.error('Error saving config:', err);
     }
     setSavingConfig(false);
+  };
+
+  // Delete annual target
+  const doDeleteConfig = async () => {
+    setDeletingConfig(true);
+    try {
+      await api.deleteBudgetConfig(selectedYear);
+      setConfig(null);
+      setAnnualTarget('');
+      setPockets([]);
+      invalidateDashboardCache();
+      invalidateCategoriesCache();
+      setDeleteConfigModal(false);
+      setSuccessMsg('Meta eliminada correctamente');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      console.error('Error deleting config:', err);
+    }
+    setDeletingConfig(false);
   };
 
   // Pocket editing
@@ -125,6 +157,7 @@ export default function Goals() {
     try {
       const res = await api.saveBudgetPocketsBulk(pocketDraft);
       setPockets(res.data.pockets);
+      invalidateDashboardCache();
       setEditingPockets(false);
     } catch (err) {
       console.error('Error saving pockets:', err);
@@ -158,6 +191,7 @@ export default function Goals() {
       });
       setPockets([...pockets, res.data.pocket]);
       invalidateCategoriesCache();
+      invalidateDashboardCache();
       const catRes = await getCachedCategories();
       setExpenseCategories(catRes.data.grouped?.expense || []);
       setNewPocketModal(false);
@@ -172,6 +206,7 @@ export default function Goals() {
     try {
       await api.deleteBudgetPocket(deleteModal.pocket.id);
       setPockets(pockets.filter((p) => p.id !== deleteModal.pocket.id));
+      invalidateDashboardCache();
       setDeleteModal({ open: false, pocket: null });
     } catch (err) {
       console.error('Error deleting pocket:', err);
@@ -261,10 +296,27 @@ export default function Goals() {
             <p className="text-xs text-dark-500 mb-1">Estimado Mensual</p>
             <p className="text-xl font-bold text-gold-400">{formatCurrency(monthlyEstimate)}</p>
           </div>
-          <Button onClick={validateAndSave} loading={savingConfig} icon={Save}>
-            Guardar Meta
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={validateAndSave} loading={savingConfig} icon={Save} className="flex-1">
+              Guardar Meta
+            </Button>
+            {config && (
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfigModal(true)}
+                className="!border-red-500/30 !text-red-400 hover:!bg-red-500/10"
+                icon={Trash2}
+              />
+            )}
+          </div>
         </div>
+
+        {configError && (
+          <div className="flex items-center gap-3 mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl animate-fade-in">
+            <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+            <p className="text-sm font-medium text-red-400">{configError}</p>
+          </div>
+        )}
       </Card>
 
       {/* Pockets Config */}
@@ -442,6 +494,16 @@ export default function Goals() {
         title="Eliminar Bolsillo"
         message={`¿Estás seguro de eliminar "${deleteModal.pocket?.name}"?`}
         confirmText="Eliminar"
+      />
+
+      {/* Delete Config Confirm */}
+      <ConfirmModal
+        isOpen={deleteConfigModal}
+        onClose={() => setDeleteConfigModal(false)}
+        onConfirm={doDeleteConfig}
+        title="Eliminar Meta"
+        message={`¿Estás seguro de eliminar la meta de facturación del año ${selectedYear}? El informe mensual dejará de mostrar el seguimiento de metas.`}
+        confirmText={deletingConfig ? 'Eliminando...' : 'Eliminar Meta'}
       />
 
       {/* Pocket validation warning */}

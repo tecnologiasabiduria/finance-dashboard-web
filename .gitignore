@@ -11,3 +11,8 @@ integrationGoogleSheet-context/Herramienta financiera 2 - GASTOS.csv
 integrationGoogleSheet-context/ATERRIZAJE EMPRESARIAL - PRESUPUESTO POR BOLSILLO .csv
 integrationGoogleSheet-context/ATERRIZAJE EMPRESARIAL - PROYECCION AÑO .csv
 integrationGoogleSheet-context/ATERRIZAJE EMPRESARIAL - METAS.csv
+database.sql
+.env
+.env.example
+.env
+.env

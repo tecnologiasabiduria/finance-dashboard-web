@@ -207,8 +207,12 @@ export function DatePicker({
                   key={`prev-${i}`}
                   type="button"
                   onClick={() => {
-                    prevMonth();
-                    setTimeout(() => handleSelectDay(d), 0);
+                    const prevM = viewMonth === 0 ? 11 : viewMonth - 1;
+                    const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
+                    const mm = String(prevM + 1).padStart(2, '0');
+                    const dd = String(d).padStart(2, '0');
+                    onChange({ target: { name, value: `${prevY}-${mm}-${dd}` } });
+                    setIsOpen(false);
                   }}
                   className="h-8 text-xs text-dark-600 hover:text-dark-400 rounded-lg transition-colors"
                 >
@@ -241,8 +245,12 @@ export function DatePicker({
                   key={`next-${i}`}
                   type="button"
                   onClick={() => {
-                    nextMonth();
-                    setTimeout(() => handleSelectDay(d), 0);
+                    const nextM = viewMonth === 11 ? 0 : viewMonth + 1;
+                    const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
+                    const mm = String(nextM + 1).padStart(2, '0');
+                    const dd = String(d).padStart(2, '0');
+                    onChange({ target: { name, value: `${nextY}-${mm}-${dd}` } });
+                    setIsOpen(false);
                   }}
                   className="h-8 text-xs text-dark-600 hover:text-dark-400 rounded-lg transition-colors"
                 >

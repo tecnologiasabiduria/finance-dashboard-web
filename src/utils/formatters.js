@@ -19,10 +19,20 @@ export function formatCurrency(amount, currency = 'COP') {
 }
 
 /**
+ * Parsea una fecha date-only (YYYY-MM-DD) como hora local en vez de UTC
+ */
+export function parseLocalDate(dateString) {
+  if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return new Date(dateString + 'T00:00:00');
+  }
+  return new Date(dateString);
+}
+
+/**
  * Formatea una fecha
  */
 export function formatDate(dateString, format = 'short') {
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   
   const options = {
     short: { day: 'numeric', month: 'short' },

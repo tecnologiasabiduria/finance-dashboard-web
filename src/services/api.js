@@ -258,6 +258,12 @@ class ApiService {
     });
   }
 
+  deleteBudgetConfig(year) {
+    return this.request(`/budget/config?year=${year}`, {
+      method: 'DELETE',
+    });
+  }
+
   getBudgetPockets() {
     return this.request('/budget/pockets');
   }

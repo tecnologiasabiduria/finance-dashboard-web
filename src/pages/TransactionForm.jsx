@@ -74,7 +74,7 @@ export default function TransactionForm() {
     amount: '',
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
+    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
     // Campos de ingreso
     invoice_number: '',
     client_document: '',

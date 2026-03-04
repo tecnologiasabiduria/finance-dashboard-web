@@ -618,6 +618,28 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* No budget configured reminder */}
+      {!loading && !budgetOverview && (
+        <Card className="p-6 border-dashed border-dark-700">
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+            <div className="p-3 bg-gold-400/10 rounded-xl">
+              <Target className="h-6 w-6 text-gold-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-white font-semibold">Meta de facturación no configurada</h3>
+              <p className="text-dark-400 text-sm mt-1">
+                Configura tu meta anual de facturación para ver el seguimiento mensual, desviaciones y alertas de presupuesto.
+              </p>
+            </div>
+            <Link to="/goals">
+              <Button size="sm" variant="outline" icon={ArrowRight}>
+                Configurar Metas
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      )}
+
       {/* Breakdown: Income by Type + Expenses by Category */}
       <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* INGRESOS por Tipo */}

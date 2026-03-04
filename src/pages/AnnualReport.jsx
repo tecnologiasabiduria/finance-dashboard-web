@@ -23,7 +23,7 @@ import {
 } from 'recharts';
 import { Card, Button, Spinner } from '../components/ui';
 import { useSettings } from '../context/SettingsContext';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, parseLocalDate } from '../utils/formatters';
 import { api } from '../services/api';
 import { getCachedCategories } from '../services/cache';
 
@@ -87,7 +87,7 @@ export default function AnnualReport() {
   // Filter transactions for selected year
   const yearTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      const year = new Date(t.date).getFullYear();
+      const year = parseLocalDate(t.date).getFullYear();
       return year === selectedYear;
     });
   }, [transactions, selectedYear]);
@@ -120,7 +120,7 @@ export default function AnnualReport() {
     });
 
     incomes.forEach((t) => {
-      const month = new Date(t.date).getMonth();
+      const month = parseLocalDate(t.date).getMonth();
       const type = t.category || 'OTRO';
       if (!grid[type]) grid[type] = new Array(12).fill(0);
       grid[type][month] += parseFloat(t.amount);
@@ -137,7 +137,7 @@ export default function AnnualReport() {
     });
 
     expenses.forEach((t) => {
-      const month = new Date(t.date).getMonth();
+      const month = parseLocalDate(t.date).getMonth();
       const cat = t.category || 'Sin categoría';
       if (!grid[cat]) grid[cat] = new Array(12).fill(0);
       grid[cat][month] += parseFloat(t.amount);
@@ -150,7 +150,7 @@ export default function AnnualReport() {
   const monthlyIncomeTotals = useMemo(() => {
     const totals = new Array(12).fill(0);
     incomes.forEach((t) => {
-      const month = new Date(t.date).getMonth();
+      const month = parseLocalDate(t.date).getMonth();
       totals[month] += parseFloat(t.amount);
     });
     return totals;
@@ -159,7 +159,7 @@ export default function AnnualReport() {
   const monthlyExpenseTotals = useMemo(() => {
     const totals = new Array(12).fill(0);
     expenses.forEach((t) => {
-      const month = new Date(t.date).getMonth();
+      const month = parseLocalDate(t.date).getMonth();
       totals[month] += parseFloat(t.amount);
     });
     return totals;
