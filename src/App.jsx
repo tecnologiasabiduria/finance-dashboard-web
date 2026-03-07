@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import Goals from './pages/Goals';
 import Categories from './pages/Categories';
 import AnnualReport from './pages/AnnualReport';
+import ImportTransactions from './pages/ImportTransactions';
 
 function App() {
   return (
@@ -67,6 +68,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/transactions/new" element={<TransactionForm />} />
+            <Route path="/transactions/import" element={<ImportTransactions />} />
             <Route path="/transactions/:id" element={<TransactionForm />} />
             <Route path="/annual-report" element={<AnnualReport />} />
             <Route path="/goals" element={<Goals />} />

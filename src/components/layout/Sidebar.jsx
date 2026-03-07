@@ -13,6 +13,7 @@ import {
   BarChart3,
   Wallet,
   X,
+  Upload,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -26,6 +27,11 @@ const navigation = [
     name: 'Nuevo Registro',
     href: '/transactions/new',
     icon: PlusCircle,
+  },
+  {
+    name: 'Importar CSV',
+    href: '/transactions/import',
+    icon: Upload,
   },
   {
     name: 'Transacciones',

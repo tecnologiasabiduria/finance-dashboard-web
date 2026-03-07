@@ -255,9 +255,53 @@ Deno.serve(async (req: Request) => {
     if (profileSearchError) {
       console.error("❌ Error buscando profile:", profileSearchError.message);
       return jsonResponse(
-        { success: false, SITE_URL = https://app.sabiduriaempresarial.commessage: "Error verificando usuario" },
+        { success: false, message: "Error verificando usuario" },
         500
       );
+    }
+
+    // ============================================
+    // VERIFICAR TAMBIÉN EN auth.users (prevenir duplicados)
+    // ============================================
+
+    // Si no hay profile, verificar si el usuario existe en auth.users
+    // Esto previene crear un usuario duplicado que causaría pérdida de visibilidad de datos
+    if (!existingProfile) {
+      const { data: authLookup } = await supabase.auth.admin.listUsers();
+      const existingAuthUser = authLookup?.users?.find(
+        (u) => u.email?.toLowerCase() === userEmail.toLowerCase()
+      );
+
+      if (existingAuthUser) {
+        console.log(`⚠️ Usuario existe en auth.users (${existingAuthUser.id}) pero NO en profiles. Creando profile...`);
+
+        // Crear el profile faltante para el usuario existente en vez de crear uno nuevo
+        const { error: fixProfileError } = await supabase.from("profiles").upsert({
+          id: existingAuthUser.id,
+          email: userEmail.toLowerCase(),
+          full_name: userName,
+          phone: userPhone,
+          subscription_status: newStatus,
+          updated_at: new Date().toISOString(),
+        });
+
+        if (fixProfileError) {
+          console.error("❌ Error creando profile para usuario existente:", fixProfileError.message);
+        } else {
+          console.log(`✅ Profile creado/actualizado para usuario existente: ${existingAuthUser.id}`);
+        }
+
+        return jsonResponse({
+          success: true,
+          message: "Profile restaurado y suscripción actualizada para usuario existente",
+          data: {
+            action: "profile_restored",
+            user_id: existingAuthUser.id,
+            email: userEmail,
+            new_status: newStatus,
+          },
+        });
+      }
     }
 
     // ============================================

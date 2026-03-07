@@ -118,6 +118,13 @@ class ApiService {
     });
   }
 
+  importTransactions(transactions) {
+    return this.request('/transactions/import', {
+      method: 'POST',
+      body: JSON.stringify({ transactions }),
+    });
+  }
+
   // Goals
   getGoals() {
     return this.request('/goals');
