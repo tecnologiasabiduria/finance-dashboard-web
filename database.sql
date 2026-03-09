@@ -1,6 +1,35 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.cartera (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  plataforma text,
+  fuente text,
+  producto text,
+  nombre text NOT NULL,
+  fecha_venta date NOT NULL,
+  valor_venta numeric NOT NULL DEFAULT 0,
+  cash numeric NOT NULL DEFAULT 0,
+  notas text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cartera_pkey PRIMARY KEY (id),
+  CONSTRAINT cartera_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.cartera_pagos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  cartera_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  fecha date NOT NULL,
+  monto numeric NOT NULL DEFAULT 0,
+  notas text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cartera_pagos_pkey PRIMARY KEY (id),
+  CONSTRAINT cartera_pagos_cartera_id_fkey FOREIGN KEY (cartera_id) REFERENCES public.cartera(id),
+  CONSTRAINT cartera_pagos_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+
 CREATE TABLE public.budget_config (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,

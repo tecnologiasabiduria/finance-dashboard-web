@@ -20,6 +20,7 @@ import Goals from './pages/Goals';
 import Categories from './pages/Categories';
 import AnnualReport from './pages/AnnualReport';
 import ImportTransactions from './pages/ImportTransactions';
+import Cartera from './pages/Cartera';
 
 function App() {
   return (
@@ -74,6 +75,7 @@ function App() {
             <Route path="/goals" element={<Goals />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/cartera" element={<Cartera />} />
           </Route>
 
           {/* Redirects */}

@@ -305,6 +305,54 @@ class ApiService {
   getBudgetOverview(year, month) {
     return this.request(`/budget/overview?year=${year}&month=${month}`);
   }
+
+  // Cartera (Cuentas por cobrar / Accounts receivable)
+  getCartera(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/cartera${query ? `?${query}` : ''}`);
+  }
+
+  getCarteraRecord(id) {
+    return this.request(`/cartera/${id}`);
+  }
+
+  createCarteraRecord(data) {
+    return this.request('/cartera', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateCarteraRecord(id, data) {
+    return this.request(`/cartera/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteCarteraRecord(id) {
+    return this.request(`/cartera/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Cartera Pagos (monthly installment payments)
+  getCarteraPagos(carteraId) {
+    return this.request(`/cartera/${carteraId}/pagos`);
+  }
+
+  addCarteraPago(carteraId, data) {
+    return this.request(`/cartera/${carteraId}/pagos`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteCarteraPago(carteraId, pagoId) {
+    return this.request(`/cartera/${carteraId}/pagos/${pagoId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiService();
