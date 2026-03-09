@@ -20,6 +20,7 @@ import Goals from './pages/Goals';
 import Categories from './pages/Categories';
 import AnnualReport from './pages/AnnualReport';
 import ImportTransactions from './pages/ImportTransactions';
+import Cartera from './pages/Cartera';
 
 function App() {
   return (
@@ -71,6 +72,7 @@ function App() {
             <Route path="/transactions/import" element={<ImportTransactions />} />
             <Route path="/transactions/:id" element={<TransactionForm />} />
             <Route path="/annual-report" element={<AnnualReport />} />
+            <Route path="/cartera" element={<Cartera />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/settings" element={<Settings />} />

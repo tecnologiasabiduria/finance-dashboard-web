@@ -305,6 +305,36 @@ class ApiService {
   getBudgetOverview(year, month) {
     return this.request(`/budget/overview?year=${year}&month=${month}`);
   }
+
+  // Cartera (Accounts Receivable)
+  getCartera(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/cartera${query ? `?${query}` : ''}`);
+  }
+
+  getCarteraItem(id) {
+    return this.request(`/cartera/${id}`);
+  }
+
+  createCarteraItem(data) {
+    return this.request('/cartera', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateCarteraItem(id, data) {
+    return this.request(`/cartera/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteCarteraItem(id) {
+    return this.request(`/cartera/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiService();

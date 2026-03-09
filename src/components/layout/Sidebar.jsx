@@ -14,6 +14,7 @@ import {
   Wallet,
   X,
   Upload,
+  Briefcase,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -47,6 +48,11 @@ const navigation = [
     name: 'Informe Anual',
     href: '/annual-report',
     icon: BarChart3,
+  },
+  {
+    name: 'Cartera',
+    href: '/cartera',
+    icon: Briefcase,
   },
   {
     name: 'Metas',
