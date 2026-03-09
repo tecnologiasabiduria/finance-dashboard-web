@@ -14,6 +14,7 @@ import {
   Wallet,
   X,
   Upload,
+  BookOpen,
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -52,6 +53,11 @@ const navigation = [
     name: 'Metas',
     href: '/goals',
     icon: Wallet,
+  },
+  {
+    name: 'Cartera',
+    href: '/cartera',
+    icon: BookOpen,
   },
   {
     name: 'Configuración',
