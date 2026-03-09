@@ -154,7 +154,7 @@ export default function TransactionForm() {
   // Crear categoría inline y recargar lista
   const handleCreateCategory = async (name, type) => {
     try {
-      await api.createCategory({ name, type, color: '#D4AF37' });
+      await api.createCategory({ name, type, color: '#da7d41' });
       invalidateCategoriesCache();
       await loadCategories();
       return name;

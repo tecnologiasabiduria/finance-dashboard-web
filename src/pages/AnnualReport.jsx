@@ -45,7 +45,7 @@ const INCOME_TYPE_COLORS = {
 
 const EXPENSE_CATEGORY_COLORS = [
   '#EF4444', '#F97316', '#8B5CF6', '#EC4899', '#3B82F6',
-  '#F59E0B', '#14B8A6', '#6366F1', '#D4AF37', '#6B7280',
+  '#F59E0B', '#14B8A6', '#6366F1', '#da7d41', '#6B7280',
 ];
 
 export default function AnnualReport() {
@@ -325,7 +325,7 @@ export default function AnnualReport() {
                     <tr key={type} className="border-t border-dark-800/50 hover:bg-dark-800/20">
                       <td className="py-3 px-4 font-medium text-white sticky left-0 bg-dark-950">
                         <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INCOME_TYPE_COLORS[type] || '#D4AF37' }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INCOME_TYPE_COLORS[type] || '#da7d41' }} />
                           {type}
                         </div>
                       </td>

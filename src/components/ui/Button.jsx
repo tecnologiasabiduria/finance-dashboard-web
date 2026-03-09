@@ -1,9 +1,9 @@
 import { clsx } from 'clsx';
 
 const variants = {
-  primary: 'bg-gradient-to-r from-gold-500 to-gold-400 text-dark-950 hover:from-gold-400 hover:to-gold-300 focus:ring-gold-400/50',
-  secondary: 'bg-transparent border border-gold-400 text-gold-400 hover:bg-gold-400/10 focus:ring-gold-400/50',
-  ghost: 'bg-transparent text-gold-400 hover:bg-gold-400/10 focus:ring-gold-400/50',
+  primary: 'bg-gradient-to-r from-gold-700 to-gold-400 text-white hover:from-gold-400 hover:to-gold-300 focus:ring-gold-400/50',
+  secondary: 'bg-transparent border border-gold-400 text-gold-300 hover:bg-gold-400/10 focus:ring-gold-400/50',
+  ghost: 'bg-transparent text-gold-300 hover:bg-gold-400/10 focus:ring-gold-400/50',
   danger: 'bg-red-500/20 border border-red-500 text-red-400 hover:bg-red-500/30 focus:ring-red-500/50',
 };
 

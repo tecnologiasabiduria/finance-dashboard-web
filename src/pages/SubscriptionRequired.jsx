@@ -96,9 +96,9 @@ export default function SubscriptionRequired() {
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <div className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-gold-500 to-gold-400 rounded-full">
-                      <Crown className="h-4 w-4 text-dark-950" />
-                      <span className="text-xs font-bold text-dark-950 uppercase">
+                    <div className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-gold-700 to-gold-400 rounded-full">
+                      <Crown className="h-4 w-4 text-white" />
+                      <span className="text-xs font-bold text-white uppercase">
                         Más popular
                       </span>
                     </div>

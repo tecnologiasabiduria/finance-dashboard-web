@@ -292,7 +292,7 @@ export default function CreatePassword() {
                     item.done
                       ? 'bg-emerald-500/20 text-emerald-400'
                       : item.active
-                      ? 'bg-gradient-to-br from-gold-400 to-gold-600 text-dark-950'
+                      ? 'bg-gradient-to-br from-gold-700 to-gold-400 text-white'
                       : 'bg-dark-800 text-dark-500'
                   }`}
                 >

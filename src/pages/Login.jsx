@@ -199,7 +199,7 @@ export default function Login() {
               {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
                 <div
                   key={i}
-                  className="flex-1 bg-gradient-to-t from-gold-400/50 to-gold-400 rounded-t"
+                  className="flex-1 bg-gradient-to-t from-gold-700/50 to-gold-400 rounded-t"
                   style={{ height: `${h}%` }}
                 />
               ))}

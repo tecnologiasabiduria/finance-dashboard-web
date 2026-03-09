@@ -105,15 +105,15 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
                 'flex items-center gap-3 px-4 py-3 rounded-xl',
                 'transition-all duration-200 group',
                 isActive
-                  ? 'bg-gradient-to-r from-gold-400/20 to-transparent text-gold-400 border-l-2 border-gold-400'
-                  : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
+                  ? 'bg-gradient-to-r from-gold-400/20 to-transparent text-gold-300 border-l-2 border-gold-400'
+                  : 'text-dark-400 hover:text-gold-300 hover:bg-dark-800/50'
               )}
             >
               <Icon
                 className={clsx(
                   'h-5 w-5 flex-shrink-0 transition-transform duration-200',
                   'group-hover:scale-110',
-                  isActive && 'text-gold-400'
+                  isActive && 'text-gold-300'
                 )}
               />
               {!collapsed && (

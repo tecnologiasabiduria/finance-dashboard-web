@@ -149,7 +149,7 @@ export default function Settings() {
               {/* Avatar */}
               <div className="flex items-center gap-6 mb-8">
                 <div className="relative">
-                  <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-3xl font-bold text-dark-950">
+                  <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gold-700 to-gold-400 flex items-center justify-center text-3xl font-bold text-white">
                     {profileData.name.charAt(0).toUpperCase()}
                   </div>
                 </div>

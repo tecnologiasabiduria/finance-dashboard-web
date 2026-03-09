@@ -65,18 +65,18 @@ const TOUR_STEPS = [
 // Custom styles matching dark theme + gold accent
 const joyrideStyles = {
   options: {
-    arrowColor: '#1a1a2e',
-    backgroundColor: '#1a1a2e',
-    overlayColor: 'rgba(0, 0, 0, 0.75)',
+    arrowColor: '#261c21',
+    backgroundColor: '#261c21',
+    overlayColor: 'rgba(28, 20, 25, 0.75)',
     textColor: '#e5e5e5',
-    primaryColor: '#D4AF37',
+    primaryColor: '#da7d41',
     zIndex: 10000,
   },
   tooltip: {
     borderRadius: '16px',
     padding: '24px',
-    border: '1px solid rgba(212, 175, 55, 0.3)',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    border: '1px solid rgba(218, 125, 65, 0.3)',
+    boxShadow: '0 25px 50px -12px rgba(28, 20, 25, 0.5)',
   },
   tooltipTitle: {
     fontSize: '18px',
@@ -90,8 +90,8 @@ const joyrideStyles = {
     color: '#a3a3a3',
   },
   buttonNext: {
-    backgroundColor: '#D4AF37',
-    color: '#0a0a0f',
+    backgroundColor: '#da7d41',
+    color: '#ffffff',
     borderRadius: '12px',
     padding: '10px 24px',
     fontWeight: '600',

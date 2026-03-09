@@ -24,7 +24,7 @@ import { supabase } from '../../lib/supabase';
 const TYPE_CONFIG = {
   info:    { icon: Info,           color: 'text-blue-400',   bg: 'bg-blue-400/10' },
   warning: { icon: AlertTriangle,  color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  promo:   { icon: Megaphone,      color: 'text-gold-400',   bg: 'bg-gold-400/10' },
+  promo:   { icon: Megaphone,      color: 'text-gold-300',   bg: 'bg-gold-400/10' },
   update:  { icon: RefreshCw,      color: 'text-green-400',  bg: 'bg-green-400/10' },
   alert:   { icon: ShieldAlert,    color: 'text-red-400',    bg: 'bg-red-400/10' },
 };
@@ -183,7 +183,7 @@ export function Header({ onMenuClick, showMenuButton }) {
             >
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold bg-gold-400 text-dark-950 rounded-full leading-none">
+                <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold bg-gold-400 text-white rounded-full leading-none">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -197,7 +197,7 @@ export function Header({ onMenuClick, showMenuButton }) {
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="flex items-center gap-1.5 text-xs text-gold-400 hover:text-gold-300 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-gold-300 hover:text-gold-200 transition-colors"
                     >
                       <CheckCheck className="h-3.5 w-3.5" />
                       Marcar todo leído
@@ -209,7 +209,7 @@ export function Header({ onMenuClick, showMenuButton }) {
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                   {loadingNotifs ? (
                     <div className="flex items-center justify-center py-8">
-                      <div className="h-5 w-5 border-2 border-gold-400/30 border-t-gold-400 rounded-full animate-spin" />
+                      <div className="h-5 w-5 border-2 border-gold-400/30 border-t-gold-300 rounded-full animate-spin" />
                     </div>
                   ) : notifications.length === 0 ? (
                     <div className="py-8 text-center">
@@ -250,7 +250,7 @@ export function Header({ onMenuClick, showMenuButton }) {
                                 {notif.title}
                               </p>
                               {!notif.read && (
-                                <span className="flex-shrink-0 h-2 w-2 rounded-full bg-gold-400" />
+                                <span className="flex-shrink-0 h-2 w-2 rounded-full bg-gold-300" />
                               )}
                             </div>
                             {notif.message && (
@@ -277,8 +277,8 @@ export function Header({ onMenuClick, showMenuButton }) {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-3 p-2 pr-4 hover:bg-dark-800 rounded-xl transition-colors"
             >
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center">
-                <span className="font-semibold text-dark-950">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gold-700 to-gold-400 flex items-center justify-center">
+                <span className="font-semibold text-white">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
               </div>

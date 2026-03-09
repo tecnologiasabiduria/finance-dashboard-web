@@ -9,9 +9,10 @@ import { AlertTriangle, ArrowRight } from 'lucide-react';
 /**
  * AuthCallback - Handles the redirect after clicking a Supabase magic link / invite link / recovery link.
  *
- * Supabase (with PKCE enabled, which is default) redirects to:
- *   /auth/callback?code=XXXXX
+ * Supabase redirects to:
  *   /auth/callback?code=XXXXX&type=recovery  (password reset)
+ *   /auth/callback?code=XXXXX                (invite / magic link)
+ *   /auth/callback#access_token=XXX&type=recovery  (hash-based, non-PKCE)
  *
  * This page:
  *  1. Exchanges the code for a session
@@ -48,11 +49,41 @@ export default function AuthCallback() {
           }
 
           if (data?.session) {
-            if (type === 'recovery') {
+            // Detect recovery from query param OR from the session/user metadata
+            const isRecovery =
+              type === 'recovery' ||
+              data.session?.user?.recovery_sent_at != null &&
+              Date.now() - new Date(data.session.user.recovery_sent_at).getTime() < 600000;
+
+            if (isRecovery) {
               navigate('/reset-password', { replace: true });
               return;
             }
 
+            navigate('/create-password', { replace: true });
+            return;
+          }
+        }
+
+        // Fallback: check for existing session (e.g. hash-based flow)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const hashType = hashParams.get('type');
+
+        if (accessToken) {
+          // Hash-based flow (non-PKCE)
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            setError(sessionError.message);
+            return;
+          }
+
+          if (session) {
+            if (hashType === 'recovery' || type === 'recovery') {
+              navigate('/reset-password', { replace: true });
+              return;
+            }
             navigate('/create-password', { replace: true });
             return;
           }

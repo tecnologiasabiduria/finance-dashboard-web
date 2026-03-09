@@ -11,7 +11,7 @@ export function Spinner({ size = 'md', className = '' }) {
   return (
     <div className={clsx('relative', sizes[size], className)}>
       <div className="absolute inset-0 rounded-full border-2 border-dark-700" />
-      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-gold-400 animate-spin" />
+      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-gold-300 animate-spin" />
     </div>
   );
 }
@@ -21,7 +21,7 @@ export function LoadingScreen({ message = 'Cargando...' }) {
     <div className="fixed inset-0 bg-dark-950 flex flex-col items-center justify-center gap-6 z-50">
       <div className="relative">
         <div className="h-16 w-16 rounded-full border-4 border-dark-800" />
-        <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-transparent border-t-gold-400 animate-spin" />
+        <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-transparent border-t-gold-300 animate-spin" />
       </div>
       <div className="text-center">
         <h2 className="text-xl font-semibold text-white mb-2">

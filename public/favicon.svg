@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#D4AF37"/>
-      <stop offset="50%" style="stop-color:#F4E4BC"/>
-      <stop offset="100%" style="stop-color:#D4AF37"/>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7e301f"/>
+      <stop offset="50%" style="stop-color:#da7d41"/>
+      <stop offset="100%" style="stop-color:#eaad74"/>
     </linearGradient>
   </defs>
-  <circle cx="50" cy="50" r="48" fill="#0a0a0a" stroke="url(#goldGradient)" stroke-width="2"/>
-  <text x="50" y="62" text-anchor="middle" fill="url(#goldGradient)" font-family="serif" font-size="36" font-weight="bold">SE</text>
+  <circle cx="50" cy="50" r="48" fill="#261c21" stroke="url(#brandGradient)" stroke-width="2"/>
+  <text x="50" y="62" text-anchor="middle" fill="url(#brandGradient)" font-family="sans-serif" font-size="36" font-weight="bold">SE</text>
 </svg>

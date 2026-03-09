@@ -27,7 +27,7 @@ import { invalidateCategoriesCache } from '../services/cache';
 import { getCategoryIcon, ICON_GROUPS } from '../utils/categoryIcons';
 
 const PRESET_COLORS = [
-  '#D4AF37', '#22C55E', '#EF4444', '#3B82F6', '#8B5CF6',
+  '#da7d41', '#22C55E', '#EF4444', '#3B82F6', '#8B5CF6',
   '#F97316', '#EC4899', '#10B981', '#F59E0B', '#6B7280',
   '#14B8A6', '#6366F1', '#E11D48', '#0EA5E9', '#84CC16',
 ];
@@ -57,7 +57,7 @@ export default function Categories() {
   const [showCatModal, setShowCatModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [savingCat, setSavingCat] = useState(false);
-  const [catForm, setCatForm] = useState({ name: '', type: 'expense', color: '#D4AF37', icon: 'tag' });
+  const [catForm, setCatForm] = useState({ name: '', type: 'expense', color: '#da7d41', icon: 'tag' });
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
 
@@ -102,10 +102,10 @@ export default function Categories() {
   const handleOpenCatModal = (category = null) => {
     if (category) {
       setEditingCategory(category);
-      setCatForm({ name: category.name, type: category.type, color: category.color || '#D4AF37', icon: category.icon || 'tag' });
+      setCatForm({ name: category.name, type: category.type, color: category.color || '#da7d41', icon: category.icon || 'tag' });
     } else {
       setEditingCategory(null);
-      setCatForm({ name: '', type: activeTab, color: '#D4AF37', icon: 'tag' });
+      setCatForm({ name: '', type: activeTab, color: '#da7d41', icon: 'tag' });
     }
     setShowIconPicker(false);
     setIconSearch('');
@@ -116,7 +116,7 @@ export default function Categories() {
   const handleCloseCatModal = () => {
     setShowCatModal(false);
     setEditingCategory(null);
-    setCatForm({ name: '', type: 'expense', color: '#D4AF37', icon: 'tag' });
+    setCatForm({ name: '', type: 'expense', color: '#da7d41', icon: 'tag' });
     setShowIconPicker(false);
     setIconSearch('');
     setError('');

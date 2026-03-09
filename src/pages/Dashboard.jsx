@@ -45,11 +45,11 @@ const INCOME_TYPE_COLORS = {
 
 const EXPENSE_CATEGORY_COLORS = [
   '#EF4444', '#F97316', '#8B5CF6', '#EC4899', '#3B82F6',
-  '#F59E0B', '#14B8A6', '#6366F1', '#D4AF37', '#6B7280',
+  '#F59E0B', '#14B8A6', '#6366F1', '#da7d41', '#6B7280',
 ];
 
 // ── Collapsible section with anime.js ── PREMIUM ANIMATIONS ──────
-function CollapsibleSection({ icon, iconBg, title, subtitle, children, accentColor = '#D4AF37' }) {
+function CollapsibleSection({ icon, iconBg, title, subtitle, children, accentColor = '#da7d41' }) {
   const [isOpen, setIsOpen] = useState(false);
   const cardRef = useRef(null);
   const contentRef = useRef(null);
@@ -395,7 +395,7 @@ export default function Dashboard() {
       .map(([name, value]) => ({
         name,
         value: Math.round(value * 100) / 100,
-        color: incomeCategoryColors[name] || INCOME_TYPE_COLORS[name] || '#D4AF37',
+        color: incomeCategoryColors[name] || INCOME_TYPE_COLORS[name] || '#da7d41',
         percentage: totalIncome > 0 ? ((value / totalIncome) * 100).toFixed(1) : '0.0',
       }))
       .sort((a, b) => b.value - a.value);
@@ -947,7 +947,7 @@ export default function Dashboard() {
             iconBg="bg-gold-400/10"
             title="Detalle por Bolsillo"
             subtitle={`${MONTH_NAMES[selectedMonth]} ${selectedYear}`}
-            accentColor="#D4AF37"
+            accentColor="#da7d41"
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1138,7 +1138,7 @@ export default function Dashboard() {
             iconBg="bg-gold-400/10"
             title="Acciones Rápidas"
             subtitle="Registrar ingreso, gasto o ver informe"
-            accentColor="#D4AF37"
+            accentColor="#da7d41"
           >
             <div className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

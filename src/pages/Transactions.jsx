@@ -756,7 +756,7 @@ export default function Transactions() {
                     onClick={() => setCurrentPage(page)}
                     className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                       currentPage === page
-                        ? 'bg-gold-400 text-dark-950'
+                        ? 'bg-gold-400 text-white'
                         : 'text-dark-400 hover:text-white hover:bg-dark-800'
                     }`}
                   >

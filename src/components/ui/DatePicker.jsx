@@ -229,9 +229,9 @@ export function DatePicker({
                   className={clsx(
                     'h-8 text-xs rounded-lg transition-all duration-150',
                     isSelected(d)
-                      ? 'bg-gold-400 text-dark-950 font-bold'
+                      ? 'bg-gold-400 text-white font-bold'
                       : isToday(d)
-                      ? 'bg-dark-800 text-gold-400 font-semibold ring-1 ring-gold-400/50'
+                      ? 'bg-dark-800 text-gold-300 font-semibold ring-1 ring-gold-400/50'
                       : 'text-white hover:bg-dark-800'
                   )}
                 >
@@ -271,7 +271,7 @@ export function DatePicker({
               <button
                 type="button"
                 onClick={handleToday}
-                className="text-xs text-gold-400 hover:text-gold-300 font-medium transition-colors"
+                className="text-xs text-gold-300 hover:text-gold-200 font-medium transition-colors"
               >
                 Hoy
               </button>

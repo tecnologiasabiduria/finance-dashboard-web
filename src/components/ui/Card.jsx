@@ -35,14 +35,14 @@ export function StatCard({
 }) {
   const variants = {
     default: 'border-dark-800 hover:border-gold-400/30',
-    gold: 'border-gold-400/30 bg-gradient-to-br from-gold-400/10 to-transparent',
+    gold: 'border-gold-400/30 bg-gradient-to-br from-gold-400/5 to-transparent',
     success: 'border-emerald-400/30 bg-gradient-to-br from-emerald-400/10 to-transparent',
     danger: 'border-red-400/30 bg-gradient-to-br from-red-400/10 to-transparent',
   };
 
   const iconVariants = {
-    default: 'bg-gold-400/10 text-gold-400',
-    gold: 'bg-gold-400/20 text-gold-400',
+    default: 'bg-gold-400/10 text-gold-300',
+    gold: 'bg-gold-400/20 text-gold-300',
     success: 'bg-emerald-400/20 text-emerald-400',
     danger: 'bg-red-400/20 text-red-400',
   };

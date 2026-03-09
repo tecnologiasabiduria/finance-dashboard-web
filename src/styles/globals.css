@@ -2,25 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Theme CSS Variables ===== */
+/* ===== Sabiduría Empresarial — Design Tokens ===== */
+/* --se-charcoal-brown: #261c21 — Fondos, superficies, profundidad */
+/* --se-sand-beige:     #eaad74 — Textos en fondo oscuro, íconos, bordes sutiles */
+/* --se-warm-amber:     #da7d41 — Acento para elementos activos, botones, CTAs */
+/* --se-deep-terracotta:#7e301f — Estados de error, alertas, acentos intensos */
+
 :root {
-  --bg-body: #0a0a0a;
+  --bg-body: #1c1419;
   --text-body: #ffffff;
-  --bg-surface: #1a1a1a;
-  --bg-surface-hover: #383838;
-  --border-color: #383838;
-  --scrollbar-track: #1a1a1a;
+  --bg-surface: #261c21;
+  --bg-surface-hover: #332a25;
+  --border-color: #332a25;
+  --scrollbar-track: #261c21;
   --shadow-card: none;
 }
 
 html.light {
-  --bg-body: #f4f5f7;
-  --text-body: #1e2028;
+  --bg-body: #f5f0ed;
+  --text-body: #261c21;
   --bg-surface: #ffffff;
-  --bg-surface-hover: #f0f1f4;
-  --border-color: #e2e4e9;
-  --scrollbar-track: #edeef1;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --bg-surface-hover: #f5f0ed;
+  --border-color: #ddd4cf;
+  --scrollbar-track: #f5f0ed;
+  --shadow-card: 0 1px 3px rgba(38,28,33,0.06), 0 1px 2px rgba(38,28,33,0.04);
 }
 
 /* Reset y estilos base */
@@ -35,7 +40,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, sans-serif;
   background-color: var(--bg-body);
   color: var(--text-body);
   min-height: 100vh;
@@ -49,7 +54,6 @@ html.light *,
 html.dark * {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 }
-/* Exclude animations & transforms from theme transition to avoid jankiness */
 html.light .animate-spin,
 html.dark .animate-spin,
 html.light [class*="transition-transform"],
@@ -60,75 +64,73 @@ html.dark [class*="transition-transform"] {
 /* ===== Light theme overrides ===== */
 
 /* ---- Backgrounds ---- */
-html.light .bg-dark-950     { background-color: #f4f5f7 !important; }
+html.light .bg-dark-950     { background-color: #f5f0ed !important; }
 html.light .bg-dark-900     { background-color: #ffffff !important; }
 html.light .bg-dark-900\/50 { background-color: rgba(255,255,255,0.7) !important; }
-html.light .bg-dark-800     { background-color: #f0f1f4 !important; }
-html.light .bg-dark-800\/50 { background-color: rgba(240,241,244,0.6) !important; }
-html.light .bg-dark-800\/30 { background-color: rgba(240,241,244,0.35) !important; }
-html.light .bg-dark-800\/80 { background-color: rgba(240,241,244,0.85) !important; }
-html.light .bg-dark-800\/20 { background-color: rgba(240,241,244,0.25) !important; }
-html.light .bg-dark-700     { background-color: #e2e4e9 !important; }
-html.light .bg-dark-600     { background-color: #d5d7de !important; }
+html.light .bg-dark-800     { background-color: #f5f0ed !important; }
+html.light .bg-dark-800\/50 { background-color: rgba(245,240,237,0.6) !important; }
+html.light .bg-dark-800\/30 { background-color: rgba(245,240,237,0.35) !important; }
+html.light .bg-dark-800\/80 { background-color: rgba(245,240,237,0.85) !important; }
+html.light .bg-dark-800\/20 { background-color: rgba(245,240,237,0.25) !important; }
+html.light .bg-dark-700     { background-color: #ddd4cf !important; }
+html.light .bg-dark-600     { background-color: #cfc4bd !important; }
 
-/* Sidebar & header: white surface */
-html.light .bg-dark-950\/80 { background-color: rgba(255,255,255,0.85) !important; }
+html.light .bg-dark-950\/80 { background-color: rgba(255,255,255,0.88) !important; }
 
 /* ---- Borders ---- */
-html.light .border-dark-800    { border-color: #e8eaef !important; }
-html.light .border-dark-800\/50 { border-color: rgba(232,234,239,0.6) !important; }
-html.light .border-dark-700    { border-color: #dcdee4 !important; }
-html.light .border-dark-600    { border-color: #d0d3da !important; }
+html.light .border-dark-800    { border-color: #ddd4cf !important; }
+html.light .border-dark-800\/50 { border-color: rgba(221,212,207,0.6) !important; }
+html.light .border-dark-700    { border-color: #cfc4bd !important; }
+html.light .border-dark-600    { border-color: #c2b5ad !important; }
 
 /* ---- Text ---- */
-html.light .text-white     { color: #1e2028 !important; }
-html.light .text-dark-200  { color: #2d3040 !important; }
-html.light .text-dark-300  { color: #3d4155 !important; }
-html.light .text-dark-400  { color: #6b7084 !important; }
-html.light .text-dark-500  { color: #9096a6 !important; }
-html.light .text-dark-600  { color: #b5b9c6 !important; }
-/* text-dark-950 stays dark (used on gold buttons) — no override needed */
+html.light .text-white     { color: #261c21 !important; }
+html.light .text-dark-200  { color: #3d322c !important; }
+html.light .text-dark-300  { color: #4d3f38 !important; }
+html.light .text-dark-400  { color: #6b5a50 !important; }
+html.light .text-dark-500  { color: #8c7a6f !important; }
+html.light .text-dark-600  { color: #b8a99f !important; }
 
 /* ---- Hover states ---- */
-html.light .hover\:text-white:hover      { color: #1e2028 !important; }
-html.light .hover\:bg-dark-800:hover     { background-color: #ecedf1 !important; }
-html.light .hover\:bg-dark-800\/50:hover { background-color: rgba(236,237,241,0.6) !important; }
-html.light .hover\:bg-dark-800\/30:hover { background-color: rgba(236,237,241,0.35) !important; }
-html.light .hover\:bg-dark-800\/20:hover { background-color: rgba(236,237,241,0.25) !important; }
+html.light .hover\:text-white:hover      { color: #261c21 !important; }
+html.light .hover\:bg-dark-800:hover     { background-color: #ece5e1 !important; }
+html.light .hover\:bg-dark-800\/50:hover { background-color: rgba(236,229,225,0.6) !important; }
+html.light .hover\:bg-dark-800\/30:hover { background-color: rgba(236,229,225,0.35) !important; }
+html.light .hover\:bg-dark-800\/20:hover { background-color: rgba(236,229,225,0.25) !important; }
 html.light .hover\:bg-dark-900\/50:hover { background-color: rgba(255,255,255,0.6) !important; }
 html.light .hover\:bg-dark-900\/80:hover { background-color: rgba(255,255,255,0.85) !important; }
-html.light .hover\:border-dark-600:hover { border-color: #c5c8d0 !important; }
+html.light .hover\:border-dark-600:hover { border-color: #b5a79d !important; }
 
 /* ---- Gradient backgrounds ---- */
-html.light .from-dark-900 { --tw-gradient-from: #f4f5f7 !important; }
-html.light .to-dark-950   { --tw-gradient-to: #edeef1 !important; }
-html.light .to-dark-900   { --tw-gradient-to: #f4f5f7 !important; }
+html.light .from-dark-900 { --tw-gradient-from: #f5f0ed !important; }
+html.light .to-dark-950   { --tw-gradient-to: #ece5e1 !important; }
+html.light .to-dark-900   { --tw-gradient-to: #f5f0ed !important; }
 
 /* ---- Placeholders ---- */
 html.light .placeholder-dark-400::placeholder,
 html.light .placeholder-dark-500::placeholder,
 html.light .placeholder-dark-600::placeholder,
-html.light .placeholder\:text-dark-500::placeholder { color: #9096a6 !important; }
+html.light .placeholder\:text-dark-500::placeholder { color: #8c7a6f !important; }
 
 /* ---- Form elements ---- */
 html.light input,
 html.light select,
 html.light textarea {
-  color: #1e2028 !important;
+  color: #261c21 !important;
 }
 
 html.light select option {
   background-color: #ffffff !important;
-  color: #1e2028 !important;
+  color: #261c21 !important;
 }
 
 /* ---- Ring offset ---- */
 html.light .ring-offset-dark-900 { --tw-ring-offset-color: #ffffff !important; }
 
-/* ---- Gold border gradient (cards) ---- */
+/* ---- Brand border gradient (cards) ---- */
 html.light .border-gradient-gold {
   background: linear-gradient(#ffffff, #ffffff) padding-box,
-              linear-gradient(135deg, #D4AF37 0%, #F4E4BC 50%, #D4AF37 100%) border-box;
+              linear-gradient(135deg, #7e301f 0%, #da7d41 50%, #eaad74 100%) border-box;
 }
 
 /* ---- Cards: subtle shadow in light mode ---- */
@@ -141,14 +143,14 @@ html.light .glass-dark {
   background: rgba(255, 255, 255, 0.8) !important;
 }
 
-/* ---- Sidebar active nav: gold tint on light ---- */
+/* ---- Sidebar active nav: warm tint on light ---- */
 html.light .bg-gradient-to-r.from-gold-400\/20 {
-  background: linear-gradient(to right, rgba(212,175,55,0.08), transparent) !important;
+  background: linear-gradient(to right, rgba(218,125,65,0.08), transparent) !important;
 }
 
 /* ---- Backdrop overlay ---- */
 html.light .bg-dark-950\/80[class*="backdrop"] {
-  background-color: rgba(0,0,0,0.25) !important;
+  background-color: rgba(38,28,33,0.25) !important;
 }
 
 /* ---- Sticky table headers ---- */
@@ -157,14 +159,14 @@ html.light .sticky.bg-dark-950 {
   background-color: #ffffff !important;
 }
 html.light .sticky.bg-dark-800\/30 {
-  background-color: rgba(240,241,244,0.95) !important;
+  background-color: rgba(245,240,237,0.95) !important;
 }
 
 /* ---- Colored accent adjustments for readability ---- */
 html.light .text-emerald-400 { color: #059669 !important; }
 html.light .text-red-400     { color: #dc2626 !important; }
-html.light .text-gold-400    { color: #b8941f !important; }
-html.light .text-gold-300    { color: #c5a028 !important; }
+html.light .text-gold-400    { color: #b8621a !important; }
+html.light .text-gold-300    { color: #c06a35 !important; }
 html.light .text-amber-400   { color: #d97706 !important; }
 html.light .text-blue-400    { color: #2563eb !important; }
 
@@ -172,8 +174,8 @@ html.light .bg-emerald-500\/10  { background-color: rgba(5,150,105,0.08) !import
 html.light .bg-emerald-500\/20  { background-color: rgba(5,150,105,0.1) !important; }
 html.light .bg-red-500\/10      { background-color: rgba(220,38,38,0.06) !important; }
 html.light .bg-red-500\/20      { background-color: rgba(220,38,38,0.1) !important; }
-html.light .bg-gold-400\/10     { background-color: rgba(184,148,31,0.08) !important; }
-html.light .bg-gold-400\/20     { background-color: rgba(184,148,31,0.12) !important; }
+html.light .bg-gold-400\/10     { background-color: rgba(218,125,65,0.08) !important; }
+html.light .bg-gold-400\/20     { background-color: rgba(218,125,65,0.12) !important; }
 html.light .bg-amber-500\/20    { background-color: rgba(217,119,6,0.1) !important; }
 html.light .bg-blue-500\/20     { background-color: rgba(37,99,235,0.08) !important; }
 
@@ -183,18 +185,18 @@ html.light .border-emerald-400\/30 { border-color: rgba(5,150,105,0.2) !importan
 html.light .border-red-500\/20     { border-color: rgba(220,38,38,0.15) !important; }
 html.light .border-red-500\/30     { border-color: rgba(220,38,38,0.2) !important; }
 html.light .border-red-400\/30     { border-color: rgba(220,38,38,0.2) !important; }
-html.light .border-gold-400\/20    { border-color: rgba(184,148,31,0.2) !important; }
-html.light .border-gold-400\/30    { border-color: rgba(184,148,31,0.2) !important; }
+html.light .border-gold-400\/20    { border-color: rgba(218,125,65,0.2) !important; }
+html.light .border-gold-400\/30    { border-color: rgba(218,125,65,0.2) !important; }
 
-html.light .hover\:border-gold-400\/30:hover { border-color: rgba(184,148,31,0.25) !important; }
+html.light .hover\:border-gold-400\/30:hover { border-color: rgba(218,125,65,0.25) !important; }
 
-/* ---- Toggle switch (notifications) ---- */
-html.light .bg-dark-700 { background-color: #d0d3da !important; }
+/* ---- Toggle switch ---- */
+html.light .bg-dark-700 { background-color: #cfc4bd !important; }
 
-/* ---- Shadows ---- */
-html.light .shadow-2xl { box-shadow: 0 4px 24px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06) !important; }
-html.light .shadow-gold { box-shadow: 0 4px 16px rgba(184,148,31,0.12) !important; }
-html.light .shadow-xl   { box-shadow: 0 2px 16px rgba(0,0,0,0.08) !important; }
+/* ---- Shadows (sin drop shadows paralelos — pureza y estructura) ---- */
+html.light .shadow-2xl { box-shadow: 0 4px 24px rgba(38,28,33,0.08), 0 2px 8px rgba(38,28,33,0.04) !important; }
+html.light .shadow-gold { box-shadow: 0 4px 16px rgba(218,125,65,0.1) !important; }
+html.light .shadow-xl   { box-shadow: 0 2px 16px rgba(38,28,33,0.06) !important; }
 
 /* Scrollbar personalizado */
 ::-webkit-scrollbar {
@@ -207,31 +209,31 @@ html.light .shadow-xl   { box-shadow: 0 2px 16px rgba(0,0,0,0.08) !important; }
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #D4AF37 0%, #9A7B1A 100%);
+  background: linear-gradient(180deg, #da7d41 0%, #7e301f 100%);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #F4E4BC 0%, #D4AF37 100%);
+  background: linear-gradient(180deg, #eaad74 0%, #da7d41 100%);
 }
 
 /* Light scrollbar refinement */
 html.light ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #c5c8d0 0%, #a8acb8 100%);
+  background: linear-gradient(180deg, #cfc4bd 0%, #b8a99f 100%);
 }
 html.light ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #a8acb8 0%, #9096a6 100%);
+  background: linear-gradient(180deg, #b8a99f 0%, #8c7a6f 100%);
 }
 
 /* Selección de texto */
 ::selection {
-  background-color: rgba(212, 175, 55, 0.3);
+  background-color: rgba(218, 125, 65, 0.3);
   color: #ffffff;
 }
 
 html.light ::selection {
-  background-color: rgba(184, 148, 31, 0.18);
-  color: #1e2028;
+  background-color: rgba(218, 125, 65, 0.18);
+  color: #261c21;
 }
 
 /* Scrollbar oculta para scroll horizontal (tabs) */
@@ -246,7 +248,7 @@ html.light ::selection {
 /* Clases de utilidad personalizadas */
 @layer components {
   .text-gradient-gold {
-    background: linear-gradient(135deg, #D4AF37 0%, #F4E4BC 50%, #D4AF37 100%);
+    background: linear-gradient(135deg, #7e301f 0%, #da7d41 50%, #eaad74 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -254,29 +256,28 @@ html.light ::selection {
 
   .border-gradient-gold {
     border: 2px solid transparent;
-    background: linear-gradient(#0a0a0a, #0a0a0a) padding-box,
-                linear-gradient(135deg, #D4AF37 0%, #F4E4BC 50%, #D4AF37 100%) border-box;
+    background: linear-gradient(#261c21, #261c21) padding-box,
+                linear-gradient(135deg, #7e301f 0%, #da7d41 50%, #eaad74 100%) border-box;
   }
 
   .glass-dark {
-    background: rgba(26, 26, 26, 0.8);
+    background: rgba(38, 28, 33, 0.8);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
 
   .glass-gold {
-    background: rgba(212, 175, 55, 0.1);
+    background: rgba(218, 125, 65, 0.08);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
 
   .hover-lift {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease;
   }
 
   .hover-lift:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 40px -3px rgba(212, 175, 55, 0.2);
   }
 
   .input-gold {
@@ -287,8 +288,8 @@ html.light ::selection {
   }
 
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-gold-500 to-gold-400 
-           text-dark-950 font-semibold rounded-lg
+    @apply px-6 py-3 bg-gradient-to-r from-gold-700 to-gold-400 
+           text-white font-semibold rounded-lg
            hover:from-gold-400 hover:to-gold-300
            focus:outline-none focus:ring-2 focus:ring-gold-400/50
            transition-all duration-300 transform hover:scale-[1.02]
@@ -297,7 +298,7 @@ html.light ::selection {
 
   .btn-secondary {
     @apply px-6 py-3 bg-transparent border border-gold-400 
-           text-gold-400 font-semibold rounded-lg
+           text-gold-300 font-semibold rounded-lg
            hover:bg-gold-400/10
            focus:outline-none focus:ring-2 focus:ring-gold-400/50
            transition-all duration-300;
@@ -325,13 +326,9 @@ html.light .glass-dark {
   background: rgba(255, 255, 255, 0.85);
 }
 
-html.light .hover-lift:hover {
-  box-shadow: 0 10px 40px -3px rgba(0, 0, 0, 0.1);
-}
-
-/* Light mode: darker gold gradient text for readability */
+/* Light mode: warm gradient text for readability */
 html.light .text-gradient-gold {
-  background: linear-gradient(135deg, #9A7B1A 0%, #C5A028 50%, #9A7B1A 100%) !important;
+  background: linear-gradient(135deg, #7e301f 0%, #b8621a 50%, #7e301f 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
@@ -351,7 +348,7 @@ html.light .text-gradient-gold {
   animation: float 3s ease-in-out infinite;
 }
 
-/* Efecto de brillo para elementos gold */
+/* Efecto de brillo sutil (sin filtros, pureza estructural) */
 .shine {
   position: relative;
   overflow: hidden;
@@ -367,7 +364,7 @@ html.light .text-gradient-gold {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.2),
+    rgba(234, 173, 116, 0.15),
     transparent
   );
   transition: left 0.5s;

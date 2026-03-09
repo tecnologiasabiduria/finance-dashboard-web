@@ -168,7 +168,7 @@ export default function Goals() {
   // Create category inline
   const handleCreateCategory = async (name) => {
     try {
-      await api.createCategory({ name, type: 'expense', color: '#D4AF37' });
+      await api.createCategory({ name, type: 'expense', color: '#da7d41' });
     } catch (err) {
       if (!err.message?.includes('Ya existe')) {
         console.error('Error creating category:', err);

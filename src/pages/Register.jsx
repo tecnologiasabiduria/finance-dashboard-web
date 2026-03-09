@@ -166,8 +166,8 @@ export default function Register() {
           {/* Email Sent Confirmation */}
           {emailSent ? (
             <div className="text-center py-10">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center">
-                <Mail className="h-10 w-10 text-dark-950" />
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-gold-700 to-gold-400 flex items-center justify-center">
+                <Mail className="h-10 w-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-3">
                 ¡Revisa tu correo!
