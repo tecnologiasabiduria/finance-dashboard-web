@@ -7,7 +7,7 @@ import { api } from '../services/api';
 
 export default function Settings() {
   const { user } = useAuth();
-  const { theme, setTheme, currency, setCurrency, CURRENCIES } = useSettings();
+  const { theme, setTheme, currency, setCurrency, CURRENCIES, sidebarStyle, setSidebarStyle } = useSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -293,6 +293,49 @@ export default function Settings() {
                       </div>
                       <p className={`text-sm font-medium ${theme === 'light' ? 'text-gold-400' : 'text-dark-400'}`}>
                         Claro
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sidebar style */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-200 mb-3">
+                    Estilo del panel lateral
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setSidebarStyle('dark')}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        sidebarStyle === 'dark'
+                          ? 'border-gold-400 bg-gold-400/10'
+                          : 'border-dark-700 hover:border-dark-600'
+                      }`}
+                    >
+                      <div className="h-16 rounded-lg mb-3 bg-[#261c21] border border-[#332a25] flex flex-col justify-center gap-1 px-3">
+                        <div className="h-2 w-3/4 rounded bg-white/20" />
+                        <div className="h-2 w-1/2 rounded bg-white/10" />
+                        <div className="h-2 w-2/3 rounded bg-gold-400/40" />
+                      </div>
+                      <p className={`text-sm font-medium ${sidebarStyle === 'dark' ? 'text-gold-400' : 'text-dark-400'}`}>
+                        Oscuro
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setSidebarStyle('beige')}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        sidebarStyle === 'beige'
+                          ? 'border-gold-400 bg-gold-400/10'
+                          : 'border-dark-700 hover:border-dark-600'
+                      }`}
+                    >
+                      <div className="h-16 rounded-lg mb-3 bg-[#f8dfc5] border border-[#e8c898] flex flex-col justify-center gap-1 px-3">
+                        <div className="h-2 w-3/4 rounded bg-[#4d3f38]/40" />
+                        <div className="h-2 w-1/2 rounded bg-[#4d3f38]/25" />
+                        <div className="h-2 w-2/3 rounded bg-[#7e301f]/50" />
+                      </div>
+                      <p className={`text-sm font-medium ${sidebarStyle === 'beige' ? 'text-gold-400' : 'text-dark-400'}`}>
+                        Sand Beige
                       </p>
                     </button>
                   </div>

@@ -10,7 +10,12 @@ export function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-dark-950 relative">
+      {/* Ambient warm glows — rompen la monotonía del fondo */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-48 -left-48 w-[500px] h-[500px] bg-gold-700/[0.08] rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-gold-700/[0.06] rounded-full blur-3xl" />
+      </div>
       {/* Onboarding Tour for new users */}
       <OnboardingTour />
 
@@ -48,7 +53,7 @@ export function DashboardLayout() {
       {/* Main Content */}
       <div
         className={clsx(
-          'min-h-screen transition-all duration-300',
+          'relative min-h-screen transition-all duration-300',
           sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
         )}
       >

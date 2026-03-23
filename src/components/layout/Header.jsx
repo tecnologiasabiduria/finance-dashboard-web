@@ -144,7 +144,7 @@ export function Header({ onMenuClick, showMenuButton }) {
   };
 
   return (
-    <header className="h-16 sm:h-20 bg-dark-950/80 backdrop-blur-lg border-b border-dark-800 sticky top-0 z-30">
+    <header className="h-16 sm:h-20 bg-dark-950/90 backdrop-blur-lg border-b border-gold-700/40 sticky top-0 z-30">
       <div className="h-full px-3 sm:px-6 flex items-center justify-between">
         {/* Left side */}
         <div className="flex items-center gap-4">

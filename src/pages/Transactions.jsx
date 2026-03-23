@@ -274,7 +274,7 @@ export default function Transactions() {
         {/* Summary cards skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-dark-900/50 border border-dark-800 rounded-xl p-4 flex items-center justify-between">
+            <div key={i} className="bg-dark-900 border border-dark-700 rounded-xl p-4 flex items-center justify-between">
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-7 w-36" />
@@ -288,7 +288,7 @@ export default function Transactions() {
         <Skeleton className="h-11 w-full max-w-lg rounded-xl" />
 
         {/* Filters skeleton */}
-        <div className="bg-dark-900/50 border border-dark-800 rounded-xl p-4">
+        <div className="bg-dark-900 border border-dark-700 rounded-xl p-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <Skeleton className="h-10 flex-1 rounded-lg" />
             <div className="flex gap-2 items-center">
@@ -300,7 +300,7 @@ export default function Transactions() {
         </div>
 
         {/* Table skeleton */}
-        <div className="bg-dark-900/50 border border-dark-800 rounded-xl overflow-hidden">
+        <div className="bg-dark-900 border border-dark-700 rounded-xl overflow-hidden">
           <div className="bg-dark-800/50 px-4 py-4">
             <div className="flex gap-4">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -336,7 +336,7 @@ export default function Transactions() {
         </div>
         <div className="flex items-center gap-3">
           {/* Month Navigator */}
-          <div className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl">
+          <div className="flex items-center gap-2 bg-dark-900 border border-dark-700 rounded-xl">
             <button
               onClick={goToPrevMonth}
               className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
@@ -361,7 +361,7 @@ export default function Transactions() {
             className={`px-4 py-2.5 text-sm font-medium rounded-xl border transition-all ${
               showAllMonths
                 ? 'bg-gold-400/20 text-gold-400 border-gold-400/30'
-                : 'bg-dark-900 text-dark-400 border-dark-800 hover:text-white hover:bg-dark-800'
+                : 'bg-dark-900 text-dark-400 border-dark-700 hover:text-white hover:bg-dark-800'
             }`}
           >
             Todos

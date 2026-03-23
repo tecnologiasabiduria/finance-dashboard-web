@@ -195,7 +195,7 @@ function CollapsibleSection({ icon, iconBg, title, subtitle, children, accentCol
   return (
     <div
       ref={cardRef}
-      className="rounded-xl border border-dark-800 bg-dark-900 overflow-hidden relative"
+      className="rounded-xl border border-dark-700 bg-dark-900 overflow-hidden relative"
       style={{ transition: 'background-color 0.2s' }}
     >
       {/* Glow sweep overlay */}
@@ -441,7 +441,7 @@ export default function Dashboard() {
         {/* Summary cards skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-dark-900/50 border border-dark-800 rounded-xl p-6">
+            <div key={i} className="bg-dark-900 border border-dark-700 rounded-xl p-6">
               <div className="flex items-center justify-between mb-3">
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-8 w-8 rounded-lg" />
@@ -455,7 +455,7 @@ export default function Dashboard() {
         {/* Charts skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[1, 2].map((i) => (
-            <div key={i} className="bg-dark-900/50 border border-dark-800 rounded-xl p-6">
+            <div key={i} className="bg-dark-900 border border-dark-700 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <Skeleton className="h-5 w-36 mb-2" />
@@ -498,7 +498,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div data-tour="month-navigator" className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl">
+          <div data-tour="month-navigator" className="flex items-center gap-2 bg-dark-900 border border-dark-700 rounded-xl">
             <button
               onClick={goToPrevMonth}
               className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"

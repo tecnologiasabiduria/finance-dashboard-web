@@ -98,22 +98,22 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-dark-950 flex">
       {/* Left Panel - Decorative */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-dark-900 to-dark-950 relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-40 left-20 w-80 h-80 bg-gold-400/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-40 right-20 w-64 h-64 bg-gold-400/10 rounded-full blur-3xl" />
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-gold-700 via-gold-500 to-gold-400 relative overflow-hidden">
+        {/* Decorative light overlays */}
+        <div className="absolute inset-0">
+          <div className="absolute top-40 left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-40 right-20 w-64 h-64 bg-gold-300/20 rounded-full blur-3xl" />
         </div>
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center p-16">
           <h2 className="text-4xl xl:text-5xl font-serif font-bold text-white mb-6 leading-tight">
             Únete a la{' '}
-            <span className="text-gradient-gold">revolución financiera</span>
+            <span className="text-dark-950/80">revolución financiera</span>
           </h2>
 
-          <p className="text-lg text-dark-300 mb-10 max-w-md">
-            Miles de empresarios ya confían en Sabiduría Empresarial para 
+          <p className="text-lg text-white/80 mb-10 max-w-md">
+            Miles de empresarios ya confían en Sabiduría Empresarial para
             gestionar sus finanzas de manera inteligente.
           </p>
 
@@ -121,10 +121,10 @@ export default function Register() {
           <div className="space-y-4">
             {benefits.map((benefit) => (
               <div key={benefit} className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-gold-400/20 flex items-center justify-center">
-                  <Check className="h-4 w-4 text-gold-400" />
+                <div className="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center">
+                  <Check className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-dark-200">{benefit}</span>
+                <span className="text-white/90">{benefit}</span>
               </div>
             ))}
           </div>
@@ -137,8 +137,8 @@ export default function Register() {
               { value: '99.9%', label: 'Disponibilidad' },
             ].map((stat) => (
               <div key={stat.label}>
-                <p className="text-3xl font-bold text-gradient-gold">{stat.value}</p>
-                <p className="text-sm text-dark-400 mt-1">{stat.label}</p>
+                <p className="text-3xl font-serif font-bold text-white">{stat.value}</p>
+                <p className="text-sm text-white/70 mt-1">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -155,7 +155,7 @@ export default function Register() {
 
           {/* Header */}
           <div className="mb-10">
-            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-3">
+            <h1 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-3">
               Crear cuenta
             </h1>
             <p className="text-dark-400 text-lg">

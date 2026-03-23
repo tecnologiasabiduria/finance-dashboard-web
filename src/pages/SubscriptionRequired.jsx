@@ -91,7 +91,7 @@ export default function SubscriptionRequired() {
                 className={`relative rounded-2xl p-8 transition-all duration-300 ${
                   plan.popular
                     ? 'bg-gradient-to-b from-gold-400/10 to-dark-900 border-2 border-gold-400 shadow-gold-lg scale-105'
-                    : 'bg-dark-900 border border-dark-800 hover:border-gold-400/30'
+                    : 'bg-dark-900 border border-dark-700 hover:border-gold-400/30'
                 }`}
               >
                 {plan.popular && (

@@ -20,6 +20,21 @@ export function SettingsProvider({ children }) {
     return localStorage.getItem('app-currency') || 'COP';
   });
 
+  const [sidebarStyle, setSidebarStyle] = useState(() => {
+    return localStorage.getItem('app-sidebar-style') || 'dark';
+  });
+
+  // Apply sidebar style as global class on html element
+  useEffect(() => {
+    localStorage.setItem('app-sidebar-style', sidebarStyle);
+    const root = document.documentElement;
+    if (sidebarStyle === 'beige') {
+      root.classList.add('beige-theme');
+    } else {
+      root.classList.remove('beige-theme');
+    }
+  }, [sidebarStyle]);
+
   // Apply theme to document
   useEffect(() => {
     localStorage.setItem('app-theme', theme);
@@ -48,6 +63,8 @@ export function SettingsProvider({ children }) {
     currencyInfo,
     CURRENCIES,
     THEMES,
+    sidebarStyle,
+    setSidebarStyle,
   };
 
   return (

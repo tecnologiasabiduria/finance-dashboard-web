@@ -10,9 +10,9 @@ export function Card({
   return (
     <div
       className={clsx(
-        'bg-dark-900 border border-dark-800 rounded-xl p-6',
+        'bg-dark-900 border border-gold-700/30 rounded-xl p-6',
         'transition-all duration-300',
-        hover && 'hover:border-gold-400/30',
+        hover && 'hover:border-gold-400/60 hover:bg-dark-800/70',
         glow && 'shadow-gold',
         className
       )}
@@ -34,15 +34,15 @@ export function StatCard({
   className = '',
 }) {
   const variants = {
-    default: 'border-dark-800 hover:border-gold-400/30',
-    gold: 'border-gold-400/30 bg-gradient-to-br from-gold-400/5 to-transparent',
+    default: 'border-gold-700/30 hover:border-gold-400/60',
+    gold: 'border-gold-400/40 bg-gradient-to-br from-gold-400/10 to-transparent',
     success: 'border-emerald-400/30 bg-gradient-to-br from-emerald-400/10 to-transparent',
     danger: 'border-red-400/30 bg-gradient-to-br from-red-400/10 to-transparent',
   };
 
   const iconVariants = {
-    default: 'bg-gold-400/10 text-gold-300',
-    gold: 'bg-gold-400/20 text-gold-300',
+    default: 'bg-gold-400/15 text-gold-300',
+    gold: 'bg-gold-400/25 text-gold-300',
     success: 'bg-emerald-400/20 text-emerald-400',
     danger: 'bg-red-400/20 text-red-400',
   };
@@ -50,8 +50,8 @@ export function StatCard({
   return (
     <div
       className={clsx(
-        'bg-dark-900/50 border rounded-xl p-5',
-        'transition-all duration-300 hover:bg-dark-900/80',
+        'bg-dark-900 border rounded-xl p-5',
+        'transition-all duration-300 hover:bg-dark-800/70',
         'group',
         variants[variant],
         className
@@ -59,7 +59,7 @@ export function StatCard({
     >
       <div className="flex items-start justify-between">
         <div className="space-y-3">
-          <p className="text-sm text-dark-400 font-medium">{title}</p>
+          <p className="text-sm text-dark-300 font-medium uppercase tracking-wide">{title}</p>
           <p className="text-2xl lg:text-3xl font-bold text-white">{value}</p>
           {subtitle && (
             <p className="text-sm text-dark-400">{subtitle}</p>

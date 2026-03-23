@@ -60,7 +60,7 @@ export default function Login() {
 
           {/* Welcome Text */}
           <div className="mb-10">
-            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-3">
+            <h1 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-3">
               Bienvenido de nuevo
             </h1>
             <p className="text-dark-400 text-lg">
@@ -140,19 +140,19 @@ export default function Login() {
       </div>
 
       {/* Right Panel - Decorative */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-dark-900 to-dark-950 relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-gold-400/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 left-20 w-96 h-96 bg-gold-400/10 rounded-full blur-3xl" />
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-gold-700 via-gold-500 to-gold-400 relative overflow-hidden">
+        {/* Decorative light overlays */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 right-20 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 left-20 w-96 h-96 bg-gold-300/20 rounded-full blur-3xl" />
         </div>
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center items-center p-16 text-center">
           <div className="mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gold-400/10 border border-gold-400/20 rounded-full mb-6">
-              <Sparkles className="h-4 w-4 text-gold-400" />
-              <span className="text-sm text-gold-400 font-medium">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 border border-white/30 rounded-full mb-6">
+              <Sparkles className="h-4 w-4 text-white" />
+              <span className="text-sm text-white font-medium">
                 Inteligencia Financiera
               </span>
             </div>
@@ -160,11 +160,11 @@ export default function Login() {
 
           <h2 className="text-4xl xl:text-5xl font-serif font-bold text-white mb-6 leading-tight">
             Toma el control de{' '}
-            <span className="text-gradient-gold">tus finanzas</span>
+            <span className="text-dark-950/80">tus finanzas</span>
           </h2>
 
-          <p className="text-lg text-dark-300 max-w-md mb-10">
-            Visualiza tus ingresos y gastos, analiza tendencias y toma decisiones 
+          <p className="text-lg text-white/80 max-w-md mb-10">
+            Visualiza tus ingresos y gastos, analiza tendencias y toma decisiones
             financieras más inteligentes con nuestra plataforma.
           </p>
 
@@ -178,9 +178,9 @@ export default function Login() {
             ].map((feature) => (
               <div
                 key={feature}
-                className="flex items-center gap-2 text-dark-300"
+                className="flex items-center gap-2 text-white/80"
               >
-                <div className="w-1.5 h-1.5 bg-gold-400 rounded-full" />
+                <div className="w-1.5 h-1.5 bg-white rounded-full" />
                 <span className="text-sm">{feature}</span>
               </div>
             ))}
@@ -189,7 +189,7 @@ export default function Login() {
 
         {/* Floating cards decoration */}
         <div className="absolute bottom-32 right-16 animate-float">
-          <div className="w-64 h-40 bg-dark-800/80 backdrop-blur-lg border border-dark-700 rounded-2xl p-5 shadow-2xl">
+          <div className="w-64 h-40 bg-dark-950/85 backdrop-blur-lg border border-dark-800 rounded-2xl p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs text-dark-400">Balance Total</span>
               <span className="text-xs text-emerald-400">+12.5%</span>

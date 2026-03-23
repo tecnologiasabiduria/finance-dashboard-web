@@ -87,9 +87,9 @@ html.light .border-dark-600    { border-color: #c2b5ad !important; }
 html.light .text-white     { color: #261c21 !important; }
 html.light .text-dark-200  { color: #3d322c !important; }
 html.light .text-dark-300  { color: #4d3f38 !important; }
-html.light .text-dark-400  { color: #6b5a50 !important; }
-html.light .text-dark-500  { color: #8c7a6f !important; }
-html.light .text-dark-600  { color: #b8a99f !important; }
+html.light .text-dark-400  { color: #2e1f18 !important; }
+html.light .text-dark-500  { color: #3d2b21 !important; }
+html.light .text-dark-600  { color: #4d3828 !important; }
 
 /* ---- Hover states ---- */
 html.light .hover\:text-white:hover      { color: #261c21 !important; }
@@ -288,12 +288,14 @@ html.light ::selection {
   }
 
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-gold-700 to-gold-400 
-           text-white font-semibold rounded-lg
-           hover:from-gold-400 hover:to-gold-300
-           focus:outline-none focus:ring-2 focus:ring-gold-400/50
+    @apply px-6 py-3 text-white font-semibold rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-[#da7d41]/50
            transition-all duration-300 transform hover:scale-[1.02]
            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    background: linear-gradient(to right, #da7d41, #b85520);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(to right, #e8953a, #da7d41);
   }
 
   .btn-secondary {
@@ -304,14 +306,18 @@ html.light ::selection {
            transition-all duration-300;
   }
 
+  .brand-hero {
+    background: linear-gradient(135deg, #7e301f 0%, #c06a35 50%, #da7d41 100%);
+  }
+
   .card-dark {
-    @apply bg-dark-900 border border-dark-800 rounded-xl p-6
-           hover:border-gold-400/30 transition-all duration-300;
+    @apply bg-dark-900 border border-gold-700/30 rounded-xl p-6
+           hover:border-gold-400/60 hover:bg-dark-800/70 transition-all duration-300;
   }
 
   .stat-card {
-    @apply bg-dark-900/50 border border-dark-800 rounded-xl p-5
-           hover:border-gold-400/30 hover:bg-dark-900/80
+    @apply bg-dark-900 border border-gold-700/30 rounded-xl p-5
+           hover:border-gold-400/60 hover:bg-dark-800/70
            transition-all duration-300;
   }
 }
@@ -320,6 +326,7 @@ html.light ::selection {
 html.light .card-dark,
 html.light .stat-card {
   box-shadow: var(--shadow-card);
+  border-color: rgba(126, 48, 31, 0.18) !important;
 }
 
 html.light .glass-dark {
@@ -333,6 +340,124 @@ html.light .text-gradient-gold {
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
 }
+
+/* ===== Tema Sand Beige — se activa con html.beige-theme ===== */
+html.beige-theme {
+  --bg-body: #f0dfc5;
+  --text-body: #261c21;
+  --bg-surface: #fdf3e7;
+  --bg-surface-hover: #f8dfc5;
+  --border-color: #dfc49a;
+  --scrollbar-track: #f0dfc5;
+}
+
+/* Fondos */
+html.beige-theme .bg-dark-950     { background-color: #f0dfc5 !important; }
+html.beige-theme .bg-dark-900     { background-color: #fdf3e7 !important; }
+html.beige-theme .bg-dark-800     { background-color: #f8dfc5 !important; }
+html.beige-theme .bg-dark-800\/50 { background-color: rgba(248,223,197,0.6) !important; }
+html.beige-theme .bg-dark-800\/60 { background-color: rgba(248,223,197,0.7) !important; }
+html.beige-theme .bg-dark-800\/70 { background-color: rgba(248,223,197,0.8) !important; }
+html.beige-theme .bg-dark-800\/30 { background-color: rgba(248,223,197,0.35) !important; }
+html.beige-theme .bg-dark-700     { background-color: #e8c898 !important; }
+html.beige-theme .bg-dark-950\/80 { background-color: rgba(240,223,197,0.9) !important; }
+html.beige-theme .bg-dark-950\/90 { background-color: rgba(240,223,197,0.95) !important; }
+
+/* Bordes */
+html.beige-theme .border-dark-800    { border-color: #e8c898 !important; }
+html.beige-theme .border-dark-700    { border-color: #dfc49a !important; }
+html.beige-theme .border-dark-600    { border-color: #d4b080 !important; }
+html.beige-theme .border-gold-700\/20 { border-color: rgba(126,48,31,0.2) !important; }
+html.beige-theme .border-gold-700\/30 { border-color: rgba(126,48,31,0.25) !important; }
+html.beige-theme .border-gold-700\/40 { border-color: rgba(126,48,31,0.35) !important; }
+
+/* Texto */
+html.beige-theme .text-white    { color: #261c21 !important; }
+html.beige-theme .text-dark-200 { color: #261c21 !important; }
+html.beige-theme .text-dark-300 { color: #2e1f18 !important; }
+html.beige-theme .text-dark-400 { color: #2e1f18 !important; }
+html.beige-theme .text-dark-500 { color: #3d2b21 !important; }
+html.beige-theme .text-dark-600 { color: #4d3828 !important; }
+
+/* Hover texto */
+html.beige-theme .hover\:text-white:hover { color: #261c21 !important; }
+
+/* Hover fondo */
+html.beige-theme .hover\:bg-dark-800:hover     { background-color: #f0dfc5 !important; }
+html.beige-theme .hover\:bg-dark-800\/50:hover { background-color: rgba(240,223,197,0.6) !important; }
+html.beige-theme .hover\:bg-dark-800\/60:hover { background-color: rgba(240,223,197,0.7) !important; }
+html.beige-theme .hover\:bg-dark-900\/50:hover { background-color: rgba(253,243,231,0.6) !important; }
+
+/* Gradientes de fondo */
+html.beige-theme .from-dark-900 { --tw-gradient-from: #fdf3e7 !important; }
+html.beige-theme .to-dark-950   { --tw-gradient-to: #f0dfc5 !important; }
+
+/* Placeholders */
+html.beige-theme input::placeholder,
+html.beige-theme textarea::placeholder { color: #8c7a6f !important; }
+
+/* Inputs y selects */
+html.beige-theme input,
+html.beige-theme select,
+html.beige-theme textarea { color: #261c21 !important; }
+html.beige-theme select option { background-color: #fdf3e7 !important; color: #261c21 !important; }
+
+/* Cards con sombra sutil */
+html.beige-theme .bg-dark-900.border {
+  box-shadow: 0 1px 3px rgba(126,48,31,0.07), 0 1px 2px rgba(126,48,31,0.04);
+}
+
+/* Tab switcher containers */
+html.beige-theme .bg-dark-900\/50 { background-color: rgba(220,185,145,0.35) !important; }
+
+/* Sticky headers */
+html.beige-theme .sticky.bg-dark-900  { background-color: #fdf3e7 !important; }
+html.beige-theme .sticky.bg-dark-950  { background-color: #f0dfc5 !important; }
+
+/* Buttons: charcoal gradient on beige for strong contrast */
+html.beige-theme .btn-primary-gradient,
+html.beige-theme .btn-primary {
+  background: linear-gradient(to right, #261c21, #4d3421) !important;
+  color: #eaad74 !important;
+}
+html.beige-theme .btn-primary-gradient:hover:not(:disabled),
+html.beige-theme .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(to right, #3d2820, #6b4a2e) !important;
+  color: #eaad74 !important;
+}
+
+/* Scrollbar */
+html.beige-theme ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #da7d41 0%, #7e301f 100%);
+}
+
+/* Anulación global de los overrides de texto blanco en dark mode */
+html.beige-theme .text-dark-300,
+html.beige-theme .text-dark-400,
+html.beige-theme .text-dark-500,
+html.beige-theme .text-dark-600 { }
+
+/* ===== Sidebar beige — anula los overrides de texto blanco dentro del panel claro ===== */
+html:not(.light) .sidebar-beige .text-dark-200 { color: #261c21 !important; }
+html:not(.light) .sidebar-beige .text-dark-300 { color: #332a25 !important; }
+html:not(.light) .sidebar-beige .text-dark-400 { color: #6b5a50 !important; }
+html:not(.light) .sidebar-beige .text-dark-500 { color: #8c7a6f !important; }
+html:not(.light) .sidebar-beige .text-white    { color: #261c21 !important; }
+/* text-gradient-gold en fondo claro: usar terracota puro sin la parte beige que se pierde */
+html:not(.light) .sidebar-beige .text-gradient-gold {
+  background: linear-gradient(135deg, #7e301f 0%, #c06a35 60%, #da7d41 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* ===== Dark mode: reemplaza grises café por blanco con opacidad ===== */
+/* Aplica solo en dark (no en light ni en beige-theme) */
+html:not(.light):not(.beige-theme) .text-dark-200 { color: rgba(255, 255, 255, 0.92) !important; }
+html:not(.light):not(.beige-theme) .text-dark-300 { color: rgba(255, 255, 255, 0.80) !important; }
+html:not(.light):not(.beige-theme) .text-dark-400 { color: rgba(255, 255, 255, 0.55) !important; }
+html:not(.light):not(.beige-theme) .text-dark-500 { color: rgba(255, 255, 255, 0.38) !important; }
+html:not(.light):not(.beige-theme) .text-dark-600 { color: rgba(255, 255, 255, 0.25) !important; }
 
 /* Animaciones adicionales */
 @keyframes float {

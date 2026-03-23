@@ -248,7 +248,7 @@ export default function Goals() {
           <p className="text-dark-400 mt-1">Configura tu meta de facturación y bolsillos de gasto</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center bg-dark-900 border border-dark-800 rounded-xl">
+          <div className="flex items-center bg-dark-900 border border-dark-700 rounded-xl">
             <button
               onClick={() => setSelectedYear((y) => y - 1)}
               className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
