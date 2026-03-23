@@ -55,8 +55,8 @@ export default function Cartera() {
   const [deleteModal, setDeleteModal] = useState({ open: false, record: null });
   const [deleting, setDeleting] = useState(false);
 
-  // Pago modal
-  const [pagoModal, setPagoModal] = useState({ open: false, carteraId: null });
+  // Pago modal (supports create + edit)
+  const [pagoModal, setPagoModal] = useState({ open: false, carteraId: null, pago: null });
   const [pagoForm, setPagoForm] = useState(EMPTY_PAGO);
   const [savingPago, setSavingPago] = useState(false);
   const [pagoError, setPagoError] = useState('');
@@ -65,6 +65,14 @@ export default function Cartera() {
   const [deletePagoModal, setDeletePagoModal] = useState({ open: false, carteraId: null, pagoId: null });
 
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Date range filters
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   // ─── Load cartera records ───────────────────────────────────────────────────
   useEffect(() => {
@@ -109,24 +117,44 @@ export default function Cartera() {
   // ─── Summary stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const totalCartera = records.reduce((s, r) => s + Number(r.valor_venta || 0), 0);
-    const totalCash = records.reduce((s, r) => s + Number(r.cash || 0), 0);
-    const totalSaldo = totalCartera - totalCash;
-    const pctCobrado = totalCartera > 0 ? (totalCash / totalCartera) * 100 : 0;
-    return { totalCartera, totalCash, totalSaldo, pctCobrado };
+    const totalCobrado = records.reduce((s, r) => s + Number(r.cash || 0) + Number(r.total_abonos || 0), 0);
+    const totalSaldo = records.reduce(
+      (s, r) =>
+        s +
+        (r.saldo !== undefined
+          ? Number(r.saldo)
+          : Math.max(0, Number(r.valor_venta || 0) - Number(r.cash || 0) - Number(r.total_abonos || 0))),
+      0
+    );
+    const pctCobrado = totalCartera > 0 ? (totalCobrado / totalCartera) * 100 : 0;
+    return { totalCartera, totalCobrado, totalSaldo, pctCobrado };
   }, [records]);
 
   // ─── Filtered records ───────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!search.trim()) return records;
-    const q = search.toLowerCase();
-    return records.filter(
-      (r) =>
-        r.nombre?.toLowerCase().includes(q) ||
-        r.producto?.toLowerCase().includes(q) ||
-        r.plataforma?.toLowerCase().includes(q) ||
-        r.fuente?.toLowerCase().includes(q)
-    );
-  }, [records, search]);
+    let result = records;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.nombre?.toLowerCase().includes(q) ||
+          r.producto?.toLowerCase().includes(q) ||
+          r.plataforma?.toLowerCase().includes(q) ||
+          r.fuente?.toLowerCase().includes(q)
+      );
+    }
+    if (dateFrom) {
+      result = result.filter((r) => r.fecha_venta >= dateFrom);
+    }
+    if (dateTo) {
+      result = result.filter((r) => r.fecha_venta <= dateTo);
+    }
+    return result;
+  }, [records, search, dateFrom, dateTo]);
+
+  // Pagination derived values
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedRecords = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // ─── Record CRUD ────────────────────────────────────────────────────────────
   function openNewRecord() {
@@ -161,12 +189,16 @@ export default function Cartera() {
     }
     const valorVenta = parseFloat(recordForm.valor_venta);
     if (!recordForm.valor_venta || isNaN(valorVenta) || valorVenta <= 0) {
-      setRecordError('El valor de venta debe ser un número positivo.');
+      setRecordError('El valor de venta debe ser un numero positivo.');
       return;
     }
     const cash = parseFloat(recordForm.cash || 0);
     if (isNaN(cash) || cash < 0) {
-      setRecordError('El cash cobrado debe ser un número positivo.');
+      setRecordError('El cash cobrado debe ser un numero positivo.');
+      return;
+    }
+    if (cash > valorVenta) {
+      setRecordError('El cash cobrado no puede ser mayor al valor de venta.');
       return;
     }
 
@@ -222,13 +254,23 @@ export default function Cartera() {
   function openAddPago(carteraId) {
     setPagoForm(EMPTY_PAGO);
     setPagoError('');
-    setPagoModal({ open: true, carteraId });
+    setPagoModal({ open: true, carteraId, pago: null });
+  }
+
+  function openEditPago(carteraId, pago) {
+    setPagoForm({
+      fecha: pago.fecha?.slice(0, 10) || '',
+      monto: pago.monto?.toString() || '',
+      notas: pago.notas || '',
+    });
+    setPagoError('');
+    setPagoModal({ open: true, carteraId, pago });
   }
 
   async function savePago() {
     const monto = parseFloat(pagoForm.monto);
     if (!pagoForm.monto || isNaN(monto) || monto <= 0) {
-      setPagoError('El monto debe ser un número positivo.');
+      setPagoError('El monto debe ser un numero positivo.');
       return;
     }
     if (!pagoForm.fecha) {
@@ -236,34 +278,97 @@ export default function Cartera() {
       return;
     }
 
+    // Validate monto does not exceed saldo
+    const parentRecord = records.find((r) => r.id === pagoModal.carteraId);
+    if (parentRecord) {
+      const currentSaldo =
+        parentRecord.saldo !== undefined
+          ? Number(parentRecord.saldo)
+          : Math.max(
+              0,
+              Number(parentRecord.valor_venta || 0) -
+                Number(parentRecord.cash || 0) -
+                Number(parentRecord.total_abonos || 0)
+            );
+      let availableSaldo;
+      if (pagoModal.pago) {
+        // Editing: available saldo = current saldo + this pago's current monto
+        availableSaldo = currentSaldo + Number(pagoModal.pago.monto || 0);
+      } else {
+        availableSaldo = currentSaldo;
+      }
+      if (monto > availableSaldo) {
+        setPagoError(
+          `El monto ($${monto}) excede el saldo pendiente ($${availableSaldo.toFixed(2)}).`
+        );
+        return;
+      }
+    }
+
     setSavingPago(true);
     setPagoError('');
     try {
-      const res = await api.addCarteraPago(pagoModal.carteraId, { ...pagoForm, monto });
-      const created = res.data?.pago || res.data;
+      if (pagoModal.pago) {
+        // ── Edit existing pago ──
+        const res = await api.updateCarteraPago(pagoModal.carteraId, pagoModal.pago.id, {
+          ...pagoForm,
+          monto,
+        });
+        const updated = res.data?.pago || res.data;
 
-      // Update pagos list
-      setPagosMap((prev) => ({
-        ...prev,
-        [pagoModal.carteraId]: [created, ...(prev[pagoModal.carteraId] || [])],
-      }));
+        // Update pagos list
+        setPagosMap((prev) => ({
+          ...prev,
+          [pagoModal.carteraId]: (prev[pagoModal.carteraId] || []).map((p) =>
+            p.id === pagoModal.pago.id ? updated : p
+          ),
+        }));
 
-      // Update cash field in the parent record
-      // Note: pagosMap already includes the newly added pago (added on line above)
-      const totalPagos = [created, ...(pagosMap[pagoModal.carteraId] || [])].reduce(
-        (s, p) => s + Number(p.monto || 0),
-        0
-      );
-      setRecords((prev) =>
-        prev.map((r) =>
-          r.id === pagoModal.carteraId ? { ...r, cash: totalPagos } : r
-        )
-      );
+        // Recalculate total_abonos and saldo on the parent record
+        const montoDiff = monto - Number(pagoModal.pago.monto || 0);
+        setRecords((prev) =>
+          prev.map((r) => {
+            if (r.id !== pagoModal.carteraId) return r;
+            const newTotalAbonos = Number(r.total_abonos || 0) + montoDiff;
+            const newSaldo = Math.max(
+              0,
+              Number(r.valor_venta || 0) - Number(r.cash || 0) - newTotalAbonos
+            );
+            return { ...r, total_abonos: newTotalAbonos, saldo: newSaldo };
+          })
+        );
 
-      setPagoModal({ open: false, carteraId: null });
-      showSuccess('Abono registrado exitosamente.');
+        showSuccess('Abono actualizado exitosamente.');
+      } else {
+        // ── Create new pago ──
+        const res = await api.addCarteraPago(pagoModal.carteraId, { ...pagoForm, monto });
+        const created = res.data?.pago || res.data;
+
+        // Update pagos list
+        setPagosMap((prev) => ({
+          ...prev,
+          [pagoModal.carteraId]: [created, ...(prev[pagoModal.carteraId] || [])],
+        }));
+
+        // Update the parent record's computed fields
+        setRecords((prev) =>
+          prev.map((r) => {
+            if (r.id !== pagoModal.carteraId) return r;
+            const newTotalAbonos = Number(r.total_abonos || 0) + monto;
+            const newSaldo = Math.max(
+              0,
+              Number(r.valor_venta || 0) - Number(r.cash || 0) - newTotalAbonos
+            );
+            return { ...r, total_abonos: newTotalAbonos, saldo: newSaldo };
+          })
+        );
+
+        showSuccess('Abono registrado exitosamente.');
+      }
+
+      setPagoModal({ open: false, carteraId: null, pago: null });
     } catch (err) {
-      setPagoError(err.message || 'Error al registrar el abono.');
+      setPagoError(err.message || 'Error al guardar el abono.');
     } finally {
       setSavingPago(false);
     }
@@ -283,11 +388,15 @@ export default function Cartera() {
       }));
 
       setRecords((prev) =>
-        prev.map((r) =>
-          r.id === carteraId
-            ? { ...r, cash: Math.max(0, Number(r.cash || 0) - montoEliminado) }
-            : r
-        )
+        prev.map((r) => {
+          if (r.id !== carteraId) return r;
+          const newTotalAbonos = Math.max(0, Number(r.total_abonos || 0) - montoEliminado);
+          const newSaldo = Math.max(
+            0,
+            Number(r.valor_venta || 0) - Number(r.cash || 0) - newTotalAbonos
+          );
+          return { ...r, total_abonos: newTotalAbonos, saldo: newSaldo };
+        })
       );
       showSuccess('Abono eliminado.');
     } catch (err) {
@@ -304,17 +413,22 @@ export default function Cartera() {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
   function getSaldo(record) {
-    return Math.max(0, Number(record.valor_venta || 0) - Number(record.cash || 0));
+    return record.saldo !== undefined
+      ? Number(record.saldo)
+      : Math.max(
+          0,
+          Number(record.valor_venta || 0) - Number(record.cash || 0) - Number(record.total_abonos || 0)
+        );
   }
 
   function getPctCobrado(record) {
     const venta = Number(record.valor_venta || 0);
-    const cash = Number(record.cash || 0);
-    return venta > 0 ? Math.min(100, (cash / venta) * 100) : 0;
+    const cobrado = Number(record.cash || 0) + Number(record.total_abonos || 0);
+    return venta > 0 ? Math.min(100, (cobrado / venta) * 100) : 0;
   }
 
   function formatDate(dateStr) {
-    if (!dateStr) return '—';
+    if (!dateStr) return '\u2014';
     try {
       return parseLocalDate(dateStr).toLocaleDateString('es-CO', {
         day: '2-digit',
@@ -341,7 +455,7 @@ export default function Cartera() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Cartera</h1>
-          <p className="text-dark-400 text-sm mt-1">Cuentas por cobrar — gestión de pagos y saldos pendientes</p>
+          <p className="text-dark-400 text-sm mt-1">Cuentas por cobrar — gestion de pagos y saldos pendientes</p>
         </div>
         <Button onClick={openNewRecord} className="flex items-center gap-2 shrink-0">
           <Plus className="h-4 w-4" />
@@ -366,8 +480,8 @@ export default function Cartera() {
           variant="gold"
         />
         <StatCard
-          title="Cash Cobrado"
-          value={formatCurrency(stats.totalCash, currency)}
+          title="Total Cobrado"
+          value={formatCurrency(stats.totalCobrado, currency)}
           icon={TrendingUp}
           variant="success"
         />
@@ -385,16 +499,43 @@ export default function Cartera() {
         />
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-400" />
-        <input
-          type="text"
-          placeholder="Buscar por cliente, producto, plataforma…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:border-gold-400/50 text-sm"
-        />
+      {/* Search + Date filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-400" />
+          <input
+            type="text"
+            placeholder="Buscar por cliente, producto, plataforma..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:border-gold-400/50 text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="bg-dark-900 border border-dark-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-gold-400/50"
+            placeholder="Desde"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="bg-dark-900 border border-dark-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-gold-400/50"
+            placeholder="Hasta"
+          />
+        </div>
       </div>
 
       {/* Records list */}
@@ -403,13 +544,15 @@ export default function Cartera() {
           <div className="text-center py-12">
             <CreditCard className="h-12 w-12 text-dark-600 mx-auto mb-4" />
             <p className="text-dark-400">
-              {search ? 'No se encontraron registros con esa búsqueda.' : 'No hay registros en cartera. Crea el primero.'}
+              {search || dateFrom || dateTo
+                ? 'No se encontraron registros con esa busqueda.'
+                : 'No hay registros en cartera. Crea el primero.'}
             </p>
           </div>
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map((record) => {
+          {paginatedRecords.map((record) => {
             const saldo = getSaldo(record);
             const pct = getPctCobrado(record);
             const isExpanded = expandedId === record.id;
@@ -557,15 +700,24 @@ export default function Cartera() {
                                 </span>
                               )}
                             </div>
-                            <button
-                              onClick={() =>
-                                setDeletePagoModal({ open: true, carteraId: record.id, pagoId: pago.id })
-                              }
-                              className="p-1.5 text-dark-500 hover:text-red-400 hover:bg-dark-800 rounded transition-colors"
-                              title="Eliminar abono"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => openEditPago(record.id, pago)}
+                                className="p-1.5 text-dark-500 hover:text-gold-300 hover:bg-dark-800 rounded transition-colors"
+                                title="Editar abono"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setDeletePagoModal({ open: true, carteraId: record.id, pagoId: pago.id })
+                                }
+                                className="p-1.5 text-dark-500 hover:text-red-400 hover:bg-dark-800 rounded transition-colors"
+                                title="Eliminar abono"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -575,6 +727,51 @@ export default function Cartera() {
               </Card>
             );
           })}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm rounded-lg bg-dark-800 text-dark-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Anterior
+              </button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let page;
+                if (totalPages <= 5) {
+                  page = i + 1;
+                } else if (currentPage <= 3) {
+                  page = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  page = totalPages - 4 + i;
+                } else {
+                  page = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                      currentPage === page
+                        ? 'bg-gold-400/20 text-gold-300 border border-gold-400/30'
+                        : 'bg-dark-800 text-dark-300 hover:text-white'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm rounded-lg bg-dark-800 text-dark-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -602,7 +799,7 @@ export default function Cartera() {
               <Input
                 value={recordForm.nombre}
                 onChange={(e) => setRecordForm((f) => ({ ...f, nombre: e.target.value }))}
-                placeholder="Ej. Juan García"
+                placeholder="Ej. Juan Garcia"
               />
             </div>
             <div>
@@ -620,7 +817,7 @@ export default function Cartera() {
               <Input
                 value={recordForm.producto}
                 onChange={(e) => setRecordForm((f) => ({ ...f, producto: e.target.value }))}
-                placeholder="Ej. Consultoría"
+                placeholder="Ej. Consultoria"
               />
             </div>
           </div>
@@ -679,7 +876,7 @@ export default function Cartera() {
             <textarea
               value={recordForm.notas}
               onChange={(e) => setRecordForm((f) => ({ ...f, notas: e.target.value }))}
-              placeholder="Observaciones adicionales…"
+              placeholder="Observaciones adicionales..."
               rows={3}
               className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:border-gold-400/50 text-sm resize-none"
             />
@@ -693,7 +890,9 @@ export default function Cartera() {
                 {formatCurrency(
                   Math.max(
                     0,
-                    parseFloat(recordForm.valor_venta || 0) - parseFloat(recordForm.cash || 0)
+                    parseFloat(recordForm.valor_venta || 0) -
+                      parseFloat(recordForm.cash || 0) -
+                      Number(recordModal.record?.total_abonos || 0)
                   ),
                   currency
                 )}
@@ -721,17 +920,17 @@ export default function Cartera() {
         onClose={() => setDeleteModal({ open: false, record: null })}
         onConfirm={confirmDeleteRecord}
         title="Eliminar registro"
-        message={`¿Estás seguro de que deseas eliminar el registro de "${deleteModal.record?.nombre}"? Esta acción no se puede deshacer y se eliminarán todos los abonos asociados.`}
+        message={`Estas seguro de que deseas eliminar el registro de "${deleteModal.record?.nombre}"? Esta accion no se puede deshacer y se eliminaran todos los abonos asociados.`}
         confirmText="Eliminar"
         variant="danger"
         loading={deleting}
       />
 
-      {/* ── Pago Modal ───────────────────────────────────────────────────────── */}
+      {/* ── Pago Modal (create / edit) ───────────────────────────────────────── */}
       <Modal
         isOpen={pagoModal.open}
-        onClose={() => setPagoModal({ open: false, carteraId: null })}
-        title="Registrar Abono"
+        onClose={() => setPagoModal({ open: false, carteraId: null, pago: null })}
+        title={pagoModal.pago ? 'Editar Abono' : 'Registrar Abono'}
         size="sm"
       >
         <div className="p-6 space-y-4">
@@ -776,12 +975,12 @@ export default function Cartera() {
         <div className="px-6 pb-6 flex justify-end gap-3">
           <Button
             variant="secondary"
-            onClick={() => setPagoModal({ open: false, carteraId: null })}
+            onClick={() => setPagoModal({ open: false, carteraId: null, pago: null })}
           >
             Cancelar
           </Button>
           <Button onClick={savePago} disabled={savingPago}>
-            {savingPago ? <Spinner size="sm" /> : 'Registrar abono'}
+            {savingPago ? <Spinner size="sm" /> : pagoModal.pago ? 'Guardar cambios' : 'Registrar abono'}
           </Button>
         </div>
       </Modal>
@@ -792,7 +991,7 @@ export default function Cartera() {
         onClose={() => setDeletePagoModal({ open: false, carteraId: null, pagoId: null })}
         onConfirm={confirmDeletePago}
         title="Eliminar abono"
-        message="¿Estás seguro de que deseas eliminar este abono? El saldo del registro se actualizará."
+        message="Estas seguro de que deseas eliminar este abono? El saldo del registro se actualizara."
         confirmText="Eliminar"
         variant="danger"
       />

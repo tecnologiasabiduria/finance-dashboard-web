@@ -348,6 +348,13 @@ class ApiService {
     });
   }
 
+  updateCarteraPago(carteraId, pagoId, data) {
+    return this.request(`/cartera/${carteraId}/pagos/${pagoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   deleteCarteraPago(carteraId, pagoId) {
     return this.request(`/cartera/${carteraId}/pagos/${pagoId}`, {
       method: 'DELETE',

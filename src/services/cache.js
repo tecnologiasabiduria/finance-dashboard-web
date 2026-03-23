@@ -52,8 +52,34 @@ export function invalidateDashboardCache() {
   Object.keys(dashboardMonthCache).forEach((k) => delete dashboardMonthCache[k]);
 }
 
+// -- Cartera cache --
+let carteraCache = null;
+let carteraPromise = null;
+
+export async function getCachedCartera() {
+  if (carteraCache) return carteraCache;
+  if (carteraPromise) return carteraPromise;
+
+  carteraPromise = api.getCartera().then((res) => {
+    carteraCache = res;
+    carteraPromise = null;
+    return res;
+  }).catch((err) => {
+    carteraPromise = null;
+    throw err;
+  });
+
+  return carteraPromise;
+}
+
+export function invalidateCarteraCache() {
+  carteraCache = null;
+  carteraPromise = null;
+}
+
 /** Clear all caches */
 export function invalidateAllCaches() {
   invalidateCategoriesCache();
   invalidateDashboardCache();
+  invalidateCarteraCache();
 }
