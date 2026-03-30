@@ -114,26 +114,23 @@ export default function TransactionForm() {
   const [applyToCartera, setApplyToCartera] = useState(false);
   const [carteraSelectId, setCarteraSelectId] = useState('');
   const [carteraRecords, setCarteraRecords] = useState([]);
+  const [pastClients, setPastClients] = useState([]);
+  const [clientSuggestions, setClientSuggestions] = useState([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
-  // Auto-completado: lookup de clientes por documento desde subcategorías
+  // Auto-completado: lookup de clientes por documento
+  // Fuentes (en orden de prioridad): subcategorías → cartera → transacciones pasadas
   const clientLookup = useMemo(() => {
     const map = {};
-    const allCats = [...(categoriesRaw.income || []), ...(categoriesRaw.expense || [])];
-    for (const cat of allCats) {
-      for (const sub of cat.subcategories || []) {
-        const doc = (sub.client_document || sub.provider_document || '').trim();
-        if (doc && !map[doc]) {
-          map[doc] = {
-            client_name: sub.client_name || sub.provider_name || '',
-            client_document: doc,
-            client_email: sub.client_email || '',
-            client_phone: sub.client_phone || '',
-            client_address: sub.client_address || '',
-          };
-        }
+
+    // 1. Transacciones pasadas (menor prioridad — se agregan primero)
+    for (const c of pastClients) {
+      if (c.client_document && !map[c.client_document]) {
+        map[c.client_document] = c;
       }
     }
-    // Also search cartera records
+
+    // 2. Cartera
     for (const r of carteraRecords) {
       const doc = (r.documento || '').trim();
       if (doc && !map[doc]) {
@@ -146,22 +143,53 @@ export default function TransactionForm() {
         };
       }
     }
+
+    // 3. Subcategorías (mayor prioridad — sobreescriben)
+    const allCats = [...(categoriesRaw.income || []), ...(categoriesRaw.expense || [])];
+    for (const cat of allCats) {
+      for (const sub of cat.subcategories || []) {
+        const doc = (sub.client_document || sub.provider_document || '').trim();
+        if (doc) {
+          map[doc] = {
+            client_name: sub.client_name || sub.provider_name || '',
+            client_document: doc,
+            client_email: sub.client_email || '',
+            client_phone: sub.client_phone || '',
+            client_address: sub.client_address || '',
+          };
+        }
+      }
+    }
+
     return map;
-  }, [categoriesRaw, carteraRecords]);
+  }, [categoriesRaw, carteraRecords, pastClients]);
 
   const handleDocumentBlur = () => {
-    const doc = formData.client_document?.trim();
-    if (!doc || formData.client_name?.trim()) return; // Don't overwrite existing name
-    const match = clientLookup[doc];
-    if (match) {
-      setFormData((prev) => ({
-        ...prev,
-        client_name: match.client_name || prev.client_name,
-        client_email: match.client_email || prev.client_email,
-        client_phone: match.client_phone || prev.client_phone,
-        client_address: match.client_address || prev.client_address,
-      }));
-    }
+    // Small delay so click on suggestion fires before blur hides it
+    setTimeout(() => setShowClientSuggestions(false), 150);
+  };
+
+  const getClientSuggestions = (field, value) => {
+    if (!value || value.length < 2) return [];
+    const q = value.toLowerCase();
+    return Object.values(clientLookup).filter((c) => {
+      if (field === 'client_document') return c.client_document.toLowerCase().includes(q);
+      if (field === 'client_name') return c.client_name.toLowerCase().includes(q);
+      return false;
+    }).slice(0, 6);
+  };
+
+  const handleSelectClient = (client) => {
+    setFormData((prev) => ({
+      ...prev,
+      client_document: client.client_document || prev.client_document,
+      client_name: client.client_name || prev.client_name,
+      client_email: client.client_email || prev.client_email,
+      client_phone: client.client_phone || prev.client_phone,
+      client_address: client.client_address || prev.client_address,
+    }));
+    setShowClientSuggestions(false);
+    setClientSuggestions([]);
   };
 
   const selectedCarteraSaldo = useMemo(() => {
@@ -217,7 +245,6 @@ export default function TransactionForm() {
         ...prev,
         provider_name: sub.provider_name || prev.provider_name,
         provider_document: sub.provider_document || prev.provider_document,
-        payment_method: sub.payment_method || prev.payment_method,
       }));
     } else if (formData.type === 'income') {
       setFormData((prev) => ({
@@ -228,11 +255,31 @@ export default function TransactionForm() {
         client_phone: sub.client_phone || prev.client_phone,
         client_address: sub.client_address || prev.client_address,
       }));
+      // Auto-activar cartera si la subcategoría es de cobro de cartera
+      if (!isEditing && (sub.name || '').toLowerCase().includes('cartera')) {
+        setApplyToCartera(true);
+      }
     }
   };
 
   useEffect(() => {
     loadCategories();
+    api.getTransactions({ limit: 300 }).then((res) => {
+      const clients = {};
+      for (const tx of res.data?.transactions || []) {
+        if (tx.type !== 'income') continue;
+        const doc = (tx.client_document || '').trim();
+        if (!doc || clients[doc]) continue;
+        clients[doc] = {
+          client_name: tx.client_name || '',
+          client_document: doc,
+          client_email: tx.client_email || '',
+          client_phone: tx.client_phone || '',
+          client_address: tx.client_address || '',
+        };
+      }
+      setPastClients(Object.values(clients));
+    }).catch(() => {});
   }, [token]);
 
   // Load duplicated transaction data from sessionStorage
@@ -386,6 +433,11 @@ export default function TransactionForm() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'client_document' || name === 'client_name') {
+      const suggestions = getClientSuggestions(name, value);
+      setClientSuggestions(suggestions);
+      setShowClientSuggestions(suggestions.length > 0);
+    }
     if (name === 'category') {
       setSelectedSubId(null);
       // Auto-enable cartera when selecting a cartera-related category
@@ -611,41 +663,91 @@ export default function TransactionForm() {
           {formData.type === 'income' && (
             <>
               {!isEditing && (
-                <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-4 space-y-4">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={applyToCartera}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setApplyToCartera(next);
-                        if (!next) setCarteraSelectId('');
-                        setErrors((prev) => ({ ...prev, cartera_id: '' }));
-                      }}
-                      className="mt-1 h-4 w-4 rounded border-dark-600 bg-dark-900 text-gold-500 focus:ring-gold-500/30"
-                    />
-                    <span className="text-sm text-dark-200 leading-snug">
-                      <span className="font-medium text-white flex items-center gap-2">
-                        <Wallet className="h-4 w-4 text-gold-400 shrink-0" />
-                        Aplicar a cartera (cuenta por cobrar)
-                      </span>
-                      <span className="block text-dark-400 mt-1 text-xs">
-                        Se registrará un abono ligado a este ingreso. Eliminar la transacción elimina el abono.
-                      </span>
+                <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-4 space-y-3">
+                  {/* Header row */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-white flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-gold-400 shrink-0" />
+                      Cobro de cartera
                     </span>
-                  </label>
-                  {applyToCartera && (
-                    <Select
-                      name="cartera_id"
-                      value={carteraSelectId}
-                      onChange={(e) => {
-                        setCarteraSelectId(e.target.value);
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApplyToCartera((v) => !v);
+                        setCarteraSelectId('');
                         setErrors((prev) => ({ ...prev, cartera_id: '' }));
                       }}
-                      options={carteraSelectOptions}
-                      placeholder="Selecciona el registro"
-                      error={errors.cartera_id}
-                    />
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        applyToCartera ? 'bg-gold-500' : 'bg-dark-600'
+                      }`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+                        applyToCartera ? 'translate-x-4' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {!applyToCartera && (
+                    <p className="text-xs text-dark-400">
+                      Activa para vincular este ingreso a una factura pendiente en cartera.
+                    </p>
+                  )}
+
+                  {/* Cartera records list */}
+                  {applyToCartera && (
+                    <div className="space-y-2 pt-1">
+                      {carteraSelectOptions.length === 0 ? (
+                        <p className="text-xs text-dark-400 text-center py-3">
+                          No hay registros con saldo pendiente en cartera.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-xs text-dark-400 mb-2">Selecciona la factura a abonar:</p>
+                          {carteraSelectOptions.map((opt) => {
+                            const record = carteraRecords.find((r) => r.id === opt.value);
+                            const saldo = record ? Number(record.saldo) : 0;
+                            const selected = carteraSelectId === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => {
+                                  setCarteraSelectId(opt.value);
+                                  setErrors((prev) => ({ ...prev, cartera_id: '' }));
+                                  // Auto-fill client name from cartera record
+                                  if (record?.nombre && !formData.client_name) {
+                                    setFormData((prev) => ({ ...prev, client_name: record.nombre }));
+                                  }
+                                }}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left ${
+                                  selected
+                                    ? 'border-gold-400/60 bg-gold-400/10'
+                                    : 'border-dark-700 bg-dark-800/50 hover:border-dark-600 hover:bg-dark-800'
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <p className={`text-sm font-medium truncate ${selected ? 'text-gold-300' : 'text-white'}`}>
+                                    {record?.nombre || opt.label}
+                                  </p>
+                                  {record?.producto && (
+                                    <p className="text-xs text-dark-400 truncate">{record.producto}</p>
+                                  )}
+                                </div>
+                                <div className="text-right ml-4 shrink-0">
+                                  <p className="text-xs text-dark-400">Saldo pendiente</p>
+                                  <p className={`text-sm font-semibold ${selected ? 'text-gold-400' : 'text-red-400'}`}>
+                                    {formatCurrency(saldo, currency)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {errors.cartera_id && (
+                            <p className="text-sm text-red-400">{errors.cartera_id}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -736,7 +838,36 @@ export default function TransactionForm() {
                     <label className="block text-sm font-medium text-dark-200">Documento *</label>
                     <div className="relative">
                       <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                      <input type="text" name="client_document" placeholder="NIT o CC" value={formData.client_document} onChange={handleChange} onBlur={handleDocumentBlur} className={errors.client_document ? inputErrorClass : inputClass} />
+                      <input
+                        type="text"
+                        name="client_document"
+                        placeholder="NIT o CC"
+                        value={formData.client_document}
+                        onChange={handleChange}
+                        onBlur={handleDocumentBlur}
+                        autoComplete="off"
+                        className={errors.client_document ? inputErrorClass : inputClass}
+                      />
+                      {showClientSuggestions && clientSuggestions.length > 0 && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-xl shadow-xl overflow-hidden">
+                          {clientSuggestions.map((c) => (
+                            <button
+                              key={c.client_document}
+                              type="button"
+                              onMouseDown={() => handleSelectClient(c)}
+                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors text-left"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-gold-400/10 flex items-center justify-center flex-shrink-0">
+                                <User className="h-4 w-4 text-gold-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{c.client_name || '—'}</p>
+                                <p className="text-xs text-dark-400 truncate">{c.client_document}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {errors.client_document && <p className="text-sm text-red-400">{errors.client_document}</p>}
                   </div>
@@ -744,7 +875,36 @@ export default function TransactionForm() {
                     <label className="block text-sm font-medium text-dark-200">Nombre *</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                      <input type="text" name="client_name" placeholder="Nombre del cliente" value={formData.client_name} onChange={handleChange} className={errors.client_name ? inputErrorClass : inputClass} />
+                      <input
+                        type="text"
+                        name="client_name"
+                        placeholder="Nombre del cliente"
+                        value={formData.client_name}
+                        onChange={handleChange}
+                        onBlur={handleDocumentBlur}
+                        autoComplete="off"
+                        className={errors.client_name ? inputErrorClass : inputClass}
+                      />
+                      {showClientSuggestions && clientSuggestions.length > 0 && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-xl shadow-xl overflow-hidden">
+                          {clientSuggestions.map((c) => (
+                            <button
+                              key={c.client_document}
+                              type="button"
+                              onMouseDown={() => handleSelectClient(c)}
+                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors text-left"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-gold-400/10 flex items-center justify-center flex-shrink-0">
+                                <User className="h-4 w-4 text-gold-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{c.client_name || '—'}</p>
+                                <p className="text-xs text-dark-400 truncate">{c.client_document}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {errors.client_name && <p className="text-sm text-red-400">{errors.client_name}</p>}
                   </div>

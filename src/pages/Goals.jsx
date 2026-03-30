@@ -89,8 +89,8 @@ export default function Goals() {
     const issues = [];
     if (pockets.length === 0) {
       issues.push('No hay bolsillos configurados. Sin bolsillos, el presupuesto no se distribuirá en categorías de gasto.');
-    } else if (totalPercentage !== 100) {
-      issues.push(`Los bolsillos suman ${totalPercentage}% en lugar de 100%. El presupuesto no se distribuirá correctamente.`);
+    } else if (totalPercentage > 100) {
+      issues.push(`Los bolsillos suman ${totalPercentage}%, lo cual supera el 100% de la facturación. Reduce los porcentajes para dejar margen de utilidad.`);
     }
 
     if (issues.length > 0) {
@@ -345,14 +345,28 @@ export default function Goals() {
         </div>
 
         {/* Total % indicator */}
-        <div className={`mb-4 px-4 py-2 rounded-lg flex items-center gap-2 text-sm ${
-          totalPercentage === 100
-            ? 'bg-emerald-500/10 text-emerald-400'
-            : 'bg-amber-500/10 text-amber-400'
+        <div className={`mb-4 px-4 py-2.5 rounded-lg flex items-center justify-between gap-2 text-sm ${
+          totalPercentage > 100
+            ? 'bg-red-500/10 text-red-400'
+            : totalPercentage === 100
+            ? 'bg-amber-500/10 text-amber-400'
+            : 'bg-emerald-500/10 text-emerald-400'
         }`}>
-          {totalPercentage === 100 ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-          Total: {totalPercentage}%
-          {totalPercentage !== 100 && <span className="text-dark-400 ml-2">(debe sumar 100%)</span>}
+          <div className="flex items-center gap-2">
+            {totalPercentage > 100
+              ? <AlertTriangle className="h-4 w-4" />
+              : totalPercentage === 100
+              ? <AlertTriangle className="h-4 w-4" />
+              : <CheckCircle className="h-4 w-4" />
+            }
+            <span>Gastos asignados: <strong>{totalPercentage}%</strong></span>
+          </div>
+          {totalPercentage > 100
+            ? <span className="font-medium">Supera el 100% — revisa los porcentajes</span>
+            : totalPercentage === 100
+            ? <span className="font-medium text-amber-300">Sin margen de utilidad</span>
+            : <span className="font-medium">Utilidad proyectada: <strong>{(100 - totalPercentage).toFixed(1).replace(/\.0$/, '')}%</strong></span>
+          }
         </div>
 
         {pockets.length === 0 ? (
@@ -432,16 +446,29 @@ export default function Goals() {
                   );
                 })}
               </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-dark-700 bg-dark-800/30">
-                  <td className="py-3 px-4 font-bold text-white">TOTAL</td>
-                  <td className="py-3 px-4 text-right font-bold text-gold-400">{totalPercentage}%</td>
-                  <td className="py-3 px-4 text-right font-bold text-dark-400">{formatCurrency(annualTarget ? parseFloat(annualTarget) : 0)}</td>
-                  <td className="py-3 px-4 text-right font-bold text-white">{formatCurrency(monthlyEstimate)}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
             </table>
+          </div>
+
+          {/* Resumen financiero — separado visualmente de la tabla de bolsillos */}
+          <div className="mt-4 mx-1 p-4 rounded-xl border border-dark-700 bg-dark-900/60 hidden md:block">
+            <p className="text-xs text-dark-500 uppercase tracking-wider font-medium mb-3">Resumen proyectado</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-dark-400 mb-0.5">Gastos estimados ({totalPercentage}%)</p>
+                <p className="text-sm font-semibold text-white">{formatCurrency(annualTarget ? parseFloat(annualTarget) * totalPercentage / 100 : 0)} / año</p>
+                <p className="text-xs text-dark-400">{formatCurrency(monthlyEstimate * totalPercentage / 100)} / mes</p>
+              </div>
+              <div className={totalPercentage < 100 ? 'text-emerald-400' : 'text-dark-500'}>
+                <p className="text-xs mb-0.5 opacity-80">Utilidad proyectada ({totalPercentage < 100 ? (100 - totalPercentage).toFixed(1).replace(/\.0$/, '') : 0}%)</p>
+                <p className="text-sm font-semibold">{formatCurrency(annualTarget ? parseFloat(annualTarget) * Math.max(0, 100 - totalPercentage) / 100 : 0)} / año</p>
+                <p className="text-xs opacity-80">{formatCurrency(monthlyEstimate * Math.max(0, 100 - totalPercentage) / 100)} / mes</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-dark-400 mb-0.5">Total facturación (100%)</p>
+                <p className="text-sm font-semibold text-white">{formatCurrency(annualTarget ? parseFloat(annualTarget) : 0)} / año</p>
+                <p className="text-xs text-dark-400">{formatCurrency(monthlyEstimate)} / mes</p>
+              </div>
+            </div>
           </div>
 
           {/* Mobile Cards */}
@@ -510,19 +537,28 @@ export default function Goals() {
               );
             })}
 
-            {/* Total Mobile */}
-            <Card className="p-4 bg-dark-800/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-dark-400">Total</p>
-                  <p className="text-lg font-bold text-gold-400">{totalPercentage}%</p>
+            {/* Resumen Mobile */}
+            <div className="p-4 rounded-xl border border-dark-700 bg-dark-900/60">
+              <p className="text-xs text-dark-500 uppercase tracking-wider font-medium mb-3">Resumen proyectado</p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-dark-400">Gastos estimados ({totalPercentage}%)</p>
+                  <p className="text-sm font-semibold text-white">{formatCurrency(monthlyEstimate * totalPercentage / 100)}/mes</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-dark-400">Presup. Mensual</p>
-                  <p className="text-lg font-bold text-white">{formatCurrency(monthlyEstimate)}</p>
+                <div className="flex justify-between items-center">
+                  <p className={`text-xs ${totalPercentage < 100 ? 'text-emerald-400' : 'text-dark-500'}`}>
+                    Utilidad proyectada ({totalPercentage < 100 ? (100 - totalPercentage).toFixed(1).replace(/\.0$/, '') : 0}%)
+                  </p>
+                  <p className={`text-sm font-semibold ${totalPercentage < 100 ? 'text-emerald-400' : 'text-dark-500'}`}>
+                    {formatCurrency(monthlyEstimate * Math.max(0, 100 - totalPercentage) / 100)}/mes
+                  </p>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-dark-700">
+                  <p className="text-xs text-dark-400">Total facturación</p>
+                  <p className="text-sm font-bold text-white">{formatCurrency(monthlyEstimate)}/mes</p>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
           </>
         )}
@@ -606,7 +642,7 @@ export default function Goals() {
             </div>
           </div>
           <p className="text-sm text-dark-400">
-            Configura los bolsillos correctamente antes de guardar la meta. Los porcentajes deben sumar exactamente 100%.
+            Los porcentajes de gastos no pueden superar el 100% de la facturación. El porcentaje restante se considera utilidad proyectada.
           </p>
           <div className="pt-2">
             <Button

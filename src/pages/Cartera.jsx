@@ -18,7 +18,7 @@ import {
   Download,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Card, StatCard, Button, Input, Modal, ConfirmModal, Spinner } from '../components/ui';
+import { Card, StatCard, Button, Input, Modal, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, parseLocalDate } from '../utils/formatters';
 import { api } from '../services/api';
 import { useSettings } from '../context/SettingsContext';
@@ -546,27 +546,25 @@ export default function Cartera() {
             className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-dark-400 focus:outline-none focus:border-gold-400/50 text-sm"
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gold-400/50"
-            placeholder="Desde"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gold-400/50"
-            placeholder="Hasta"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-dark-400 mb-1.5 ml-1">Desde</p>
+            <DatePicker
+              name="dateFrom"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+              placeholder="Fecha inicio"
+            />
+          </div>
+          <div>
+            <p className="text-xs text-dark-400 mb-1.5 ml-1">Hasta</p>
+            <DatePicker
+              name="dateTo"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+              placeholder="Fecha fin"
+            />
+          </div>
         </div>
       </div>
 
@@ -855,10 +853,11 @@ export default function Cartera() {
               <label className="block text-sm text-dark-300 mb-1.5">
                 Fecha de venta <span className="text-red-400">*</span>
               </label>
-              <Input
-                type="date"
+              <DatePicker
+                name="fecha_venta"
                 value={recordForm.fecha_venta}
                 onChange={(e) => setRecordForm((f) => ({ ...f, fecha_venta: e.target.value }))}
+                placeholder="Seleccionar fecha"
               />
             </div>
             <div>
@@ -993,10 +992,11 @@ export default function Cartera() {
             <label className="block text-sm text-dark-300 mb-1.5">
               Fecha del abono <span className="text-red-400">*</span>
             </label>
-            <Input
-              type="date"
+            <DatePicker
+              name="fecha_pago"
               value={pagoForm.fecha}
               onChange={(e) => setPagoForm((f) => ({ ...f, fecha: e.target.value }))}
+              placeholder="Seleccionar fecha"
             />
           </div>
           <div>

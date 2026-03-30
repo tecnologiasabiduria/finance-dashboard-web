@@ -14,7 +14,6 @@ import {
   User,
   Hash,
   Building,
-  CreditCard,
   Mail,
   Phone,
   MapPin,
@@ -30,19 +29,6 @@ const PRESET_COLORS = [
   '#da7d41', '#22C55E', '#EF4444', '#3B82F6', '#8B5CF6',
   '#F97316', '#EC4899', '#10B981', '#F59E0B', '#6B7280',
   '#14B8A6', '#6366F1', '#E11D48', '#0EA5E9', '#84CC16',
-];
-
-const PAYMENT_METHODS = [
-  { value: 'Bancolombia', label: 'Bancolombia' },
-  { value: 'Davivienda', label: 'Davivienda' },
-  { value: 'Nequi', label: 'Nequi' },
-  { value: 'Daviplata', label: 'Daviplata' },
-  { value: 'Efectivo', label: 'Efectivo' },
-  { value: 'Tarjeta de Crédito', label: 'Tarjeta de Crédito' },
-  { value: 'Tarjeta de Débito', label: 'Tarjeta de Débito' },
-  { value: 'Transferencia', label: 'Transferencia' },
-  { value: 'PSE', label: 'PSE' },
-  { value: 'Otro', label: 'Otro' },
 ];
 
 export default function Categories() {
@@ -68,7 +54,7 @@ export default function Categories() {
   const [savingSub, setSavingSub] = useState(false);
   const [subForm, setSubForm] = useState({
     name: '',
-    provider_name: '', provider_document: '', payment_method: '',
+    provider_name: '', provider_document: '',
     client_name: '', client_document: '', client_email: '', client_phone: '', client_address: '',
   });
 
@@ -153,7 +139,6 @@ export default function Categories() {
         name: subcategory.name || '',
         provider_name: subcategory.provider_name || '',
         provider_document: subcategory.provider_document || '',
-        payment_method: subcategory.payment_method || '',
         client_name: subcategory.client_name || '',
         client_document: subcategory.client_document || '',
         client_email: subcategory.client_email || '',
@@ -164,7 +149,7 @@ export default function Categories() {
       setEditingSubcategory(null);
       setSubForm({
         name: '',
-        provider_name: '', provider_document: '', payment_method: '',
+        provider_name: '', provider_document: '',
         client_name: '', client_document: '', client_email: '', client_phone: '', client_address: '',
       });
     }
@@ -292,46 +277,54 @@ export default function Categories() {
           const subs = category.subcategories || [];
 
           return (
-            <Card key={category.id} className="hover:border-gold-400/30 transition-all">
+            <Card key={category.id} className="hover:border-gold-400/30 transition-all group/card">
               {/* Category header */}
-              <div className="p-4 flex items-start justify-between">
+              <div className="p-4 flex items-center gap-3">
+                {/* Icon */}
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${category.color}20` }}
+                >
+                  {(() => { const Icon = getCategoryIcon(category.icon); return <Icon className="h-5 w-5" style={{ color: category.color }} />; })()}
+                </div>
+
+                {/* Name + meta — clickable to expand */}
                 <button
                   onClick={() => toggleExpand(category.id)}
-                  className="flex items-center gap-3 flex-1 text-left"
+                  className="flex-1 min-w-0 text-left"
                 >
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${category.color}20` }}
-                  >
-                    {(() => { const Icon = getCategoryIcon(category.icon); return <Icon className="h-5 w-5" style={{ color: category.color }} />; })()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white">{category.name}</h3>
-                    <p className="text-xs text-dark-500">
-                      {category.type === 'income' ? 'Ingreso' : 'Gasto'}
-                      {subs.length > 0 && ` · ${subs.length} sub`}
-                    </p>
-                  </div>
-                  {subs.length > 0 && (
-                    isExpanded
-                      ? <ChevronDown className="h-4 w-4 text-dark-400 flex-shrink-0" />
-                      : <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
-                  )}
+                  <h3 className="font-medium text-white truncate">{category.name}</h3>
+                  <p className="text-xs text-dark-500">
+                    {category.type === 'income' ? 'Ingreso' : 'Gasto'}
+                    {subs.length > 0 && ` · ${subs.length} subcategoría${subs.length > 1 ? 's' : ''}`}
+                  </p>
                 </button>
-                <div className="flex gap-2 ml-2 flex-shrink-0">
+
+                {/* Actions — siempre visibles en hover de la card */}
+                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleOpenCatModal(category)}
-                    className="p-2 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
+                    className="p-1.5 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => handleDeleteClick(category, 'category')}
-                    className="p-2 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
+                    className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
+
+                {/* Chevron */}
+                {subs.length > 0 && (
+                  <button onClick={() => toggleExpand(category.id)} className="flex-shrink-0">
+                    {isExpanded
+                      ? <ChevronDown className="h-4 w-4 text-dark-400" />
+                      : <ChevronRight className="h-4 w-4 text-dark-400" />
+                    }
+                  </button>
+                )}
               </div>
 
               {/* Expanded subcategories */}
@@ -349,7 +342,7 @@ export default function Categories() {
                           <p className="text-sm text-white font-medium truncate">{sub.name}</p>
                           <p className="text-xs text-dark-500 truncate">
                             {category.type === 'expense'
-                              ? [sub.provider_name, sub.payment_method].filter(Boolean).join(' · ') || 'Sin datos'
+                              ? sub.provider_name || 'Sin datos'
                               : [sub.client_name, sub.client_document].filter(Boolean).join(' · ') || 'Sin datos'
                             }
                           </p>
@@ -381,19 +374,7 @@ export default function Categories() {
                 </div>
               )}
 
-              {/* Collapsed hint to expand */}
-              {!isExpanded && subs.length > 0 && (
-                <button
-                  onClick={() => toggleExpand(category.id)}
-                  className="w-full px-4 pb-3 text-left"
-                >
-                  <p className="text-xs text-dark-500 hover:text-dark-300 transition-colors">
-                    {subs.length} subcategoría{subs.length > 1 ? 's' : ''} — click para ver
-                  </p>
-                </button>
-              )}
-
-              {/* Always show add sub button when collapsed and no subs */}
+              {/* Add sub button when no subs */}
               {!isExpanded && subs.length === 0 && (
                 <div className="px-4 pb-3">
                   <button
@@ -643,16 +624,6 @@ export default function Categories() {
                       className={inputClass}
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-dark-400 mb-1">Método de pago</label>
-                  <Select
-                    name="payment_method"
-                    value={subForm.payment_method}
-                    onChange={(e) => setSubForm({ ...subForm, payment_method: e.target.value })}
-                    options={PAYMENT_METHODS}
-                    placeholder="Selecciona método"
-                  />
                 </div>
               </div>
             </div>
