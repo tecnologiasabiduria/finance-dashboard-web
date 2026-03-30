@@ -360,6 +360,29 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Transaction Documents
+  uploadTransactionDocument(transactionId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetch(`${API_URL}/transactions/${transactionId}/documents`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.token}` },
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Error uploading file');
+      return data;
+    });
+  }
+
+  getTransactionDocuments(transactionId) {
+    return this.request(`/transactions/${transactionId}/documents`);
+  }
+
+  deleteTransactionDocument(docId) {
+    return this.request(`/documents/doc/${docId}`, { method: 'DELETE' });
+  }
 }
 
 export const api = new ApiService();

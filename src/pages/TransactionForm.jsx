@@ -20,7 +20,7 @@ import {
   Tag,
   Wallet,
 } from 'lucide-react';
-import { Button, Select, Card, CreatableSelect, DatePicker } from '../components/ui';
+import { Button, Select, Card, CreatableSelect, DatePicker, FileUpload } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
@@ -109,6 +109,11 @@ export default function TransactionForm() {
   const [incomeCategories, setIncomeCategories] = useState([]);
   const [categoriesRaw, setCategoriesRaw] = useState({ income: [], expense: [] });
   const [selectedSubId, setSelectedSubId] = useState(null);
+
+  const [documents, setDocuments] = useState([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docsLoaded, setDocsLoaded] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]); // archivos seleccionados antes de guardar
 
   const [carteraLink, setCarteraLink] = useState(null);
   const [applyToCartera, setApplyToCartera] = useState(false);
@@ -364,6 +369,11 @@ export default function TransactionForm() {
             source_account: t.source_account || '',
             destination_account: t.destination_account || '',
           });
+          // Load existing documents
+          api.getTransactionDocuments(id).then((res) => {
+            setDocuments(res.data?.documents || []);
+            setDocsLoaded(true);
+          }).catch(() => setDocsLoaded(true));
         } catch (err) {
           console.error('Error loading transaction:', err);
         } finally {
@@ -414,6 +424,44 @@ export default function TransactionForm() {
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleUploadDoc = async (file) => {
+    if (!isEditing) {
+      // Nueva transacción: guardar en estado local con preview
+      const tempId = `pending-${Date.now()}`;
+      setPendingFiles((prev) => [...prev, {
+        id: tempId,
+        file,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        signed_url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      }]);
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const res = await api.uploadTransactionDocument(id, file);
+      setDocuments((prev) => [...prev, res.data.document]);
+    } catch (err) {
+      console.error('Error uploading document:', err);
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docId) => {
+    if (!isEditing) {
+      setPendingFiles((prev) => prev.filter((f) => f.id !== docId));
+      return;
+    }
+    try {
+      await api.deleteTransactionDocument(docId);
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      console.error('Error deleting document:', err);
+    }
   };
 
   const formatAmountDisplay = (raw) => {
@@ -507,7 +555,13 @@ export default function TransactionForm() {
         if (formData.type === 'income' && applyToCartera && carteraSelectId) {
           transactionData.cartera_id = carteraSelectId;
         }
-        await api.createTransaction(transactionData);
+        const created = await api.createTransaction(transactionData);
+        const newId = created.data?.transaction?.id;
+        if (newId && pendingFiles.length > 0) {
+          await Promise.allSettled(
+            pendingFiles.map((pf) => api.uploadTransactionDocument(newId, pf.file))
+          );
+        }
       }
       invalidateDashboardCache();
       if ((!isEditing && formData.type === 'income' && applyToCartera && carteraSelectId) || carteraLink) {
@@ -1119,6 +1173,36 @@ export default function TransactionForm() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Documents */}
+          {isEditing && (
+            <div className="border-t border-dark-800 pt-6">
+              <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Documentos adjuntos
+              </h3>
+              <FileUpload
+                files={documents}
+                onUpload={handleUploadDoc}
+                onDelete={handleDeleteDoc}
+                uploading={uploadingDoc}
+              />
+            </div>
+          )}
+          {!isEditing && (
+            <div className="border-t border-dark-800 pt-6">
+              <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Documentos adjuntos
+              </h3>
+              <FileUpload
+                files={pendingFiles}
+                onUpload={handleUploadDoc}
+                onDelete={handleDeleteDoc}
+                uploading={false}
+              />
+            </div>
           )}
 
           {/* Submit Error */}
