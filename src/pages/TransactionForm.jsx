@@ -122,6 +122,9 @@ export default function TransactionForm() {
   const [pastClients, setPastClients] = useState([]);
   const [clientSuggestions, setClientSuggestions] = useState([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [pastProviders, setPastProviders] = useState([]);
+  const [providerSuggestions, setProviderSuggestions] = useState([]);
+  const [showProviderSuggestions, setShowProviderSuggestions] = useState(false);
 
   // Auto-completado: lookup de clientes por documento
   // Fuentes (en orden de prioridad): subcategorías → cartera → transacciones pasadas
@@ -169,9 +172,41 @@ export default function TransactionForm() {
     return map;
   }, [categoriesRaw, carteraRecords, pastClients]);
 
+  // Auto-completado: lookup de proveedores por documento
+  // Fuentes (en orden de prioridad): subcategorías → transacciones pasadas
+  const providerLookup = useMemo(() => {
+    const map = {};
+
+    // 1. Transacciones pasadas (menor prioridad)
+    for (const p of pastProviders) {
+      if (p.provider_document && !map[p.provider_document]) {
+        map[p.provider_document] = p;
+      }
+    }
+
+    // 2. Subcategorías de gastos (mayor prioridad)
+    for (const cat of categoriesRaw.expense || []) {
+      for (const sub of cat.subcategories || []) {
+        const doc = (sub.provider_document || '').trim();
+        if (doc) {
+          map[doc] = {
+            provider_name: sub.provider_name || '',
+            provider_document: doc,
+            payment_method: sub.payment_method || '',
+          };
+        }
+      }
+    }
+
+    return map;
+  }, [categoriesRaw, pastProviders]);
+
   const handleDocumentBlur = () => {
     // Small delay so click on suggestion fires before blur hides it
-    setTimeout(() => setShowClientSuggestions(false), 150);
+    setTimeout(() => {
+      setShowClientSuggestions(false);
+      setShowProviderSuggestions(false);
+    }, 150);
   };
 
   const getClientSuggestions = (field, value) => {
@@ -195,6 +230,27 @@ export default function TransactionForm() {
     }));
     setShowClientSuggestions(false);
     setClientSuggestions([]);
+  };
+
+  const getProviderSuggestions = (field, value) => {
+    if (!value || value.length < 2) return [];
+    const q = value.toLowerCase();
+    return Object.values(providerLookup).filter((p) => {
+      if (field === 'provider_document') return p.provider_document.toLowerCase().includes(q);
+      if (field === 'provider_name') return p.provider_name.toLowerCase().includes(q);
+      return false;
+    }).slice(0, 6);
+  };
+
+  const handleSelectProvider = (provider) => {
+    setFormData((prev) => ({
+      ...prev,
+      provider_document: provider.provider_document || prev.provider_document,
+      provider_name: provider.provider_name || prev.provider_name,
+      payment_method: provider.payment_method || prev.payment_method,
+    }));
+    setShowProviderSuggestions(false);
+    setProviderSuggestions([]);
   };
 
   const selectedCarteraSaldo = useMemo(() => {
@@ -250,6 +306,7 @@ export default function TransactionForm() {
         ...prev,
         provider_name: sub.provider_name || prev.provider_name,
         provider_document: sub.provider_document || prev.provider_document,
+        payment_method: sub.payment_method || prev.payment_method,
       }));
     } else if (formData.type === 'income') {
       setFormData((prev) => ({
@@ -271,19 +328,32 @@ export default function TransactionForm() {
     loadCategories();
     api.getTransactions({ limit: 300 }).then((res) => {
       const clients = {};
+      const providers = {};
       for (const tx of res.data?.transactions || []) {
-        if (tx.type !== 'income') continue;
-        const doc = (tx.client_document || '').trim();
-        if (!doc || clients[doc]) continue;
-        clients[doc] = {
-          client_name: tx.client_name || '',
-          client_document: doc,
-          client_email: tx.client_email || '',
-          client_phone: tx.client_phone || '',
-          client_address: tx.client_address || '',
-        };
+        if (tx.type === 'income') {
+          const doc = (tx.client_document || '').trim();
+          if (doc && !clients[doc]) {
+            clients[doc] = {
+              client_name: tx.client_name || '',
+              client_document: doc,
+              client_email: tx.client_email || '',
+              client_phone: tx.client_phone || '',
+              client_address: tx.client_address || '',
+            };
+          }
+        } else if (tx.type === 'expense') {
+          const doc = (tx.provider_document || '').trim();
+          if (doc && !providers[doc]) {
+            providers[doc] = {
+              provider_name: tx.provider_name || '',
+              provider_document: doc,
+              payment_method: tx.payment_method || '',
+            };
+          }
+        }
       }
       setPastClients(Object.values(clients));
+      setPastProviders(Object.values(providers));
     }).catch(() => {});
   }, [token]);
 
@@ -486,6 +556,11 @@ export default function TransactionForm() {
       setClientSuggestions(suggestions);
       setShowClientSuggestions(suggestions.length > 0);
     }
+    if (name === 'provider_document' || name === 'provider_name') {
+      const suggestions = getProviderSuggestions(name, value);
+      setProviderSuggestions(suggestions);
+      setShowProviderSuggestions(suggestions.length > 0);
+    }
     if (name === 'category') {
       setSelectedSubId(null);
       // Auto-enable cartera when selecting a cartera-related category
@@ -498,6 +573,20 @@ export default function TransactionForm() {
     }
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleClientFieldKeyDown = (e) => {
+    if (e.key === 'Enter' && showClientSuggestions && clientSuggestions.length > 0) {
+      e.preventDefault();
+      handleSelectClient(clientSuggestions[0]);
+    }
+  };
+
+  const handleProviderFieldKeyDown = (e) => {
+    if (e.key === 'Enter' && showProviderSuggestions && providerSuggestions.length > 0) {
+      e.preventDefault();
+      handleSelectProvider(providerSuggestions[0]);
     }
   };
 
@@ -776,6 +865,8 @@ export default function TransactionForm() {
                                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left ${
                                   selected
                                     ? 'border-gold-400/60 bg-gold-400/10'
+                                    : errors.cartera_id
+                                    ? 'border-red-500/50 bg-red-500/5 hover:border-red-500/70'
                                     : 'border-dark-700 bg-dark-800/50 hover:border-dark-600 hover:bg-dark-800'
                                 }`}
                               >
@@ -796,10 +887,12 @@ export default function TransactionForm() {
                               </button>
                             );
                           })}
-                          {errors.cartera_id && (
-                            <p className="text-sm text-red-400">{errors.cartera_id}</p>
-                          )}
                         </>
+                      )}
+                      {errors.cartera_id && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                          <p className="text-sm text-red-400 font-medium">{errors.cartera_id}</p>
+                        </div>
                       )}
                     </div>
                   )}
@@ -899,6 +992,7 @@ export default function TransactionForm() {
                         value={formData.client_document}
                         onChange={handleChange}
                         onBlur={handleDocumentBlur}
+                        onKeyDown={handleClientFieldKeyDown}
                         autoComplete="off"
                         className={errors.client_document ? inputErrorClass : inputClass}
                       />
@@ -936,6 +1030,7 @@ export default function TransactionForm() {
                         value={formData.client_name}
                         onChange={handleChange}
                         onBlur={handleDocumentBlur}
+                        onKeyDown={handleClientFieldKeyDown}
                         autoComplete="off"
                         className={errors.client_name ? inputErrorClass : inputClass}
                       />
@@ -1086,14 +1181,74 @@ export default function TransactionForm() {
                   <label className="block text-sm font-medium text-dark-200">Documento Proveedor</label>
                   <div className="relative">
                     <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                    <input type="text" name="provider_document" placeholder="NIT o documento" value={formData.provider_document} onChange={handleChange} className={inputClass} />
+                    <input
+                      type="text"
+                      name="provider_document"
+                      placeholder="NIT o documento"
+                      value={formData.provider_document}
+                      onChange={handleChange}
+                      onBlur={handleDocumentBlur}
+                      onKeyDown={handleProviderFieldKeyDown}
+                      autoComplete="off"
+                      className={inputClass}
+                    />
+                    {showProviderSuggestions && providerSuggestions.length > 0 && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-xl shadow-xl overflow-hidden">
+                        {providerSuggestions.map((p) => (
+                          <button
+                            key={p.provider_document}
+                            type="button"
+                            onMouseDown={() => handleSelectProvider(p)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-gold-400/10 flex items-center justify-center flex-shrink-0">
+                              <Building className="h-4 w-4 text-gold-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-white truncate">{p.provider_name || '—'}</p>
+                              <p className="text-xs text-dark-400 truncate">{p.provider_document}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-dark-200">Proveedor</label>
                   <div className="relative">
                     <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                    <input type="text" name="provider_name" placeholder="Nombre del proveedor" value={formData.provider_name} onChange={handleChange} className={inputClass} />
+                    <input
+                      type="text"
+                      name="provider_name"
+                      placeholder="Nombre del proveedor"
+                      value={formData.provider_name}
+                      onChange={handleChange}
+                      onBlur={handleDocumentBlur}
+                      onKeyDown={handleProviderFieldKeyDown}
+                      autoComplete="off"
+                      className={inputClass}
+                    />
+                    {showProviderSuggestions && providerSuggestions.length > 0 && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-xl shadow-xl overflow-hidden">
+                        {providerSuggestions.map((p) => (
+                          <button
+                            key={p.provider_document}
+                            type="button"
+                            onMouseDown={() => handleSelectProvider(p)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-gold-400/10 flex items-center justify-center flex-shrink-0">
+                              <Building className="h-4 w-4 text-gold-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-white truncate">{p.provider_name || '—'}</p>
+                              <p className="text-xs text-dark-400 truncate">{p.provider_document}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
