@@ -931,7 +931,7 @@ export default function Transactions() {
                   </div>
 
                   {/* Main Info */}
-                  {t.type === 'income' && (
+                  {activeTab !== 'all' && t.type === 'income' && (
                     <div className="space-y-2">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
@@ -970,7 +970,7 @@ export default function Transactions() {
                     </div>
                   )}
 
-                  {t.type === 'expense' && (
+                  {activeTab !== 'all' && t.type === 'expense' && (
                     <div className="space-y-2">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
@@ -999,7 +999,7 @@ export default function Transactions() {
                     </div>
                   )}
 
-                  {t.type === 'transfer' && (
+                  {activeTab !== 'all' && t.type === 'transfer' && (
                     <div className="space-y-2">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">

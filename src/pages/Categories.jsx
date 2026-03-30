@@ -318,16 +318,16 @@ export default function Categories() {
                       : <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
                   )}
                 </button>
-                <div className="flex gap-1 ml-2">
+                <div className="flex gap-2 ml-2 flex-shrink-0">
                   <button
                     onClick={() => handleOpenCatModal(category)}
-                    className="p-1.5 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
+                    className="p-2 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteClick(category, 'category')}
-                    className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
+                    className="p-2 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
