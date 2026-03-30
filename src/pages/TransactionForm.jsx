@@ -19,6 +19,7 @@ import {
   Receipt,
   Tag,
   Wallet,
+  Upload,
 } from 'lucide-react';
 import { Button, Select, Card, CreatableSelect, DatePicker, FileUpload } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -145,9 +146,9 @@ export default function TransactionForm() {
         map[doc] = {
           client_name: r.nombre || '',
           client_document: doc,
-          client_email: '',
-          client_phone: '',
-          client_address: '',
+          client_email: r.email || '',
+          client_phone: r.telefono || '',
+          client_address: r.direccion || '',
         };
       }
     }
@@ -688,23 +689,33 @@ export default function TransactionForm() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/transactions"
-          className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">
-            {isEditing ? 'Editar Registro' : 'Nuevo Registro'}
-          </h1>
-          <p className="text-dark-400 mt-1">
-            {isEditing
-              ? 'Modifica los detalles del registro'
-              : 'Registra un nuevo ingreso, gasto o transferencia'}
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/transactions"
+            className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              {isEditing ? 'Editar Registro' : 'Nuevo Registro'}
+            </h1>
+            <p className="text-dark-400 mt-1">
+              {isEditing
+                ? 'Modifica los detalles del registro'
+                : 'Registra un nuevo ingreso, gasto o transferencia'}
+            </p>
+          </div>
         </div>
+        {!isEditing && (
+          <Link to="/transactions/import">
+            <Button variant="secondary" icon={Upload} size="sm">
+              <span className="hidden sm:inline">Importar CSV</span>
+              <span className="sm:hidden">Importar</span>
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Form */}
@@ -857,9 +868,16 @@ export default function TransactionForm() {
                                 onClick={() => {
                                   setCarteraSelectId(opt.value);
                                   setErrors((prev) => ({ ...prev, cartera_id: '' }));
-                                  // Auto-fill client name from cartera record
-                                  if (record?.nombre && !formData.client_name) {
-                                    setFormData((prev) => ({ ...prev, client_name: record.nombre }));
+                                  // Auto-fill all client data from cartera record
+                                  if (record) {
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      client_name: record.nombre || prev.client_name,
+                                      client_document: record.documento || prev.client_document,
+                                      client_email: record.email || prev.client_email,
+                                      client_phone: record.telefono || prev.client_phone,
+                                      client_address: record.direccion || prev.client_address,
+                                    }));
                                   }
                                 }}
                                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left ${

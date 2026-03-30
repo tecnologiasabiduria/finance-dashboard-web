@@ -16,6 +16,11 @@ import {
   Calendar,
   ArrowUpRight,
   Download,
+  User,
+  Hash,
+  Mail,
+  Phone,
+  MapPin,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Card, StatCard, Button, Input, Modal, ConfirmModal, Spinner, DatePicker } from '../components/ui';
@@ -28,6 +33,10 @@ const EMPTY_RECORD = {
   fuente: '',
   producto: '',
   nombre: '',
+  documento: '',
+  email: '',
+  telefono: '',
+  direccion: '',
   fecha_venta: new Date().toISOString().slice(0, 10),
   valor_venta: '',
   cash: '',
@@ -142,6 +151,7 @@ export default function Cartera() {
       result = result.filter(
         (r) =>
           r.nombre?.toLowerCase().includes(q) ||
+          r.documento?.toLowerCase().includes(q) ||
           r.producto?.toLowerCase().includes(q) ||
           r.plataforma?.toLowerCase().includes(q) ||
           r.fuente?.toLowerCase().includes(q)
@@ -173,6 +183,10 @@ export default function Cartera() {
       fuente: record.fuente || '',
       producto: record.producto || '',
       nombre: record.nombre || '',
+      documento: record.documento || '',
+      email: record.email || '',
+      telefono: record.telefono || '',
+      direccion: record.direccion || '',
       fecha_venta: record.fecha_venta?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       valor_venta: record.valor_venta?.toString() || '',
       cash: record.cash?.toString() || '',
@@ -185,6 +199,10 @@ export default function Cartera() {
   async function saveRecord() {
     if (!recordForm.nombre.trim()) {
       setRecordError('El nombre del cliente es requerido.');
+      return;
+    }
+    if (!recordForm.documento.trim()) {
+      setRecordError('El documento del cliente es requerido.');
       return;
     }
     if (!recordForm.fecha_venta) {
@@ -419,6 +437,10 @@ export default function Cartera() {
   const exportCarteraExcel = () => {
     const data = filtered.map((r) => ({
       Nombre: r.nombre || '',
+      Documento: r.documento || '',
+      Email: r.email || '',
+      Teléfono: r.telefono || '',
+      Dirección: r.direccion || '',
       Plataforma: r.plataforma || '',
       Fuente: r.fuente || '',
       Producto: r.producto || '',
@@ -505,30 +527,50 @@ export default function Cartera() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard
-          title="Total Cartera"
-          value={formatCurrency(stats.totalCartera, currency)}
-          icon={DollarSign}
-          variant="gold"
-        />
-        <StatCard
-          title="Total Cobrado"
-          value={formatCurrency(stats.totalCobrado, currency)}
-          icon={TrendingUp}
-          variant="success"
-        />
-        <StatCard
-          title="Saldo Pendiente"
-          value={formatCurrency(stats.totalSaldo, currency)}
-          icon={AlertCircle}
-          variant={stats.totalSaldo > 0 ? 'danger' : 'success'}
-        />
-        <StatCard
-          title="% Cobrado"
-          value={`${stats.pctCobrado.toFixed(1)}%`}
-          icon={CreditCard}
-          variant="default"
-        />
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs sm:text-sm text-dark-400">Total Cartera</span>
+            <div className="p-2 rounded-lg bg-gold-400/10">
+              <DollarSign className="h-4 w-4 text-gold-400" />
+            </div>
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-white truncate" title={formatCurrency(stats.totalCartera, currency)}>
+            {formatCurrency(stats.totalCartera, currency)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs sm:text-sm text-dark-400">Total Cobrado</span>
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+            </div>
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-emerald-400 truncate" title={formatCurrency(stats.totalCobrado, currency)}>
+            {formatCurrency(stats.totalCobrado, currency)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs sm:text-sm text-dark-400">Saldo Pendiente</span>
+            <div className={`p-2 rounded-lg ${stats.totalSaldo > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
+              <AlertCircle className={`h-4 w-4 ${stats.totalSaldo > 0 ? 'text-red-400' : 'text-emerald-400'}`} />
+            </div>
+          </div>
+          <p className={`text-lg sm:text-2xl font-bold truncate ${stats.totalSaldo > 0 ? 'text-red-400' : 'text-emerald-400'}`} title={formatCurrency(stats.totalSaldo, currency)}>
+            {formatCurrency(stats.totalSaldo, currency)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs sm:text-sm text-dark-400">% Cobrado</span>
+            <div className="p-2 rounded-lg bg-dark-800">
+              <CreditCard className="h-4 w-4 text-dark-400" />
+            </div>
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-white">
+            {stats.pctCobrado.toFixed(1)}%
+          </p>
+        </Card>
       </div>
 
       {/* Search + Date filters */}
@@ -537,7 +579,7 @@ export default function Cartera() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-400" />
           <input
             type="text"
-            placeholder="Buscar por cliente, producto, plataforma..."
+            placeholder="Buscar por cliente, documento, producto, plataforma..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -598,6 +640,11 @@ export default function Cartera() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-white text-base sm:text-lg">{record.nombre}</span>
+                        {record.documento && (
+                          <span className="text-xs bg-dark-800 text-dark-300 px-2 py-0.5 rounded-full shrink-0">
+                            {record.documento}
+                          </span>
+                        )}
                         {record.producto && (
                           <span className="text-xs bg-gold-400/10 text-gold-300 px-2 py-0.5 rounded-full border border-gold-400/20 shrink-0">
                             {record.producto}
@@ -829,7 +876,7 @@ export default function Cartera() {
         title={recordModal.record ? 'Editar Registro de Cartera' : 'Nuevo Registro de Cartera'}
         size="lg"
       >
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-5">
           {recordError && (
             <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3 text-sm">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -837,116 +884,166 @@ export default function Cartera() {
             </div>
           )}
 
-          {/* Client + Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm text-dark-300 mb-1.5">
-                Nombre del cliente <span className="text-red-400">*</span>
-              </label>
-              <Input
-                value={recordForm.nombre}
-                onChange={(e) => setRecordForm((f) => ({ ...f, nombre: e.target.value }))}
-                placeholder="Ej. Juan Garcia"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-dark-300 mb-1.5">
-                Fecha de venta <span className="text-red-400">*</span>
-              </label>
-              <DatePicker
-                name="fecha_venta"
-                value={recordForm.fecha_venta}
-                onChange={(e) => setRecordForm((f) => ({ ...f, fecha_venta: e.target.value }))}
-                placeholder="Seleccionar fecha"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-dark-300 mb-1.5">Producto / Servicio</label>
-              <Input
-                value={recordForm.producto}
-                onChange={(e) => setRecordForm((f) => ({ ...f, producto: e.target.value }))}
-                placeholder="Ej. Consultoria"
-              />
-            </div>
-          </div>
-
-          {/* Amounts */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-dark-300 mb-1.5">
-                Valor total de venta <span className="text-red-400">*</span>
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                value={recordForm.valor_venta}
-                onChange={(e) => setRecordForm((f) => ({ ...f, valor_venta: e.target.value }))}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-dark-300 mb-1.5">Cash cobrado</label>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                value={recordForm.cash}
-                onChange={(e) => setRecordForm((f) => ({ ...f, cash: e.target.value }))}
-                placeholder="0"
-              />
+          {/* Datos del Cliente */}
+          <div className="border-b border-dark-800 pb-4">
+            <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Datos del Cliente
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm text-dark-300 mb-1.5">
+                  Nombre del cliente <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  value={recordForm.nombre}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, nombre: e.target.value }))}
+                  placeholder="Ej. Juan García"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">
+                  Documento <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  value={recordForm.documento}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, documento: e.target.value }))}
+                  placeholder="NIT o CC"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Teléfono</label>
+                <Input
+                  value={recordForm.telefono}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, telefono: e.target.value }))}
+                  placeholder="+57 300 123 4567"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Correo</label>
+                <Input
+                  value={recordForm.email}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="correo@ejemplo.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Dirección</label>
+                <Input
+                  value={recordForm.direccion}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, direccion: e.target.value }))}
+                  placeholder="Dirección del cliente"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Platform + Source */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Datos de la Venta */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gold-400 uppercase tracking-wider flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Datos de la Venta
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">
+                  Fecha de venta <span className="text-red-400">*</span>
+                </label>
+                <DatePicker
+                  name="fecha_venta"
+                  value={recordForm.fecha_venta}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, fecha_venta: e.target.value }))}
+                  placeholder="Seleccionar fecha"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Producto / Servicio</label>
+                <Input
+                  value={recordForm.producto}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, producto: e.target.value }))}
+                  placeholder="Ej. Consultoría"
+                />
+              </div>
+            </div>
+
+            {/* Amounts */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">
+                  Valor total de venta <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={recordForm.valor_venta}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, valor_venta: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Cash cobrado</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={recordForm.cash}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, cash: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Platform + Source */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Plataforma</label>
+                <Input
+                  value={recordForm.plataforma}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, plataforma: e.target.value }))}
+                  placeholder="Ej. GoHighLevel"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-dark-300 mb-1.5">Fuente</label>
+                <Input
+                  value={recordForm.fuente}
+                  onChange={(e) => setRecordForm((f) => ({ ...f, fuente: e.target.value }))}
+                  placeholder="Ej. Referido"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
             <div>
-              <label className="block text-sm text-dark-300 mb-1.5">Plataforma</label>
-              <Input
-                value={recordForm.plataforma}
-                onChange={(e) => setRecordForm((f) => ({ ...f, plataforma: e.target.value }))}
-                placeholder="Ej. GoHighLevel"
+              <label className="block text-sm text-dark-300 mb-1.5">Notas</label>
+              <textarea
+                value={recordForm.notas}
+                onChange={(e) => setRecordForm((f) => ({ ...f, notas: e.target.value }))}
+                placeholder="Observaciones adicionales..."
+                rows={3}
+                className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:border-gold-400/50 text-sm resize-none"
               />
             </div>
-            <div>
-              <label className="block text-sm text-dark-300 mb-1.5">Fuente</label>
-              <Input
-                value={recordForm.fuente}
-                onChange={(e) => setRecordForm((f) => ({ ...f, fuente: e.target.value }))}
-                placeholder="Ej. Referido"
-              />
-            </div>
-          </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm text-dark-300 mb-1.5">Notas</label>
-            <textarea
-              value={recordForm.notas}
-              onChange={(e) => setRecordForm((f) => ({ ...f, notas: e.target.value }))}
-              placeholder="Observaciones adicionales..."
-              rows={3}
-              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:border-gold-400/50 text-sm resize-none"
-            />
+            {/* Derived saldo preview */}
+            {(recordForm.valor_venta || recordForm.cash) && (
+              <div className="flex items-center justify-between bg-dark-800 rounded-xl px-4 py-3">
+                <span className="text-sm text-dark-300">Saldo estimado</span>
+                <span className="text-sm font-semibold text-white">
+                  {formatCurrency(
+                    Math.max(
+                      0,
+                      parseFloat(recordForm.valor_venta || 0) -
+                        parseFloat(recordForm.cash || 0) -
+                        Number(recordModal.record?.total_abonos || 0)
+                    ),
+                    currency
+                  )}
+                </span>
+              </div>
+            )}
           </div>
-
-          {/* Derived saldo preview */}
-          {(recordForm.valor_venta || recordForm.cash) && (
-            <div className="flex items-center justify-between bg-dark-800 rounded-xl px-4 py-3">
-              <span className="text-sm text-dark-300">Saldo estimado</span>
-              <span className="text-sm font-semibold text-white">
-                {formatCurrency(
-                  Math.max(
-                    0,
-                    parseFloat(recordForm.valor_venta || 0) -
-                      parseFloat(recordForm.cash || 0) -
-                      Number(recordModal.record?.total_abonos || 0)
-                  ),
-                  currency
-                )}
-              </span>
-            </div>
-          )}
         </div>
 
         <div className="px-6 pb-6 flex justify-end gap-3">
