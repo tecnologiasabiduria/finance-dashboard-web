@@ -51,17 +51,17 @@ export function StatCard({
   return (
     <div
       className={clsx(
-        'bg-dark-900 border rounded-2xl p-5',
+        'bg-dark-900 border rounded-2xl p-4 sm:p-5',
         'transition-all duration-300 hover:bg-dark-800/70',
         'group',
         variants[variant],
         className
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-3">
-          <p className="text-sm text-dark-300 font-medium uppercase tracking-wide">{title}</p>
-          <p className="text-2xl lg:text-3xl font-bold text-white">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2 sm:space-y-3 min-w-0 flex-1">
+          <p className="text-xs sm:text-sm text-dark-300 font-medium uppercase tracking-wide">{title}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">{value}</p>
           {subtitle && (
             <p className="text-sm text-dark-400">{subtitle}</p>
           )}
@@ -82,11 +82,11 @@ export function StatCard({
         {Icon && (
           <div
             className={clsx(
-              'p-3 rounded-lg transition-transform duration-300 group-hover:scale-110',
+              'p-2 sm:p-3 rounded-lg transition-transform duration-300 group-hover:scale-110 shrink-0',
               iconVariants[variant]
             )}
           >
-            <Icon className="h-6 w-6" />
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         )}
       </div>

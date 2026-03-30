@@ -432,9 +432,9 @@ export default function Dashboard() {
             <Skeleton className="h-8 w-52 mb-2" />
             <Skeleton className="h-4 w-72" />
           </div>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-56 rounded-xl" />
-            <Skeleton className="h-10 w-24 rounded-xl" />
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Skeleton className="h-10 w-48 sm:w-56 rounded-xl" />
+            <Skeleton className="h-10 w-20 sm:w-24 rounded-xl" />
           </div>
         </div>
 
@@ -497,25 +497,25 @@ export default function Dashboard() {
             ¡Hola, {user?.name?.split(' ')[0] || 'Usuario'}! Aquí tienes tu resumen financiero
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div data-tour="month-navigator" className="flex items-center gap-2 bg-dark-900 border border-dark-700 rounded-xl">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div data-tour="month-navigator" className="flex items-center gap-1 sm:gap-2 bg-dark-900 border border-dark-700 rounded-xl">
             <button
               onClick={goToPrevMonth}
-              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
+              className="p-2 sm:p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Calendar className="h-4 w-4 text-gold-400" />
-              <span className="text-sm font-medium text-white min-w-[130px] text-center">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2">
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gold-400" />
+              <span className="text-xs sm:text-sm font-medium text-white min-w-[100px] sm:min-w-[130px] text-center">
                 {MONTH_NAMES[selectedMonth]} {selectedYear}
               </span>
             </div>
             <button
               onClick={goToNextMonth}
-              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors"
+              className="p-2 sm:p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
           <Link to="/transactions/new?type=income">
@@ -1164,7 +1164,7 @@ export default function Dashboard() {
                     <ArrowRight className="h-4 w-4 text-dark-600 group-hover:text-red-400 transition-colors" />
                   </div>
                 </Link>
-                <Link to="/annual-report" className="block">
+                <Link to="/reports" className="block" onClick={() => {/* switches to annual tab via URL */}}>
                   <div className="flex items-center gap-3 p-3 rounded-xl border border-gold-400/10 hover:border-gold-400/30 hover:bg-dark-800/30 transition-all duration-200 group">
                     <div className="p-2 bg-gold-400/10 rounded-lg">
                       <BarChart3 className="h-4 w-4 text-gold-400" />

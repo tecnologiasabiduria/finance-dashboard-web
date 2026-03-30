@@ -427,31 +427,31 @@ export default function Transactions() {
             Gestiona tus ingresos, gastos y transferencias
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Month Navigator */}
-          <div className="flex items-center gap-2 bg-dark-900 border border-dark-700 rounded-xl">
+          <div className="flex items-center gap-1 sm:gap-2 bg-dark-900 border border-dark-700 rounded-xl">
             <button
               onClick={goToPrevMonth}
-              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
+              className="p-2 sm:p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-l-xl transition-colors"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Calendar className="h-4 w-4 text-gold-400" />
-              <span className="text-sm font-medium text-white min-w-[130px] text-center">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2">
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gold-400" />
+              <span className="text-xs sm:text-sm font-medium text-white min-w-[100px] sm:min-w-[130px] text-center">
                 {showAllMonths ? 'Todos los meses' : `${MONTH_NAMES[selectedMonth]} ${selectedYear}`}
               </span>
             </div>
             <button
               onClick={goToNextMonth}
-              className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors"
+              className="p-2 sm:p-2.5 text-dark-400 hover:text-white hover:bg-dark-800 rounded-r-xl transition-colors"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
           <button
             onClick={() => setShowAllMonths(!showAllMonths)}
-            className={`px-4 py-2.5 text-sm font-medium rounded-xl border transition-all ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl border transition-all ${
               showAllMonths
                 ? 'bg-gold-400/20 text-gold-400 border-gold-400/30'
                 : 'bg-dark-900 text-dark-400 border-dark-700 hover:text-white hover:bg-dark-800'
@@ -482,7 +482,8 @@ export default function Transactions() {
           )}
           <Link to={`/transactions/new?type=${newLinkType}${newLinkDate}`}>
             <Button size="sm" icon={Plus}>
-              {TAB_LABELS[activeTab]}
+              <span className="hidden sm:inline">{TAB_LABELS[activeTab]}</span>
+              <span className="sm:hidden">Nuevo</span>
             </Button>
           </Link>
         </div>

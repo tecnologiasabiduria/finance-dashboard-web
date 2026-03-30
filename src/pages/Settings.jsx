@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { User, Mail, Lock, Shield, Palette, Save, Sun, Moon } from 'lucide-react';
+import { User, Mail, Lock, Shield, Palette, Save, Sun, Moon, Tag } from 'lucide-react';
 import { Button, Input, Card, Select } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
+import Categories from './Categories';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -88,6 +89,7 @@ export default function Settings() {
     { id: 'profile', label: 'Perfil', icon: User },
     { id: 'security', label: 'Seguridad', icon: Shield },
     { id: 'appearance', label: 'Apariencia', icon: Palette },
+    { id: 'categories', label: 'Categorías', icon: Tag },
   ];
 
   return (
@@ -362,6 +364,13 @@ export default function Settings() {
                 </div>
               </div>
             </Card>
+          )}
+
+          {/* Categories Tab */}
+          {activeTab === 'categories' && (
+            <div className="lg:col-span-3">
+              <Categories />
+            </div>
           )}
         </div>
       </div>

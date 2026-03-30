@@ -475,21 +475,22 @@ export default function Cartera() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Cartera</h1>
-          <p className="text-dark-400 text-sm mt-1">Cuentas por cobrar — gestion de pagos y saldos pendientes</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">Cartera</h1>
+          <p className="text-dark-400 text-sm mt-1">Cuentas por cobrar — gestión de pagos y saldos pendientes</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {filtered.length > 0 && (
-            <Button onClick={exportCarteraExcel} variant="secondary" className="flex items-center gap-2 shrink-0">
+            <Button onClick={exportCarteraExcel} variant="secondary" size="sm" className="flex items-center gap-2">
               <Download className="h-4 w-4" />
-              Excel
+              <span className="hidden sm:inline">Excel</span>
             </Button>
           )}
-          <Button onClick={openNewRecord} className="flex items-center gap-2 shrink-0">
+          <Button onClick={openNewRecord} size="sm" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            Nuevo Registro
+            <span className="hidden sm:inline">Nuevo Registro</span>
+            <span className="sm:hidden">Nuevo</span>
           </Button>
         </div>
       </div>
@@ -503,7 +504,7 @@ export default function Cartera() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Cartera"
           value={formatCurrency(stats.totalCartera, currency)}
@@ -531,8 +532,8 @@ export default function Cartera() {
       </div>
 
       {/* Search + Date filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-400" />
           <input
             type="text"
@@ -542,10 +543,10 @@ export default function Cartera() {
               setSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:border-gold-400/50 text-sm"
+            className="w-full bg-dark-900 border border-dark-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-dark-400 focus:outline-none focus:border-gold-400/50 text-sm"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <input
             type="date"
             value={dateFrom}
@@ -553,7 +554,7 @@ export default function Cartera() {
               setDateFrom(e.target.value);
               setCurrentPage(1);
             }}
-            className="bg-dark-900 border border-dark-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-gold-400/50"
+            className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gold-400/50"
             placeholder="Desde"
           />
           <input
@@ -563,7 +564,7 @@ export default function Cartera() {
               setDateTo(e.target.value);
               setCurrentPage(1);
             }}
-            className="bg-dark-900 border border-dark-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-gold-400/50"
+            className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gold-400/50"
             placeholder="Hasta"
           />
         </div>
@@ -593,12 +594,12 @@ export default function Cartera() {
             return (
               <Card key={record.id} className="p-0 overflow-hidden">
                 {/* Record header row */}
-                <div className="p-4 sm:p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    {/* Left: client info */}
+                <div className="p-4">
+                  <div className="flex flex-col gap-3">
+                    {/* Top row: client info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-white truncate">{record.nombre}</span>
+                        <span className="font-semibold text-white text-base sm:text-lg">{record.nombre}</span>
                         {record.producto && (
                           <span className="text-xs bg-gold-400/10 text-gold-300 px-2 py-0.5 rounded-full border border-gold-400/20 shrink-0">
                             {record.producto}
@@ -619,21 +620,21 @@ export default function Cartera() {
                       </div>
                     </div>
 
-                    {/* Right: amounts + actions */}
-                    <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-                      <div className="text-right hidden sm:block">
+                    {/* Amounts row - mobile friendly grid */}
+                    <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:justify-between">
+                      <div className="text-center sm:text-right">
                         <p className="text-xs text-dark-400">Venta</p>
                         <p className="text-sm font-medium text-white">
                           {formatCurrency(Number(record.valor_venta || 0), currency)}
                         </p>
                       </div>
-                      <div className="text-right hidden sm:block">
+                      <div className="text-center sm:text-right">
                         <p className="text-xs text-dark-400">Cash</p>
                         <p className="text-sm font-medium text-emerald-400">
                           {formatCurrency(Number(record.cash || 0), currency)}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-center sm:text-right">
                         <p className="text-xs text-dark-400">Saldo</p>
                         <p
                           className={`text-sm font-semibold ${
@@ -643,73 +644,76 @@ export default function Cartera() {
                           {formatCurrency(saldo, currency)}
                         </p>
                       </div>
+                    </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => openEditRecord(record)}
-                          className="p-2 text-dark-400 hover:text-gold-300 hover:bg-dark-800 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteModal({ open: true, record })}
-                          className="p-2 text-dark-400 hover:text-red-400 hover:bg-dark-800 rounded-lg transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleExpand(record.id)}
-                          className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
-                          title={isExpanded ? 'Colapsar' : 'Ver abonos'}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </button>
+                    {/* Progress bar */}
+                    <div>
+                      <div className="flex justify-between text-xs text-dark-400 mb-1.5">
+                        <span>Progreso de cobro</span>
+                        <span className="font-medium">{pct.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-gold-500 to-gold-300 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
-                  </div>
 
-                  {/* Progress bar */}
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs text-dark-400 mb-1">
-                      <span>Progreso de cobro</span>
-                      <span>{pct.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-gold-500 to-gold-300 rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%` }}
-                      />
+                    {/* Actions row */}
+                    <div className="flex items-center justify-end gap-1 pt-1">
+                      <button
+                        onClick={() => openEditRecord(record)}
+                        className="p-2 text-dark-400 hover:text-gold-300 hover:bg-dark-800 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteModal({ open: true, record })}
+                        className="p-2 text-dark-400 hover:text-red-400 hover:bg-dark-800 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleExpand(record.id)}
+                        className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+                        title={isExpanded ? 'Colapsar' : 'Ver abonos'}
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
 
                 {/* Expanded: Pagos section */}
                 {isExpanded && (
-                  <div className="border-t border-dark-800 bg-dark-950/50 p-4 sm:p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="border-t border-dark-800 bg-dark-950/50 p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                       <h4 className="text-sm font-medium text-dark-300">Abonos registrados</h4>
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
                           to={`/transactions/new?type=income&carteraId=${record.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-gold-400/35 bg-dark-900 px-3 py-1.5 text-xs font-medium text-gold-300 hover:bg-gold-400/10 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gold-400/35 bg-dark-900 px-3 py-2 text-xs font-medium text-gold-300 hover:bg-gold-400/10 transition-colors"
                         >
-                          <ArrowUpRight className="h-3 w-3" />
-                          Registrar ingreso
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Registrar ingreso</span>
+                          <span className="sm:hidden">Ingreso</span>
                         </Link>
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => openAddPago(record.id)}
-                          className="flex items-center gap-1 text-xs"
+                          className="flex items-center gap-1.5 text-xs"
                         >
-                          <Plus className="h-3 w-3" />
-                          Agregar abono
+                          <Plus className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Agregar abono</span>
+                          <span className="sm:hidden">Abono</span>
                         </Button>
                       </div>
                     </div>
@@ -727,11 +731,11 @@ export default function Cartera() {
                         {pagos.map((pago) => (
                           <div
                             key={pago.id}
-                            className="flex items-center justify-between bg-dark-900 rounded-lg px-3 py-2"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-dark-900 rounded-lg px-3 py-2.5"
                           >
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-dark-400">{formatDate(pago.fecha)}</span>
-                              <span className="text-sm font-medium text-emerald-400">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+                              <span className="text-xs text-dark-400 shrink-0">{formatDate(pago.fecha)}</span>
+                              <span className="text-sm font-medium text-emerald-400 shrink-0">
                                 +{formatCurrency(Number(pago.monto || 0), currency)}
                               </span>
                               {pago.transaction_id && (
@@ -740,12 +744,12 @@ export default function Cartera() {
                                 </span>
                               )}
                               {pago.notas && (
-                                <span className="text-xs text-dark-500 truncate max-w-[160px]">
+                                <span className="text-xs text-dark-500 truncate max-w-[200px]">
                                   {pago.notas}
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 justify-end sm:justify-start">
                               <button
                                 onClick={() => openEditPago(record.id, pago)}
                                 className="p-1.5 text-dark-500 hover:text-gold-300 hover:bg-dark-800 rounded transition-colors"

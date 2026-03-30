@@ -2,63 +2,39 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  LayoutDashboard,
   ArrowLeftRight,
-  PlusCircle,
   Settings,
   ChevronLeft,
   ChevronRight,
-  Target,
-  Tag,
   BarChart3,
   Wallet,
   X,
-  Upload,
   BookOpen,
+  Target,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useSettings } from '../../context/SettingsContext';
 
 const navigation = [
   {
-    name: 'Categorías',
-    href: '/categories',
-    icon: Tag,
-  },
-  {
-    name: 'Nuevo Registro',
-    href: '/transactions/new',
-    icon: PlusCircle,
-  },
-  {
-    name: 'Importar CSV',
-    href: '/transactions/import',
-    icon: Upload,
-  },
-  {
     name: 'Transacciones',
     href: '/transactions',
     icon: ArrowLeftRight,
   },
   {
-    name: 'Informe Mensual',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    name: 'Informe Anual',
-    href: '/annual-report',
+    name: 'Informes',
+    href: '/reports',
     icon: BarChart3,
-  },
-  {
-    name: 'Metas',
-    href: '/goals',
-    icon: Wallet,
   },
   {
     name: 'Cartera',
     href: '/cartera',
     icon: BookOpen,
+  },
+  {
+    name: 'Metas',
+    href: '/goals',
+    icon: Target,
   },
   {
     name: 'Configuración',

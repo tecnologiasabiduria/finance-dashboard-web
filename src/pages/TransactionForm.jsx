@@ -812,7 +812,7 @@ export default function TransactionForm() {
                 <div className="space-y-2 order-1">
                   <div className="flex items-center justify-between">
                     <label className="block text-sm font-medium text-dark-200">Categoría *</label>
-                    <Link to="/categories" className="text-xs text-gold-400 hover:text-gold-300 flex items-center gap-1">
+                    <Link to="/settings" className="text-xs text-gold-400 hover:text-gold-300 flex items-center gap-1">
                       <Plus className="h-3 w-3" />Gestionar
                     </Link>
                   </div>

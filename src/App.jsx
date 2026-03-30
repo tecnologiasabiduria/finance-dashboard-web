@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import Goals from './pages/Goals';
 import Categories from './pages/Categories';
 import AnnualReport from './pages/AnnualReport';
+import Reports from './pages/Reports';
 import ImportTransactions from './pages/ImportTransactions';
 import Cartera from './pages/Cartera';
 
@@ -66,21 +67,23 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/transactions/new" element={<TransactionForm />} />
             <Route path="/transactions/import" element={<ImportTransactions />} />
             <Route path="/transactions/:id" element={<TransactionForm />} />
-            <Route path="/annual-report" element={<AnnualReport />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/cartera" element={<Cartera />} />
+            {/* Redirects for old routes */}
+            <Route path="/dashboard" element={<Navigate to="/reports" replace />} />
+            <Route path="/annual-report" element={<Navigate to="/reports" replace />} />
           </Route>
 
           {/* Redirects */}
           <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/reports" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
