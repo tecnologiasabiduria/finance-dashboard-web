@@ -71,7 +71,7 @@ function getTransactionDetail(t) {
 }
 
 export default function Transactions() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { currency } = useSettings();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
