@@ -362,7 +362,9 @@ export default function Goals() {
             <p className="text-sm mt-1">Haz clic en "Agregar" para crear un bolsillo</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desktop Table */}
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-dark-800/30">
@@ -441,6 +443,88 @@ export default function Goals() {
               </tfoot>
             </table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="block md:hidden space-y-3">
+            {(editingPockets ? pocketDraft : pockets).map((pocket, idx) => {
+              const budgetMonth = monthlyEstimate * (pocket.percentage || 0) / 100;
+              const budgetAnnual = budgetMonth * 12;
+              return (
+                <Card key={pocket.id || idx} className="p-4">
+                  {editingPockets ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-dark-400 mb-1">Nombre</label>
+                        <input
+                          value={pocketDraft[idx]?.name || ''}
+                          onChange={(e) => {
+                            const draft = [...pocketDraft];
+                            draft[idx] = { ...draft[idx], name: e.target.value };
+                            setPocketDraft(draft);
+                          }}
+                          className="w-full bg-dark-800 border border-dark-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-400/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-dark-400 mb-1">Porcentaje</label>
+                        <input
+                          type="number"
+                          value={pocketDraft[idx]?.percentage || ''}
+                          onChange={(e) => {
+                            const draft = [...pocketDraft];
+                            draft[idx] = { ...draft[idx], percentage: parseFloat(e.target.value) || 0 };
+                            setPocketDraft(draft);
+                          }}
+                          className="w-full bg-dark-800 border border-dark-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-400/50"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-white">{pocket.name}</h4>
+                        <button
+                          onClick={() => setDeleteModal({ open: true, pocket })}
+                          className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-dark-400">Porcentaje</p>
+                          <p className="text-lg font-bold text-gold-400">{pocket.percentage}%</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-dark-400">Presup. Mensual</p>
+                          <p className="text-sm font-medium text-white">{formatCurrency(budgetMonth)}</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-dark-800">
+                        <p className="text-xs text-dark-400">Presupuesto Anual</p>
+                        <p className="text-sm text-dark-300">{formatCurrency(budgetAnnual)}</p>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              );
+            })}
+
+            {/* Total Mobile */}
+            <Card className="p-4 bg-dark-800/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-dark-400">Total</p>
+                  <p className="text-lg font-bold text-gold-400">{totalPercentage}%</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-dark-400">Presup. Mensual</p>
+                  <p className="text-lg font-bold text-white">{formatCurrency(monthlyEstimate)}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+          </>
         )}
       </Card>
 

@@ -183,20 +183,13 @@ export default function Transactions() {
     if (dateFrom) filtered = filtered.filter((t) => t.date >= dateFrom);
     if (dateTo) filtered = filtered.filter((t) => t.date <= dateTo);
 
-    if (activeTab === 'all') {
-      // Oldest first so running balance reads naturally top→bottom
-      filtered.sort((a, b) => {
-        const dateDiff = new Date(a.date) - new Date(b.date);
-        if (dateDiff !== 0) return dateDiff;
-        return new Date(a.created_at) - new Date(b.created_at);
-      });
-    } else {
-      filtered.sort((a, b) => {
-        const dateDiff = new Date(b.date) - new Date(a.date);
-        if (dateDiff !== 0) return dateDiff;
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-    }
+    // Siempre ordenar de más reciente a más antiguo (descendente)
+    filtered.sort((a, b) => {
+      const dateDiff = new Date(b.date) - new Date(a.date);
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+    
     setFilteredTransactions(filtered);
     setCurrentPage(1);
   }, [transactions, activeTab, searchTerm, dateFrom, dateTo]);
@@ -620,8 +613,8 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Table */}
-      <Card className="overflow-hidden">
+      {/* Table - Desktop */}
+      <Card className="overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -852,7 +845,7 @@ export default function Transactions() {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - Desktop */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-dark-800">
             <p className="text-sm text-dark-400">
@@ -902,6 +895,215 @@ export default function Transactions() {
           </div>
         )}
       </Card>
+
+      {/* Mobile Cards View */}
+      <div className="block md:hidden space-y-3">
+        {paginatedTransactions.length === 0 ? (
+          <Card className="p-8 text-center text-dark-400">
+            No se encontraron {EMPTY_LABELS[activeTab]}
+          </Card>
+        ) : (
+          <>
+            {paginatedTransactions.map((t) => {
+              const catInfo = categoryMap[t.category];
+              const Icon = catInfo ? getCategoryIcon(catInfo.icon) : Tag;
+              const color = catInfo?.color || (t.type === 'income' ? '#F59E0B' : '#6B7280');
+
+              return (
+                <Card key={t.id} className="p-4">
+                  {/* Header: Date & Type Badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-dark-400">{formatDate(t.date, 'medium')}</span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium ${
+                        t.type === 'income'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : t.type === 'expense'
+                          ? 'bg-red-500/20 text-red-400'
+                          : 'bg-white/10 text-white'
+                      }`}
+                    >
+                      {t.type === 'income' && <ArrowUpRight className="h-3 w-3" />}
+                      {t.type === 'expense' && <ArrowDownRight className="h-3 w-3" />}
+                      {t.type === 'transfer' && <ArrowLeftRight className="h-3 w-3" />}
+                      {t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : 'Transferencia'}
+                    </span>
+                  </div>
+
+                  {/* Main Info */}
+                  {t.type === 'income' && (
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white truncate">{t.client_name || '—'}</p>
+                          {t.invoice_number && (
+                            <p className="text-xs text-dark-400">Factura: {t.invoice_number}</p>
+                          )}
+                          {t.client_document && (
+                            <p className="text-xs text-dark-400">{t.client_document}</p>
+                          )}
+                        </div>
+                        <div className="text-right ml-3">
+                          <p className="text-lg font-bold text-emerald-400">{formatCurrency(t.amount, currency)}</p>
+                          {t.invoice_status && (
+                            <span
+                              className={`inline-flex px-2 py-0.5 text-[10px] rounded mt-1 ${
+                                t.invoice_status === 'FACTURADO'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : 'bg-amber-500/20 text-amber-400'
+                              }`}
+                            >
+                              {t.invoice_status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {t.category && (
+                        <div
+                          className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg"
+                          style={{ backgroundColor: `${color}20`, color }}
+                        >
+                          <Icon className="h-3 w-3" />
+                          {t.category}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {t.type === 'expense' && (
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white truncate">{t.provider_name || '—'}</p>
+                          {t.provider_document && (
+                            <p className="text-xs text-dark-400">{t.provider_document}</p>
+                          )}
+                          {t.payment_method && (
+                            <p className="text-xs text-dark-400">{t.payment_method}</p>
+                          )}
+                          {t.description && (
+                            <p className="text-xs text-dark-500 mt-1 line-clamp-2">{t.description}</p>
+                          )}
+                        </div>
+                        <p className="text-lg font-bold text-red-400 ml-3">{formatCurrency(t.amount, currency)}</p>
+                      </div>
+                      {t.category && (
+                        <div
+                          className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg"
+                          style={{ backgroundColor: `${color}20`, color }}
+                        >
+                          <Icon className="h-3 w-3" />
+                          {t.category}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {t.type === 'transfer' && (
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-dark-400">De: <span className="text-white">{t.source_account || '—'}</span></p>
+                          <p className="text-sm text-dark-400">A: <span className="text-white">{t.destination_account || '—'}</span></p>
+                          {t.description && (
+                            <p className="text-xs text-dark-500 mt-1 line-clamp-2">{t.description}</p>
+                          )}
+                        </div>
+                        <p className="text-lg font-bold text-white ml-3">{formatCurrency(t.amount, currency)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'all' && (
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-white truncate">{getTransactionDetail(t)}</p>
+                        {t.category && (
+                          <div
+                            className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg mt-1"
+                            style={{ backgroundColor: `${color}20`, color }}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {t.category}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right ml-3">
+                        <p
+                          className={`text-lg font-bold ${
+                            t.type === 'income' ? 'text-emerald-400' : t.type === 'expense' ? 'text-red-400' : 'text-white'
+                          }`}
+                        >
+                          {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}
+                          {formatCurrency(t.amount, currency)}
+                        </p>
+                        <p className="text-xs text-dark-400 mt-0.5">
+                          Saldo:{' '}
+                          <span
+                            className={`font-medium ${
+                              (runningBalanceMap[t.id] ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            }`}
+                          >
+                            {formatCurrency(runningBalanceMap[t.id] ?? 0, currency)}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-1 pt-3 mt-3 border-t border-dark-800">
+                    <button
+                      onClick={() => handleDuplicate(t)}
+                      className="p-2 text-dark-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                      title="Duplicar"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <Link
+                      to={`/transactions/${t.id}`}
+                      className="p-2 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors"
+                      title="Editar"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Link>
+                    <button
+                      onClick={() => setDeleteModal({ open: true, transaction: t })}
+                      className="p-2 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </Card>
+              );
+            })}
+
+            {/* Pagination - Mobile */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="text-sm text-dark-400">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Delete Modal */}
       <ConfirmModal

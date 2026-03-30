@@ -291,8 +291,8 @@ export default function AnnualReport() {
         </div>
       </Card>
 
-      {/* INGRESOS Grid: Type × Month */}
-      <Card className="overflow-hidden">
+      {/* INGRESOS Grid: Type × Month - Desktop */}
+      <Card className="overflow-hidden hidden md:block">
         <div className="p-4 border-b border-dark-800 flex items-center gap-3">
           <div className="p-2 bg-emerald-500/10 rounded-lg">
             <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -358,8 +358,69 @@ export default function AnnualReport() {
         </div>
       </Card>
 
-      {/* GASTOS Grid: Category × Month */}
-      <Card className="overflow-hidden">
+      {/* INGRESOS - Mobile View */}
+      <div className="block md:hidden">
+        <Card className="overflow-hidden">
+          <div className="p-4 border-b border-dark-800 flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white">
+              INGRESOS {selectedYear}
+            </h3>
+          </div>
+          <div className="p-4">
+            {incomeTypes.length === 0 ? (
+              <p className="text-center py-8 text-dark-400">Sin ingresos registrados</p>
+            ) : (
+              <div className="space-y-4">
+                {incomeTypes.map((type) => (
+                  <div key={type} className="bg-dark-800/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: INCOME_TYPE_COLORS[type] || '#da7d41' }}
+                      />
+                      <h4 className="font-medium text-white">{type}</h4>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {MONTH_NAMES.map((month, i) => {
+                        const val = incomeGrid[type]?.[i] || 0;
+                        if (val === 0) return null;
+                        return (
+                          <div key={i} className="text-center">
+                            <p className="text-xs text-dark-500">{month.substring(0, 3)}</p>
+                            <p className="text-xs text-emerald-400 font-medium">
+                              {formatCurrency(val, currency)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-dark-700 flex justify-between">
+                      <span className="text-xs text-dark-400">Total</span>
+                      <span className="text-sm font-bold text-emerald-400">
+                        {formatCurrency(getRowTotal(incomeGrid, type), currency)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="bg-dark-900 rounded-lg p-3 border border-emerald-500/20">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-white">TOTAL ANUAL</span>
+                    <span className="text-lg font-bold text-emerald-400">
+                      {formatCurrency(grandIncomeTotal, currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* GASTOS Grid: Category × Month - Desktop */}
+      <Card className="overflow-hidden hidden md:block">
         <div className="p-4 border-b border-dark-800 flex items-center gap-3">
           <div className="p-2 bg-red-500/10 rounded-lg">
             <TrendingDown className="h-4 w-4 text-red-400" />
@@ -428,8 +489,73 @@ export default function AnnualReport() {
         </div>
       </Card>
 
-      {/* Result Row (Income - Expenses per month) */}
-      <Card className="overflow-hidden">
+      {/* GASTOS - Mobile View */}
+      <div className="block md:hidden">
+        <Card className="overflow-hidden">
+          <div className="p-4 border-b border-dark-800 flex items-center gap-3">
+            <div className="p-2 bg-red-500/10 rounded-lg">
+              <TrendingDown className="h-4 w-4 text-red-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white">
+              GASTOS {selectedYear}
+            </h3>
+          </div>
+          <div className="p-4">
+            {expenseCategories.length === 0 ? (
+              <p className="text-center py-8 text-dark-400">Sin gastos registrados</p>
+            ) : (
+              <div className="space-y-4">
+                {expenseCategories.map((cat, catIdx) => (
+                  <div key={cat} className="bg-dark-800/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor:
+                            categoryColors[cat] ||
+                            EXPENSE_CATEGORY_COLORS[catIdx % EXPENSE_CATEGORY_COLORS.length],
+                        }}
+                      />
+                      <h4 className="font-medium text-white">{cat}</h4>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {MONTH_NAMES.map((month, i) => {
+                        const val = expenseGrid[cat]?.[i] || 0;
+                        if (val === 0) return null;
+                        return (
+                          <div key={i} className="text-center">
+                            <p className="text-xs text-dark-500">{month.substring(0, 3)}</p>
+                            <p className="text-xs text-red-400 font-medium">
+                              {formatCurrency(val, currency)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-dark-700 flex justify-between">
+                      <span className="text-xs text-dark-400">Total</span>
+                      <span className="text-sm font-bold text-red-400">
+                        {formatCurrency(getRowTotal(expenseGrid, cat), currency)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="bg-dark-900 rounded-lg p-3 border border-red-500/20">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-white">TOTAL ANUAL</span>
+                    <span className="text-lg font-bold text-red-400">
+                      {formatCurrency(grandExpenseTotal, currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Result Row (Income - Expenses per month) - Desktop */}
+      <Card className="overflow-hidden hidden md:block">
         <div className="p-4 border-b border-dark-800 flex items-center gap-3">
           <div className="p-2 bg-gold-400/10 rounded-lg">
             <BarChart3 className="h-4 w-4 text-gold-400" />
@@ -488,6 +614,88 @@ export default function AnnualReport() {
           </table>
         </div>
       </Card>
+
+      {/* RESULTADO MENSUAL - Mobile View */}
+      <div className="block md:hidden">
+        <Card className="overflow-hidden">
+          <div className="p-4 border-b border-dark-800 flex items-center gap-3">
+            <div className="p-2 bg-gold-400/10 rounded-lg">
+              <BarChart3 className="h-4 w-4 text-gold-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white">
+              RESULTADO MENSUAL {selectedYear}
+            </h3>
+          </div>
+          <div className="p-4">
+            <div className="space-y-3">
+              {MONTH_NAMES.map((month, i) => {
+                const income = monthlyIncomeTotals[i];
+                const expense = monthlyExpenseTotals[i];
+                const result = income - expense;
+                if (income === 0 && expense === 0) return null;
+
+                return (
+                  <div key={i} className="bg-dark-800/30 rounded-lg p-3">
+                    <p className="text-sm font-medium text-white mb-2">{month}</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-dark-400">Ingresos</span>
+                        <span className="text-emerald-400 font-medium">
+                          {formatCurrency(income, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-dark-400">Gastos</span>
+                        <span className="text-red-400 font-medium">
+                          {formatCurrency(expense, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1.5 border-t border-dark-700">
+                        <span className="text-xs font-semibold text-white">Resultado</span>
+                        <span
+                          className={`text-sm font-bold ${
+                            result >= 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}
+                        >
+                          {formatCurrency(result, currency)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Total anual */}
+              <div className="bg-dark-900 rounded-lg p-4 border border-gold-400/20">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-dark-400">Total Ingresos</span>
+                    <span className="text-sm font-semibold text-emerald-400">
+                      {formatCurrency(totalIncome, currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-dark-400">Total Gastos</span>
+                    <span className="text-sm font-semibold text-red-400">
+                      {formatCurrency(totalExpense, currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-dark-700">
+                    <span className="font-bold text-white">RESULTADO ANUAL</span>
+                    <span
+                      className={`text-lg font-bold ${
+                        totalIncome - totalExpense >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      }`}
+                    >
+                      {formatCurrency(totalIncome - totalExpense, currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

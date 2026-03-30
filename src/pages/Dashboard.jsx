@@ -787,8 +787,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Detail Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Detail Tables - Desktop */}
+      <div className="hidden md:grid md:grid-cols-2 gap-6">
         {/* Income Detail Table */}
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-dark-800">
@@ -934,6 +934,150 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+      </div>
+
+      {/* Detail Cards - Mobile */}
+      <div className="block md:hidden space-y-6">
+        {/* Income Detail - Mobile */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+              Detalle Ingresos ({incomes.length})
+            </h3>
+            <Link to="/transactions" className="text-xs text-gold-400 hover:text-gold-300">
+              Ver todos →
+            </Link>
+          </div>
+          {incomes.length === 0 ? (
+            <Card className="p-8 text-center text-dark-400 text-sm">
+              Sin ingresos registrados
+            </Card>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {[...incomes]
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map((t) => {
+                  const catInfo = categoryIconMap[t.category];
+                  const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
+                  const color = catInfo?.color || '#F59E0B';
+                  return (
+                    <Card key={t.id} className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-dark-400">{formatDate(t.date, 'short')}</span>
+                            {t.invoice_number && (
+                              <span className="text-xs text-dark-500">#{t.invoice_number}</span>
+                            )}
+                          </div>
+                          <p className="font-medium text-white text-sm truncate">{t.client_name || '—'}</p>
+                          {t.category && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded mt-1"
+                              style={{ backgroundColor: `${color}20`, color }}
+                            >
+                              {Icon && <Icon className="h-2.5 w-2.5" />}
+                              {t.category}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-emerald-400 font-semibold text-sm">
+                            {formatCurrency(t.amount, currency)}
+                          </p>
+                          {t.invoice_status && (
+                            <span
+                              className={`inline-flex px-1.5 py-0.5 text-[9px] rounded mt-1 ${
+                                t.invoice_status === 'FACTURADO'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : 'bg-amber-500/20 text-amber-400'
+                              }`}
+                            >
+                              {t.invoice_status === 'FACTURADO' ? 'FAC' : 'NO FAC'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+            </div>
+          )}
+          {incomes.length > 0 && (
+            <Card className="p-3 mt-2 bg-dark-900/50">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-dark-400">Total Ingresos</span>
+                <span className="text-sm font-bold text-emerald-400">
+                  {formatCurrency(totalIncome, currency)}
+                </span>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Expense Detail - Mobile */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+              Detalle Gastos ({expenses.length})
+            </h3>
+            <Link to="/transactions" className="text-xs text-gold-400 hover:text-gold-300">
+              Ver todos →
+            </Link>
+          </div>
+          {expenses.length === 0 ? (
+            <Card className="p-8 text-center text-dark-400 text-sm">
+              Sin gastos registrados
+            </Card>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {[...expenses]
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map((t) => {
+                  const catInfo = categoryIconMap[t.category];
+                  const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
+                  const color = catInfo?.color || '#6B7280';
+                  return (
+                    <Card key={t.id} className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-dark-400">{formatDate(t.date, 'short')}</span>
+                            {t.payment_method && (
+                              <span className="text-xs text-dark-500">{t.payment_method}</span>
+                            )}
+                          </div>
+                          <p className="font-medium text-white text-sm truncate">{t.provider_name || '—'}</p>
+                          {t.category && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded mt-1"
+                              style={{ backgroundColor: `${color}20`, color }}
+                            >
+                              {Icon && <Icon className="h-2.5 w-2.5" />}
+                              {t.category}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-red-400 font-semibold text-sm">
+                          {formatCurrency(t.amount, currency)}
+                        </p>
+                      </div>
+                    </Card>
+                  );
+                })}
+            </div>
+          )}
+          {expenses.length > 0 && (
+            <Card className="p-3 mt-2 bg-dark-900/50">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-dark-400">Total Gastos</span>
+                <span className="text-sm font-bold text-red-400">
+                  {formatCurrency(totalExpense, currency)}
+                </span>
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* ============================================================ */}

@@ -86,7 +86,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
 
       {/* Navigation */}
       <nav data-tour="sidebar-nav" className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
-        {navigation.map((item) => {
+        {navigation.map((item, index) => {
           const isActive = location.pathname === item.href ||
                           location.pathname.startsWith(item.href.split('?')[0]);
           const Icon = item.icon;
@@ -97,6 +97,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
               key={item.name}
               to={item.href}
               onClick={() => onNavigate?.()}
+              data-menu-item
+              style={mobile ? { opacity: 0 } : undefined}
               {...(tourId && { 'data-tour': tourId })}
               className={clsx(
                 'flex items-center gap-3 px-4 py-3 rounded-xl',
