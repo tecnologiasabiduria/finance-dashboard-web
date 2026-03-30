@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -10,6 +10,7 @@ import {
   ArrowDownRight,
   Download,
   BarChart3,
+  Printer,
 } from 'lucide-react';
 import {
   BarChart,
@@ -21,11 +22,14 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Card, Button, Spinner } from '../components/ui';
+import { Card, Button, Spinner, Modal } from '../components/ui';
 import { useSettings } from '../context/SettingsContext';
+import { useAuth } from '../context/AuthContext';
 import { formatCurrency, parseLocalDate } from '../utils/formatters';
 import { api } from '../services/api';
 import { getCachedCategories } from '../services/cache';
+import { PrintReportAnnual } from '../components/PrintReport';
+import { printReport } from '../utils/printReport';
 
 const MONTH_NAMES_SHORT = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
@@ -50,10 +54,13 @@ const EXPENSE_CATEGORY_COLORS = [
 
 export default function AnnualReport() {
   const { currency, theme } = useSettings();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [transactions, setTransactions] = useState([]);
   const [categoryColors, setCategoryColors] = useState({});
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const printRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -183,6 +190,55 @@ export default function AnnualReport() {
     (sum, row) => sum + row.reduce((s, v) => s + v, 0), 0
   );
 
+  // Prepare data for print report
+  const printReportData = useMemo(() => {
+    const monthlyData = MONTH_NAMES.map((_, i) => {
+      const income = monthlyIncomeTotals[i];
+      const expense = monthlyExpenseTotals[i];
+      const profit = income - expense;
+      return {
+        income,
+        expense,
+        profit,
+        margin: income > 0 ? (profit / income) * 100 : 0,
+      };
+    });
+
+    const profit = totalIncome - totalExpense;
+    const totals = {
+      income: totalIncome,
+      expense: totalExpense,
+      profit,
+      margin: totalIncome > 0 ? (profit / totalIncome) * 100 : 0,
+    };
+
+    const categoryTotals = {
+      income: incomeTypes.map((type) => ({
+        name: type,
+        total: getRowTotal(incomeGrid, type),
+        percentage: grandIncomeTotal > 0 ? (getRowTotal(incomeGrid, type) / grandIncomeTotal) * 100 : 0,
+      })),
+      expense: expenseCategories.map((cat) => ({
+        name: cat,
+        total: getRowTotal(expenseGrid, cat),
+        percentage: grandExpenseTotal > 0 ? (getRowTotal(expenseGrid, cat) / grandExpenseTotal) * 100 : 0,
+      })),
+    };
+
+    return { monthlyData, totals, categoryTotals };
+  }, [monthlyIncomeTotals, monthlyExpenseTotals, totalIncome, totalExpense, incomeTypes, expenseCategories, incomeGrid, expenseGrid, grandIncomeTotal, grandExpenseTotal]);
+
+  const handlePrintReport = () => {
+    setShowPrintPreview(true);
+  };
+
+  const executePrint = () => {
+    if (printRef.current) {
+      const content = printRef.current.innerHTML;
+      printReport(content, `Informe Anual - ${selectedYear}`);
+    }
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -236,8 +292,15 @@ export default function AnnualReport() {
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <Button variant="secondary" size="sm" icon={Download}>
-            Exportar
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            icon={Printer}
+            onClick={handlePrintReport}
+            className="print:hidden"
+          >
+            <span className="hidden sm:inline">Exportar PDF</span>
+            <span className="sm:hidden">PDF</span>
           </Button>
         </div>
       </div>
@@ -696,6 +759,32 @@ export default function AnnualReport() {
           </div>
         </Card>
       </div>
+
+      {/* Print Preview Modal */}
+      <Modal
+        isOpen={showPrintPreview}
+        onClose={() => setShowPrintPreview(false)}
+        title="Vista Previa del Informe Anual"
+        size="xl"
+      >
+        <div className="max-h-[70vh] overflow-auto bg-white rounded-lg">
+          <PrintReportAnnual
+            ref={printRef}
+            data={printReportData}
+            year={selectedYear}
+            currency={currency}
+            userName={user?.name || user?.email || ''}
+          />
+        </div>
+        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-dark-700">
+          <Button variant="secondary" onClick={() => setShowPrintPreview(false)}>
+            Cerrar
+          </Button>
+          <Button icon={Printer} onClick={executePrint}>
+            Imprimir / Guardar PDF
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

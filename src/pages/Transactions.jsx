@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus,
@@ -23,13 +23,15 @@ import {
   Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Button, Card, ConfirmModal, Spinner, DatePicker } from '../components/ui';
+import { Button, Card, ConfirmModal, Spinner, DatePicker, Modal } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 import { getCachedCategories, invalidateDashboardCache, invalidateCarteraCache } from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
+import { PrintTransactions } from '../components/PrintReport';
+import { printReport } from '../utils/printReport';
 
 const TAB_LABELS = {
   income: 'Nuevo Ingreso',
@@ -82,6 +84,10 @@ export default function Transactions() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [showAllMonths, setShowAllMonths] = useState(false);
+
+  // Print preview
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const printRef = useRef(null);
 
   const goToPrevMonth = () => {
     setShowAllMonths(false);
@@ -330,8 +336,29 @@ export default function Transactions() {
 
   // Print current view
   const handlePrint = () => {
-    window.print();
+    setShowPrintPreview(true);
   };
+
+  const executePrint = () => {
+    if (printRef.current) {
+      const content = printRef.current.innerHTML;
+      printReport(content, `Transacciones - ${printPeriod}`);
+    }
+  };
+
+  // Prepare print data
+  const printSummary = useMemo(() => ({
+    totalIncome: incomeTotal,
+    totalExpense: expenseTotal,
+    balance: incomeTotal - expenseTotal,
+  }), [incomeTotal, expenseTotal]);
+
+  const printPeriod = useMemo(() => {
+    if (showAllMonths) {
+      return `Todas las transacciones`;
+    }
+    return `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+  }, [showAllMonths, selectedMonth, selectedYear]);
 
   // Skeleton pulse helper
   const Skeleton = ({ className }) => (
@@ -1115,6 +1142,33 @@ export default function Transactions() {
         confirmText="Eliminar"
         loading={deleting}
       />
+
+      {/* Print Preview Modal */}
+      <Modal
+        isOpen={showPrintPreview}
+        onClose={() => setShowPrintPreview(false)}
+        title="Vista Previa del Reporte"
+        size="xl"
+      >
+        <div className="max-h-[70vh] overflow-auto bg-white rounded-lg">
+          <PrintTransactions
+            ref={printRef}
+            transactions={filteredTransactions}
+            summary={printSummary}
+            period={printPeriod}
+            currency={currency}
+            userName={user?.name || user?.email || ''}
+          />
+        </div>
+        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-dark-700">
+          <Button variant="secondary" onClick={() => setShowPrintPreview(false)}>
+            Cerrar
+          </Button>
+          <Button icon={Printer} onClick={executePrint}>
+            Imprimir / Guardar PDF
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

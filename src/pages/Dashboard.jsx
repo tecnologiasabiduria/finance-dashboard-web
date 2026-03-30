@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   CheckCircle,
   PieChart,
+  Printer,
 } from 'lucide-react';
 import {
   PieChart as RechartsPie,
@@ -29,13 +30,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import anime from 'animejs';
-import { Card, Button, Spinner } from '../components/ui';
+import { Card, Button, Spinner, Modal } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, formatDate, calculatePercentage } from '../utils/formatters';
 import { api } from '../services/api';
 import { getCachedCategories, getDashboardMonthCache, setDashboardMonthCache } from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
+import { PrintReportMonthly } from '../components/PrintReport';
+import { printReport } from '../utils/printReport';
 
 const INCOME_TYPE_COLORS = {
   'VENTA': '#10B981',
@@ -268,6 +271,10 @@ export default function Dashboard() {
   // Budget data
   const [budgetOverview, setBudgetOverview] = useState(null);
 
+  // Print report
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const printRef = useRef(null);
+
   // Navigate months
   const goToPrevMonth = () => {
     if (selectedMonth === 0) {
@@ -284,6 +291,17 @@ export default function Dashboard() {
       setSelectedYear((y) => y + 1);
     } else {
       setSelectedMonth((m) => m + 1);
+    }
+  };
+
+  const handlePrintReport = () => {
+    setShowPrintPreview(true);
+  };
+
+  const executePrint = () => {
+    if (printRef.current) {
+      const content = printRef.current.innerHTML;
+      printReport(content, `Informe Mensual - ${MONTH_NAMES[selectedMonth]} ${selectedYear}`);
     }
   };
 
@@ -518,6 +536,16 @@ export default function Dashboard() {
               <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
+          <Button 
+            size="sm" 
+            variant="secondary" 
+            icon={Printer} 
+            onClick={handlePrintReport}
+            className="print:hidden"
+          >
+            <span className="hidden sm:inline">Exportar PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </Button>
           <Link to="/transactions/new?type=income">
             <Button size="sm" icon={Plus}>
               Nuevo
@@ -549,73 +577,153 @@ export default function Dashboard() {
 
       {/* Budget Summary Cards */}
       {budgetOverview && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-5 border-gold-400/20">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-dark-400 uppercase tracking-wider">Meta del Mes</span>
-              <Target className="h-4 w-4 text-gold-400" />
-            </div>
-            <p className="text-xl font-bold text-gold-400">{formatCurrency(budgetOverview.monthly_estimate)}</p>
-            <p className="text-xs text-dark-500 mt-1">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
-          </Card>
+        <>
+          {/* Primera fila: Meta, Ingreso, Falta */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-5 border-gold-400/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-dark-400 uppercase tracking-wider">Meta del Mes</span>
+                <Target className="h-4 w-4 text-gold-400" />
+              </div>
+              <p className="text-xl font-bold text-gold-400">{formatCurrency(budgetOverview.monthly_estimate)}</p>
+              <p className="text-xs text-dark-500 mt-1">{MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+            </Card>
 
+            {(() => {
+              const salesDev = budgetOverview.sales_deviation;
+              const salesDevPct = budgetOverview.monthly_estimate > 0
+                ? ((budgetOverview.actual_sales - budgetOverview.monthly_estimate) / budgetOverview.monthly_estimate * 100).toFixed(1)
+                : 0;
+              return (
+                <Card className={`p-5 ${salesDev >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-dark-400 uppercase tracking-wider">Ingreso Real</span>
+                    {salesDev >= 0
+                      ? <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                      : <ArrowDownRight className="h-4 w-4 text-red-400" />
+                    }
+                  </div>
+                  <p className={`text-xl font-bold ${salesDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatCurrency(budgetOverview.actual_sales)}
+                  </p>
+                  <p className={`text-xs mt-1 ${salesDev >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {salesDev >= 0 ? '+' : ''}{salesDevPct}% vs estimado
+                  </p>
+                </Card>
+              );
+            })()}
+
+            <Card className={`p-5 ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'border-red-500/20' : 'border-emerald-500/20'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-dark-400 uppercase tracking-wider">Gastos Reales</span>
+                <TrendingDown className="h-4 w-4 text-red-400" />
+              </div>
+              <p className={`text-xl font-bold ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'text-red-400' : 'text-emerald-400'}`}>
+                {formatCurrency(budgetOverview.total_actual_expenses)}
+              </p>
+              <p className="text-xs text-dark-500 mt-1">De transacciones registradas</p>
+            </Card>
+          </div>
+
+          {/* Segunda fila: Utilidad - Tarjeta destacada */}
           {(() => {
-            const salesDev = budgetOverview.sales_deviation;
-            const salesDevPct = budgetOverview.monthly_estimate > 0
-              ? ((budgetOverview.actual_sales - budgetOverview.monthly_estimate) / budgetOverview.monthly_estimate * 100).toFixed(1)
-              : 0;
+            const totalPocketsPct = (budgetOverview.pockets || []).reduce((s, p) => s + (p.percentage || 0), 0);
+            const utilidadProyectadaPct = Math.max(0, 100 - totalPocketsPct);
+            const utilidadProyectada = budgetOverview.monthly_estimate * utilidadProyectadaPct / 100;
+            const utilidadReal = budgetOverview.actual_sales - budgetOverview.total_actual_expenses;
+            const utilidadPositiva = utilidadReal >= 0;
+            const metaUtilidad = utilidadReal >= utilidadProyectada;
+            const metaFacturacion = budgetOverview.actual_sales >= budgetOverview.monthly_estimate;
+            const metaCompleta = metaFacturacion && metaUtilidad;
+            
             return (
-              <Card className={`p-5 ${salesDev >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-dark-400 uppercase tracking-wider">Ingreso Real</span>
-                  {salesDev >= 0
-                    ? <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                    : <ArrowDownRight className="h-4 w-4 text-red-400" />
-                  }
+              <Card className={`p-5 ${metaCompleta ? 'border-emerald-500/30 bg-emerald-500/5' : utilidadPositiva ? 'border-amber-500/30 bg-amber-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  {/* Utilidad Real */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wallet className={`h-5 w-5 ${utilidadPositiva ? 'text-emerald-400' : 'text-red-400'}`} />
+                      <span className="text-sm font-medium text-dark-300">Utilidad del Mes</span>
+                    </div>
+                    <p className={`text-2xl font-bold ${utilidadPositiva ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {utilidadReal >= 0 ? '' : '-'}{formatCurrency(Math.abs(utilidadReal))}
+                    </p>
+                    <p className="text-xs text-dark-500 mt-1">
+                      Ingresos - Gastos
+                    </p>
+                  </div>
+
+                  {/* Separador */}
+                  <div className="hidden md:block w-px h-16 bg-dark-700" />
+                  <div className="md:hidden h-px w-full bg-dark-700" />
+
+                  {/* Utilidad Proyectada */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-5 w-5 text-gold-400" />
+                      <span className="text-sm font-medium text-dark-300">Utilidad Proyectada</span>
+                    </div>
+                    <p className="text-2xl font-bold text-gold-400">
+                      {formatCurrency(utilidadProyectada)}
+                    </p>
+                    <p className="text-xs text-dark-500 mt-1">
+                      {utilidadProyectadaPct}% de la meta
+                    </p>
+                  </div>
+
+                  {/* Separador */}
+                  <div className="hidden md:block w-px h-16 bg-dark-700" />
+                  <div className="md:hidden h-px w-full bg-dark-700" />
+
+                  {/* Estado de la Meta */}
+                  <div className="flex-1 text-center md:text-right">
+                    {metaCompleta ? (
+                      <>
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 rounded-full mb-2">
+                          <CheckCircle className="h-4 w-4 text-emerald-400" />
+                          <span className="text-sm font-semibold text-emerald-400">¡Meta Completa!</span>
+                        </div>
+                        <p className="text-xs text-emerald-500">
+                          Facturación y utilidad alcanzadas
+                        </p>
+                      </>
+                    ) : metaFacturacion && !metaUtilidad ? (
+                      <>
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-full mb-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          <span className="text-sm font-semibold text-amber-400">Facturación OK</span>
+                        </div>
+                        <p className="text-xs text-amber-500">
+                          Utilidad por debajo de lo proyectado
+                        </p>
+                      </>
+                    ) : !utilidadPositiva ? (
+                      <>
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-500/20 rounded-full mb-2">
+                          <AlertCircle className="h-4 w-4 text-red-400" />
+                          <span className="text-sm font-semibold text-red-400">Pérdida</span>
+                        </div>
+                        <p className="text-xs text-red-500">
+                          Gastos superan ingresos
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-full mb-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          <span className="text-sm font-semibold text-amber-400">En Progreso</span>
+                        </div>
+                        <p className="text-xs text-amber-500">
+                          Falta {formatCurrency(Math.max(0, budgetOverview.monthly_estimate - budgetOverview.actual_sales))} para la meta
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <p className={`text-xl font-bold ${salesDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatCurrency(budgetOverview.actual_sales)}
-                </p>
-                <p className={`text-xs mt-1 ${salesDev >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {salesDev >= 0 ? '+' : ''}{salesDevPct}% vs estimado
-                </p>
               </Card>
             );
           })()}
-
-          {(() => {
-            const missing = Math.max(0, budgetOverview.monthly_estimate - budgetOverview.actual_sales);
-            const missingPct = budgetOverview.monthly_estimate > 0
-              ? Math.max(0, ((1 - budgetOverview.actual_sales / budgetOverview.monthly_estimate) * 100)).toFixed(1)
-              : 0;
-            const reached = Number(missingPct) === 0;
-            return (
-              <Card className={`p-5 ${reached ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-dark-400 uppercase tracking-wider">Falta para la Meta</span>
-                  <Target className="h-4 w-4 text-red-400" />
-                </div>
-                <p className={`text-xl font-bold ${reached ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {reached ? '¡Meta alcanzada!' : formatCurrency(missing)}
-                </p>
-                <p className={`text-xs mt-1 ${reached ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {reached ? '100% completado' : `${missingPct}% pendiente`}
-                </p>
-              </Card>
-            );
-          })()}
-
-          <Card className={`p-5 ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'border-red-500/20' : 'border-emerald-500/20'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-dark-400 uppercase tracking-wider">Gastos Reales</span>
-              <TrendingDown className="h-4 w-4 text-red-400" />
-            </div>
-            <p className={`text-xl font-bold ${budgetOverview.total_actual_expenses > budgetOverview.total_budget ? 'text-red-400' : 'text-emerald-400'}`}>
-              {formatCurrency(budgetOverview.total_actual_expenses)}
-            </p>
-            <p className="text-xs text-dark-500 mt-1">De transacciones registradas</p>
-          </Card>
-        </div>
+        </>
       )}
 
       {/* No budget configured reminder */}
@@ -1324,6 +1432,41 @@ export default function Dashboard() {
           </CollapsibleSection>
         </div>
       )}
+
+      {/* Print Preview Modal */}
+      <Modal
+        isOpen={showPrintPreview}
+        onClose={() => setShowPrintPreview(false)}
+        title="Vista Previa del Informe"
+        size="xl"
+      >
+        <div className="max-h-[70vh] overflow-auto bg-white rounded-lg">
+          <PrintReportMonthly
+            ref={printRef}
+            data={{
+              budgetOverview,
+              totalIncome: totalIncome || 0,
+              totalExpense: totalExpense || 0,
+              incomeByType: incomeByType || [],
+              expenseByCategory: expenseByCategory || [],
+              incomes: incomes || [],
+              expenses: expenses || [],
+            }}
+            month={selectedMonth}
+            year={selectedYear}
+            currency={currency}
+            userName={user?.name || user?.email || ''}
+          />
+        </div>
+        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-dark-700">
+          <Button variant="secondary" onClick={() => setShowPrintPreview(false)}>
+            Cerrar
+          </Button>
+          <Button icon={Printer} onClick={executePrint}>
+            Imprimir / Guardar PDF
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
