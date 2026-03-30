@@ -59,14 +59,14 @@ export default function Goals() {
           getCachedCategories(),
         ]);
 
-        const cfg = configRes.data.config;
+        const cfg = configRes.data?.config;
         setConfig(cfg);
         setAnnualTarget(cfg ? cfg.annual_revenue_target.toString() : '');
 
-        const pkts = pocketsRes.data.pockets || [];
+        const pkts = pocketsRes.data?.pockets || [];
         setPockets(pkts);
 
-        setExpenseCategories(catRes.data.grouped?.expense || []);
+        setExpenseCategories(catRes.data?.grouped?.expense || []);
       } catch (err) {
         console.error('Error loading budget:', err);
       } finally {

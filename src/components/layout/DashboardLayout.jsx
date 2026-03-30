@@ -10,7 +10,7 @@ export function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-dark-950 relative">
+    <div className="min-h-screen bg-dark-900 relative">
       {/* Ambient warm glows — rompen la monotonía del fondo */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-48 -left-48 w-[500px] h-[500px] bg-gold-700/[0.08] rounded-full blur-3xl" />

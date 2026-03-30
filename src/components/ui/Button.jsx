@@ -1,10 +1,10 @@
 import { clsx } from 'clsx';
 
 const variants = {
-  primary: 'btn-primary-gradient bg-gradient-to-r from-[#da7d41] to-[#b85520] text-white hover:from-[#e8953a] hover:to-[#da7d41] focus:ring-[#da7d41]/50',
-  secondary: 'bg-transparent border border-gold-400 text-gold-300 hover:bg-gold-400/10 focus:ring-gold-400/50',
-  ghost: 'bg-transparent text-gold-300 hover:bg-gold-400/10 focus:ring-gold-400/50',
-  danger: 'bg-red-500/20 border border-red-500 text-red-400 hover:bg-red-500/30 focus:ring-red-500/50',
+  primary: 'btn-primary-gradient bg-gradient-to-r from-gold-400 via-[#c96a2e] to-gold-700 text-white shadow-[0_2px_12px_rgba(218,125,65,0.25)] hover:shadow-[0_4px_20px_rgba(218,125,65,0.35)] hover:from-[#e8953a] hover:to-[#9a3a1e] focus:ring-gold-400/40',
+  secondary: 'bg-dark-800/60 border border-gold-400/20 text-gold-300 hover:bg-dark-800 hover:border-gold-400/35 focus:ring-gold-400/30',
+  ghost: 'bg-transparent text-gold-300 hover:bg-gold-400/8 focus:ring-gold-400/30',
+  danger: 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 focus:ring-red-500/40',
 };
 
 const sizes = {
@@ -27,7 +27,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center gap-2 font-semibold rounded-lg',
+        'inline-flex items-center justify-center gap-2 font-semibold rounded-xl',
         'focus:outline-none focus:ring-2',
         'transition-all duration-300 transform',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100',

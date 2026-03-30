@@ -10,10 +10,11 @@ export function Card({
   return (
     <div
       className={clsx(
-        'bg-dark-900 border border-gold-700/30 rounded-xl p-6',
+        'bg-dark-900 border border-white/[0.06] rounded-2xl p-6',
+        'shadow-[0_1px_2px_rgba(0,0,0,0.4)]',
         'transition-all duration-300',
-        hover && 'hover:border-gold-400/60 hover:bg-dark-800/70',
-        glow && 'shadow-gold',
+        hover && 'hover:border-gold-400/20 hover:shadow-[0_4px_16px_rgba(218,125,65,0.06)]',
+        glow && 'shadow-gold border-gold-400/20',
         className
       )}
       {...props}
@@ -34,10 +35,10 @@ export function StatCard({
   className = '',
 }) {
   const variants = {
-    default: 'border-gold-700/30 hover:border-gold-400/60',
-    gold: 'border-gold-400/40 bg-gradient-to-br from-gold-400/10 to-transparent',
-    success: 'border-emerald-400/30 bg-gradient-to-br from-emerald-400/10 to-transparent',
-    danger: 'border-red-400/30 bg-gradient-to-br from-red-400/10 to-transparent',
+    default: 'border-dark-700/40 hover:border-gold-400/25 shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_0_1px_rgba(218,125,65,0.06)]',
+    gold: 'border-gold-400/25 bg-gradient-to-br from-gold-400/8 via-transparent to-transparent shadow-[0_2px_12px_rgba(218,125,65,0.1)]',
+    success: 'border-emerald-400/20 bg-gradient-to-br from-emerald-400/6 via-transparent to-transparent',
+    danger: 'border-red-400/20 bg-gradient-to-br from-red-400/6 via-transparent to-transparent',
   };
 
   const iconVariants = {
@@ -50,7 +51,7 @@ export function StatCard({
   return (
     <div
       className={clsx(
-        'bg-dark-900 border rounded-xl p-5',
+        'bg-dark-900 border rounded-2xl p-5',
         'transition-all duration-300 hover:bg-dark-800/70',
         'group',
         variants[variant],

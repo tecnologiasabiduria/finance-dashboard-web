@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Plus,
   Edit2,
@@ -13,7 +14,10 @@ import {
   ChevronUp,
   Search,
   Calendar,
+  ArrowUpRight,
+  Download,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Card, StatCard, Button, Input, Modal, ConfirmModal, Spinner } from '../components/ui';
 import { formatCurrency, parseLocalDate } from '../utils/formatters';
 import { api } from '../services/api';
@@ -411,6 +415,25 @@ export default function Cartera() {
     setTimeout(() => setSuccessMsg(''), 3500);
   }
 
+  // Excel export
+  const exportCarteraExcel = () => {
+    const data = filtered.map((r) => ({
+      Nombre: r.nombre || '',
+      Plataforma: r.plataforma || '',
+      Fuente: r.fuente || '',
+      Producto: r.producto || '',
+      'Fecha Venta': r.fecha_venta || '',
+      'Valor Venta': parseFloat(r.valor_venta) || 0,
+      Contado: parseFloat(r.cash) || 0,
+      Saldo: parseFloat(r.saldo) || 0,
+      Notas: r.notas || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
+    XLSX.writeFile(wb, 'Cartera.xlsx');
+  };
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
   function getSaldo(record) {
     return record.saldo !== undefined
@@ -457,10 +480,18 @@ export default function Cartera() {
           <h1 className="text-2xl font-bold text-white">Cartera</h1>
           <p className="text-dark-400 text-sm mt-1">Cuentas por cobrar — gestion de pagos y saldos pendientes</p>
         </div>
-        <Button onClick={openNewRecord} className="flex items-center gap-2 shrink-0">
-          <Plus className="h-4 w-4" />
-          Nuevo Registro
-        </Button>
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && (
+            <Button onClick={exportCarteraExcel} variant="secondary" className="flex items-center gap-2 shrink-0">
+              <Download className="h-4 w-4" />
+              Excel
+            </Button>
+          )}
+          <Button onClick={openNewRecord} className="flex items-center gap-2 shrink-0">
+            <Plus className="h-4 w-4" />
+            Nuevo Registro
+          </Button>
+        </div>
       </div>
 
       {/* Success message */}
@@ -661,17 +692,26 @@ export default function Cartera() {
                 {/* Expanded: Pagos section */}
                 {isExpanded && (
                   <div className="border-t border-dark-800 bg-dark-950/50 p-4 sm:p-5">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                       <h4 className="text-sm font-medium text-dark-300">Abonos registrados</h4>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => openAddPago(record.id)}
-                        className="flex items-center gap-1 text-xs"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Agregar abono
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`/transactions/new?type=income&carteraId=${record.id}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-gold-400/35 bg-dark-900 px-3 py-1.5 text-xs font-medium text-gold-300 hover:bg-gold-400/10 transition-colors"
+                        >
+                          <ArrowUpRight className="h-3 w-3" />
+                          Registrar ingreso
+                        </Link>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openAddPago(record.id)}
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Agregar abono
+                        </Button>
+                      </div>
                     </div>
 
                     {isPagosLoading ? (
@@ -694,6 +734,11 @@ export default function Cartera() {
                               <span className="text-sm font-medium text-emerald-400">
                                 +{formatCurrency(Number(pago.monto || 0), currency)}
                               </span>
+                              {pago.transaction_id && (
+                                <span className="text-[10px] uppercase tracking-wide text-gold-400/90 border border-gold-500/35 rounded px-1.5 py-0.5 shrink-0">
+                                  Con transacción
+                                </span>
+                              )}
                               {pago.notas && (
                                 <span className="text-xs text-dark-500 truncate max-w-[160px]">
                                   {pago.notas}

@@ -18,13 +18,17 @@ import {
   FileCheck,
   Layers,
   Tag,
+  Download,
+  Copy,
+  Printer,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button, Card, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
-import { getCachedCategories, invalidateDashboardCache } from '../services/cache';
+import { getCachedCategories, invalidateDashboardCache, invalidateCarteraCache } from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
 
 const TAB_LABELS = {
@@ -179,11 +183,20 @@ export default function Transactions() {
     if (dateFrom) filtered = filtered.filter((t) => t.date >= dateFrom);
     if (dateTo) filtered = filtered.filter((t) => t.date <= dateTo);
 
-    filtered.sort((a, b) => {
-      const dateDiff = new Date(b.date) - new Date(a.date);
-      if (dateDiff !== 0) return dateDiff;
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
+    if (activeTab === 'all') {
+      // Oldest first so running balance reads naturally top→bottom
+      filtered.sort((a, b) => {
+        const dateDiff = new Date(a.date) - new Date(b.date);
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+    } else {
+      filtered.sort((a, b) => {
+        const dateDiff = new Date(b.date) - new Date(a.date);
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+    }
     setFilteredTransactions(filtered);
     setCurrentPage(1);
   }, [transactions, activeTab, searchTerm, dateFrom, dateTo]);
@@ -218,6 +231,7 @@ export default function Transactions() {
     try {
       await api.deleteTransaction(deleteModal.transaction.id);
       invalidateDashboardCache();
+      invalidateCarteraCache();
       setTransactions((prev) => prev.filter((t) => t.id !== deleteModal.transaction.id));
     } catch (err) {
       console.error('Error deleting:', err);
@@ -249,6 +263,82 @@ export default function Transactions() {
       return sum + (t.type === 'income' ? parseFloat(t.amount) : -parseFloat(t.amount));
     }, 0);
   }, [filteredTransactions]);
+
+  // Excel export
+  const exportToExcel = () => {
+    const data = filteredTransactions.map((t) => {
+      const row = {
+        Fecha: formatDate(t.date, 'medium'),
+        Tipo: t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : 'Transferencia',
+        Detalle: getTransactionDetail(t),
+      };
+      if (activeTab === 'all' || activeTab === 'income') {
+        row['Factura Nº'] = t.invoice_number || '';
+        row['Cliente'] = t.client_name || '';
+        row['Documento'] = t.client_document || '';
+        row['Estado'] = t.invoice_status || '';
+      }
+      if (activeTab === 'all' || activeTab === 'expense') {
+        row['Categoría'] = t.category || '';
+        row['Proveedor'] = t.provider_name || '';
+        row['Doc. Proveedor'] = t.provider_document || '';
+        row['Método de Pago'] = t.payment_method || '';
+      }
+      if (activeTab === 'all' || activeTab === 'transfer') {
+        row['Cuenta Origen'] = t.source_account || '';
+        row['Cuenta Destino'] = t.destination_account || '';
+      }
+      row['Monto'] = parseFloat(t.amount);
+      if (activeTab === 'all') {
+        row['Saldo'] = runningBalanceMap[t.id] ?? 0;
+      }
+      row['Notas'] = t.description || '';
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    // Auto-size columns
+    const colWidths = Object.keys(data[0] || {}).map((key) => ({
+      wch: Math.max(key.length, ...data.map((r) => String(r[key] || '').length).slice(0, 50)) + 2,
+    }));
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
+
+    const period = showAllMonths ? 'Todos' : `${MONTH_NAMES[selectedMonth]}_${selectedYear}`;
+    const tabLabel = activeTab === 'all' ? '' : `_${EMPTY_LABELS[activeTab]}`;
+    XLSX.writeFile(wb, `Transacciones_${period}${tabLabel}.xlsx`);
+  };
+
+  // Duplicate a transaction
+  const handleDuplicate = (t) => {
+    const params = new URLSearchParams({ type: t.type });
+    // Pre-fill via sessionStorage so TransactionForm can pick it up
+    sessionStorage.setItem('duplicateTransaction', JSON.stringify({
+      amount: String(t.amount),
+      category: t.category || '',
+      description: t.description || '',
+      invoice_number: '',
+      client_document: t.client_document || '',
+      client_name: t.client_name || '',
+      client_address: t.client_address || '',
+      client_email: t.client_email || '',
+      client_phone: t.client_phone || '',
+      invoice_status: t.invoice_status || '',
+      provider_document: t.provider_document || '',
+      provider_name: t.provider_name || '',
+      payment_method: t.payment_method || '',
+      source_account: t.source_account || '',
+      destination_account: t.destination_account || '',
+    }));
+    window.location.href = `/transactions/new?${params.toString()}`;
+  };
+
+  // Print current view
+  const handlePrint = () => {
+    window.print();
+  };
 
   // Skeleton pulse helper
   const Skeleton = ({ className }) => (
@@ -323,6 +413,9 @@ export default function Transactions() {
   }
 
   const newLinkType = activeTab === 'all' ? 'income' : activeTab;
+  const newLinkDate = !showAllMonths
+    ? `&date=${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+    : '';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -366,7 +459,28 @@ export default function Transactions() {
           >
             Todos
           </button>
-          <Link to={`/transactions/new?type=${newLinkType}`}>
+          {filteredTransactions.length > 0 && (
+            <>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={Printer}
+                onClick={handlePrint}
+                className="print:hidden"
+              >
+                <span className="hidden sm:inline">PDF</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={Download}
+                onClick={exportToExcel}
+              >
+                <span className="hidden sm:inline">Excel</span>
+              </Button>
+            </>
+          )}
+          <Link to={`/transactions/new?type=${newLinkType}${newLinkDate}`}>
             <Button size="sm" icon={Plus}>
               {TAB_LABELS[activeTab]}
             </Button>
@@ -560,7 +674,7 @@ export default function Transactions() {
             <tbody>
               {paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={activeTab === 'transfer' ? 6 : 8} className="py-12 text-center text-dark-400">
+                  <td colSpan={activeTab === 'transfer' || activeTab === 'all' ? 6 : 8} className="py-12 text-center text-dark-400">
                     No se encontraron {EMPTY_LABELS[activeTab]}
                   </td>
                 </tr>
@@ -605,10 +719,13 @@ export default function Transactions() {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-center gap-1">
-                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
+                            <button onClick={() => handleDuplicate(t)} className="p-1.5 text-dark-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Duplicar">
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors" title="Editar">
                               <Edit2 className="h-4 w-4" />
                             </Link>
-                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -643,10 +760,13 @@ export default function Transactions() {
                         <td className="py-3 px-4 text-dark-400 text-sm max-w-[200px] truncate">{t.description || '—'}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-center gap-1">
-                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
+                            <button onClick={() => handleDuplicate(t)} className="p-1.5 text-dark-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Duplicar">
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors" title="Editar">
                               <Edit2 className="h-4 w-4" />
                             </Link>
-                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -664,10 +784,13 @@ export default function Transactions() {
                         <td className="py-3 px-4 text-dark-400 text-sm max-w-[200px] truncate">{t.description || '—'}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-center gap-1">
-                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
+                            <button onClick={() => handleDuplicate(t)} className="p-1.5 text-dark-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Duplicar">
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors" title="Editar">
                               <Edit2 className="h-4 w-4" />
                             </Link>
-                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -708,10 +831,13 @@ export default function Transactions() {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-center gap-1">
-                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors">
+                            <button onClick={() => handleDuplicate(t)} className="p-1.5 text-dark-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Duplicar">
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <Link to={`/transactions/${t.id}`} className="p-1.5 text-dark-400 hover:text-gold-400 hover:bg-dark-800 rounded-lg transition-colors" title="Editar">
                               <Edit2 className="h-4 w-4" />
                             </Link>
-                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                            <button onClick={() => setDeleteModal({ open: true, transaction: t })} className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>

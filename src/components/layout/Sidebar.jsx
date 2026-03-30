@@ -77,7 +77,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
       className={clsx(
         isBeige
           ? 'sidebar-beige bg-gold-100 border-r border-gold-400/50'
-          : 'bg-dark-900 border-r border-gold-700/20',
+          : 'bg-gradient-to-b from-dark-900 via-dark-900 to-dark-950 border-r border-gold-700/15',
         'flex flex-col transition-all duration-300',
         mobile
           ? 'h-full w-64'
@@ -90,7 +90,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
         'h-20 flex items-center justify-between px-4',
         isBeige
           ? 'border-b border-gold-400/40 bg-gradient-to-b from-gold-300/50 to-transparent'
-          : 'border-b border-gold-700/40 bg-gradient-to-br from-gold-700/25 via-gold-700/10 to-transparent'
+          : 'border-b border-gold-700/20 bg-gradient-to-br from-gold-700/15 via-gold-400/5 to-transparent'
       )}>
         <Logo size="md" showText={!collapsed} />
         {mobile && (
@@ -130,8 +130,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
                     ? 'bg-gold-700/15 text-[#7e301f] border-l-2 border-gold-700 font-semibold'
                     : 'text-[#4d3f38] hover:text-[#7e301f] hover:bg-gold-200/70'
                   : isActive
-                    ? 'bg-gradient-to-r from-gold-400/30 to-transparent text-gold-300 border-l-2 border-gold-400'
-                    : 'text-dark-300 hover:text-gold-300 hover:bg-dark-800/60'
+                    ? 'bg-gradient-to-r from-gold-400/15 via-gold-400/8 to-transparent text-gold-300 border-l-[3px] border-gold-400 shadow-[inset_0_0_20px_rgba(218,125,65,0.06)]'
+                    : 'text-dark-300 hover:text-gold-300 hover:bg-dark-800/40'
               )}
             >
               <Icon
@@ -155,7 +155,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
       {!mobile && (
         <div className={clsx(
           'p-4 border-t',
-          isBeige ? 'border-gold-400/40' : 'border-gold-700/20'
+          isBeige ? 'border-gold-400/40' : 'border-gold-700/12'
         )}>
           <button
             onClick={onToggle}

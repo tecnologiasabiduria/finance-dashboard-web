@@ -144,7 +144,7 @@ export function Header({ onMenuClick, showMenuButton }) {
   };
 
   return (
-    <header className="h-16 sm:h-20 bg-dark-950/90 backdrop-blur-lg border-b border-gold-700/40 sticky top-0 z-30">
+    <header className="h-16 sm:h-20 bg-dark-900/95 backdrop-blur-xl border-b border-gold-700/15 sticky top-0 z-30">
       <div className="h-full px-3 sm:px-6 flex items-center justify-between">
         {/* Left side */}
         <div className="flex items-center gap-4">
@@ -164,7 +164,7 @@ export function Header({ onMenuClick, showMenuButton }) {
               <input
                 type="text"
                 placeholder="Buscar transacciones..."
-                className="w-80 pl-12 pr-4 py-2.5 bg-dark-900 border border-dark-700 rounded-xl
+                className="w-80 pl-12 pr-4 py-2.5 bg-dark-800/50 border border-dark-700/50 rounded-xl
                          text-white placeholder-dark-500 text-sm
                          focus:outline-none focus:border-gold-400/50 focus:ring-2 focus:ring-gold-400/20
                          transition-all duration-300"
@@ -179,18 +179,18 @@ export function Header({ onMenuClick, showMenuButton }) {
           <div className="relative" ref={notifRef} data-tour="header-notifications">
             <button
               onClick={handleToggleNotifications}
-              className="relative p-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition-colors"
+              className="relative p-3 text-dark-400 hover:text-gold-300 hover:bg-dark-800/60 rounded-xl transition-colors"
             >
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold bg-gold-400 text-white rounded-full leading-none">
+                <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold bg-gradient-to-r from-gold-400 to-gold-700 text-white rounded-full leading-none shadow-[0_0_8px_rgba(218,125,65,0.4)]">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </button>
 
             {showNotifications && (
-              <div className="fixed sm:absolute right-4 sm:right-0 left-4 sm:left-auto top-[4.5rem] sm:top-auto mt-0 sm:mt-2 sm:w-96 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl animate-slide-up overflow-hidden z-50">
+              <div className="fixed sm:absolute right-4 sm:right-0 left-4 sm:left-auto top-[4.5rem] sm:top-auto mt-0 sm:mt-2 sm:w-96 bg-dark-900/95 backdrop-blur-xl border border-dark-700/50 rounded-2xl shadow-2xl animate-slide-up overflow-hidden z-50">
                 {/* Header */}
                 <div className="p-4 border-b border-dark-800 flex items-center justify-between">
                   <h3 className="font-semibold text-white">Notificaciones</h3>
@@ -277,7 +277,7 @@ export function Header({ onMenuClick, showMenuButton }) {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-3 p-2 pr-4 hover:bg-dark-800 rounded-xl transition-colors"
             >
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gold-700 to-gold-400 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gold-700 via-gold-500 to-gold-400 flex items-center justify-center shadow-[0_2px_8px_rgba(218,125,65,0.2)]">
                 <span className="font-semibold text-white">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
@@ -299,7 +299,7 @@ export function Header({ onMenuClick, showMenuButton }) {
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl animate-slide-up overflow-hidden">
+              <div className="absolute right-0 mt-2 w-56 bg-dark-900/95 backdrop-blur-xl border border-dark-700/50 rounded-2xl shadow-2xl animate-slide-up overflow-hidden">
                 <div className="p-2">
                   <Link
                     to="/settings"

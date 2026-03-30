@@ -19,7 +19,8 @@
     "react-dom": "^18.2.0",
     "react-joyride": "^2.9.3",
     "react-router-dom": "^6.21.0",
-    "recharts": "^2.10.3"
+    "recharts": "^2.10.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",

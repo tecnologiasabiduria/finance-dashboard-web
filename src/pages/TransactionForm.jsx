@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -18,13 +18,24 @@ import {
   Building,
   Receipt,
   Tag,
+  Wallet,
 } from 'lucide-react';
 import { Button, Select, Card, CreatableSelect, DatePicker } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
-import { getCachedCategories, invalidateDashboardCache, invalidateCategoriesCache } from '../services/cache';
+import {
+  getCachedCategories,
+  getCachedCartera,
+  invalidateDashboardCache,
+  invalidateCategoriesCache,
+  invalidateCarteraCache,
+} from '../services/cache';
 import { getCategoryIcon } from '../utils/categoryIcons';
+import { formatCurrency } from '../utils/formatters';
+
+const CARTERA_ID_PARAM_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 
 
@@ -74,7 +85,7 @@ export default function TransactionForm() {
     amount: '',
     category: '',
     description: '',
-    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
+    date: searchParams.get('date') || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
     // Campos de ingreso
     invoice_number: '',
     client_document: '',
@@ -99,10 +110,83 @@ export default function TransactionForm() {
   const [categoriesRaw, setCategoriesRaw] = useState({ income: [], expense: [] });
   const [selectedSubId, setSelectedSubId] = useState(null);
 
+  const [carteraLink, setCarteraLink] = useState(null);
+  const [applyToCartera, setApplyToCartera] = useState(false);
+  const [carteraSelectId, setCarteraSelectId] = useState('');
+  const [carteraRecords, setCarteraRecords] = useState([]);
+
+  // Auto-completado: lookup de clientes por documento desde subcategorías
+  const clientLookup = useMemo(() => {
+    const map = {};
+    const allCats = [...(categoriesRaw.income || []), ...(categoriesRaw.expense || [])];
+    for (const cat of allCats) {
+      for (const sub of cat.subcategories || []) {
+        const doc = (sub.client_document || sub.provider_document || '').trim();
+        if (doc && !map[doc]) {
+          map[doc] = {
+            client_name: sub.client_name || sub.provider_name || '',
+            client_document: doc,
+            client_email: sub.client_email || '',
+            client_phone: sub.client_phone || '',
+            client_address: sub.client_address || '',
+          };
+        }
+      }
+    }
+    // Also search cartera records
+    for (const r of carteraRecords) {
+      const doc = (r.documento || '').trim();
+      if (doc && !map[doc]) {
+        map[doc] = {
+          client_name: r.nombre || '',
+          client_document: doc,
+          client_email: '',
+          client_phone: '',
+          client_address: '',
+        };
+      }
+    }
+    return map;
+  }, [categoriesRaw, carteraRecords]);
+
+  const handleDocumentBlur = () => {
+    const doc = formData.client_document?.trim();
+    if (!doc || formData.client_name?.trim()) return; // Don't overwrite existing name
+    const match = clientLookup[doc];
+    if (match) {
+      setFormData((prev) => ({
+        ...prev,
+        client_name: match.client_name || prev.client_name,
+        client_email: match.client_email || prev.client_email,
+        client_phone: match.client_phone || prev.client_phone,
+        client_address: match.client_address || prev.client_address,
+      }));
+    }
+  };
+
+  const selectedCarteraSaldo = useMemo(() => {
+    if (!carteraSelectId || !carteraRecords.length) return null;
+    const r = carteraRecords.find((x) => x.id === carteraSelectId);
+    return r != null ? Number(r.saldo) : null;
+  }, [carteraSelectId, carteraRecords]);
+
+  const carteraSelectOptions = useMemo(() => {
+    const withSaldo = carteraRecords.filter((r) => Number(r.saldo) > 0);
+    const ids = new Set(withSaldo.map((r) => r.id));
+    if (carteraSelectId && !ids.has(carteraSelectId)) {
+      const extra = carteraRecords.find((r) => r.id === carteraSelectId);
+      if (extra) withSaldo.unshift(extra);
+    }
+    return withSaldo.map((r) => ({
+      value: r.id,
+      label: `${r.nombre || 'Sin nombre'} — saldo ${formatCurrency(Number(r.saldo), currency)}`,
+    }));
+  }, [carteraRecords, carteraSelectId, currency]);
+
   const loadCategories = async () => {
     try {
       const response = await getCachedCategories();
-      const grouped = response.data.grouped || { income: [], expense: [] };
+      const grouped = response.data?.grouped || { income: [], expense: [] };
       setCategoriesRaw(grouped);
       if (grouped.expense) {
         setExpenseCategories(grouped.expense.map((c) => ({ value: c.name, label: c.name, icon: c.icon, color: c.color })));
@@ -151,6 +235,48 @@ export default function TransactionForm() {
     loadCategories();
   }, [token]);
 
+  // Load duplicated transaction data from sessionStorage
+  useEffect(() => {
+    if (isEditing) return;
+    const dup = sessionStorage.getItem('duplicateTransaction');
+    if (dup) {
+      try {
+        const data = JSON.parse(dup);
+        setFormData((prev) => ({ ...prev, ...data, date: prev.date }));
+      } catch {}
+      sessionStorage.removeItem('duplicateTransaction');
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (isEditing || formData.type !== 'income') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getCachedCartera();
+        const list = res.data?.records || res.data || [];
+        if (!cancelled) setCarteraRecords(Array.isArray(list) ? list : []);
+      } catch {
+        if (!cancelled) setCarteraRecords([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.type, isEditing]);
+
+  useEffect(() => {
+    if (isEditing) return;
+    const raw = searchParams.get('carteraId');
+    if (raw && CARTERA_ID_PARAM_RE.test(raw.trim())) {
+      setApplyToCartera(true);
+      setCarteraSelectId(raw.trim());
+    } else {
+      setApplyToCartera(false);
+      setCarteraSelectId('');
+    }
+  }, [isEditing, searchParams]);
+
   // Crear categoría inline y recargar lista
   const handleCreateCategory = async (name, type) => {
     try {
@@ -169,7 +295,9 @@ export default function TransactionForm() {
       const loadTransaction = async () => {
         try {
           const response = await api.getTransaction(id);
-          const t = response.data.transaction;
+          const t = response.data?.transaction;
+          if (!t) return;
+          setCarteraLink(response.data?.cartera_link || null);
           setFormData({
             type: t.type,
             amount: String(t.amount),
@@ -210,6 +338,12 @@ export default function TransactionForm() {
     if (formData.type === 'income' && !formData.category) {
       newErrors.category = 'Selecciona el tipo de ingreso';
     }
+    if (formData.type === 'income' && !formData.client_name?.trim()) {
+      newErrors.client_name = 'El nombre del cliente es obligatorio';
+    }
+    if (formData.type === 'income' && !formData.client_document?.trim()) {
+      newErrors.client_document = 'El documento del cliente es obligatorio';
+    }
     if (formData.type === 'expense' && !formData.category) {
       newErrors.category = 'Selecciona una categoría';
     }
@@ -222,6 +356,13 @@ export default function TransactionForm() {
       }
       if (formData.source_account && formData.destination_account && formData.source_account === formData.destination_account) {
         newErrors.destination_account = 'La cuenta destino debe ser diferente a la de origen';
+      }
+    }
+    if (!isEditing && formData.type === 'income' && applyToCartera) {
+      if (!carteraSelectId) {
+        newErrors.cartera_id = 'Selecciona un registro de cartera';
+      } else if (selectedCarteraSaldo != null && Number(formData.amount) > selectedCarteraSaldo) {
+        newErrors.amount = `El monto no puede superar el saldo pendiente (${formatCurrency(selectedCarteraSaldo, currency)})`;
       }
     }
     setErrors(newErrors);
@@ -245,7 +386,16 @@ export default function TransactionForm() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (name === 'category') setSelectedSubId(null);
+    if (name === 'category') {
+      setSelectedSubId(null);
+      // Auto-enable cartera when selecting a cartera-related category
+      if (formData.type === 'income' && !isEditing) {
+        const isCarteraCategory = value.toLowerCase().includes('cartera');
+        if (isCarteraCategory && !applyToCartera) {
+          setApplyToCartera(true);
+        }
+      }
+    }
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -253,6 +403,10 @@ export default function TransactionForm() {
 
   const handleTypeChange = (type) => {
     setSelectedSubId(null);
+    if (type !== 'income') {
+      setApplyToCartera(false);
+      setCarteraSelectId('');
+    }
     setFormData((prev) => ({
       ...prev,
       type,
@@ -298,9 +452,15 @@ export default function TransactionForm() {
       if (isEditing) {
         await api.updateTransaction(id, transactionData);
       } else {
+        if (formData.type === 'income' && applyToCartera && carteraSelectId) {
+          transactionData.cartera_id = carteraSelectId;
+        }
         await api.createTransaction(transactionData);
       }
       invalidateDashboardCache();
+      if ((!isEditing && formData.type === 'income' && applyToCartera && carteraSelectId) || carteraLink) {
+        invalidateCarteraCache();
+      }
       navigate('/transactions');
     } catch (err) {
       console.error('Error saving transaction:', err);
@@ -448,6 +608,60 @@ export default function TransactionForm() {
             </div>
           </div>
 
+          {formData.type === 'income' && (
+            <>
+              {!isEditing && (
+                <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-4 space-y-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={applyToCartera}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setApplyToCartera(next);
+                        if (!next) setCarteraSelectId('');
+                        setErrors((prev) => ({ ...prev, cartera_id: '' }));
+                      }}
+                      className="mt-1 h-4 w-4 rounded border-dark-600 bg-dark-900 text-gold-500 focus:ring-gold-500/30"
+                    />
+                    <span className="text-sm text-dark-200 leading-snug">
+                      <span className="font-medium text-white flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-gold-400 shrink-0" />
+                        Aplicar a cartera (cuenta por cobrar)
+                      </span>
+                      <span className="block text-dark-400 mt-1 text-xs">
+                        Se registrará un abono ligado a este ingreso. Eliminar la transacción elimina el abono.
+                      </span>
+                    </span>
+                  </label>
+                  {applyToCartera && (
+                    <Select
+                      name="cartera_id"
+                      value={carteraSelectId}
+                      onChange={(e) => {
+                        setCarteraSelectId(e.target.value);
+                        setErrors((prev) => ({ ...prev, cartera_id: '' }));
+                      }}
+                      options={carteraSelectOptions}
+                      placeholder="Selecciona el registro"
+                      error={errors.cartera_id}
+                    />
+                  )}
+                </div>
+              )}
+              {isEditing && carteraLink && (
+                <div className="flex gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
+                  <Wallet className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-dark-200">
+                    Este ingreso está vinculado al registro{' '}
+                    <span className="text-white font-medium">{carteraLink.cartera_nombre || 'de cartera'}</span>.
+                    Si cambias el monto o la fecha, se actualiza el abono en cartera.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
           {/* ======= INCOME FIELDS ======= */}
           {formData.type === 'income' && (
             <>
@@ -519,18 +733,20 @@ export default function TransactionForm() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-dark-200">Documento</label>
+                    <label className="block text-sm font-medium text-dark-200">Documento *</label>
                     <div className="relative">
                       <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                      <input type="text" name="client_document" placeholder="NIT o CC" value={formData.client_document} onChange={handleChange} className={inputClass} />
+                      <input type="text" name="client_document" placeholder="NIT o CC" value={formData.client_document} onChange={handleChange} onBlur={handleDocumentBlur} className={errors.client_document ? inputErrorClass : inputClass} />
                     </div>
+                    {errors.client_document && <p className="text-sm text-red-400">{errors.client_document}</p>}
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-dark-200">Nombre</label>
+                    <label className="block text-sm font-medium text-dark-200">Nombre *</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
-                      <input type="text" name="client_name" placeholder="Nombre del cliente" value={formData.client_name} onChange={handleChange} className={inputClass} />
+                      <input type="text" name="client_name" placeholder="Nombre del cliente" value={formData.client_name} onChange={handleChange} className={errors.client_name ? inputErrorClass : inputClass} />
                     </div>
+                    {errors.client_name && <p className="text-sm text-red-400">{errors.client_name}</p>}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="block text-sm font-medium text-dark-200">Dirección</label>
@@ -566,6 +782,25 @@ export default function TransactionForm() {
                   options={INVOICE_STATUS_OPTIONS}
                   placeholder="Selecciona estado"
                 />
+              </div>
+
+              {/* Description / Detail */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-dark-200">Detalle del ingreso</label>
+                <div className="relative">
+                  <FileText className="absolute left-4 top-4 h-5 w-5 text-dark-400" />
+                  <textarea
+                    name="description"
+                    placeholder="Describe a qué corresponde este ingreso..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full pl-12 pr-4 py-3 bg-dark-900 border border-dark-700 rounded-lg
+                             text-white placeholder-dark-500
+                             focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20
+                             transition-all duration-300 resize-none"
+                  />
+                </div>
               </div>
             </>
           )}
