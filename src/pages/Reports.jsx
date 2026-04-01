@@ -9,7 +9,7 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       {/* Tab Switcher */}
-      <div className="flex gap-2 p-1 bg-dark-900/50 border border-white/[0.06] rounded-xl w-fit">
+      <div data-tour="reports-tabs" className="flex gap-2 p-1 bg-dark-900/50 border border-white/[0.06] rounded-xl w-fit">
         <button
           onClick={() => setActiveView('monthly')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all text-sm ${

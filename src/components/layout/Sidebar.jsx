@@ -20,26 +20,36 @@ const navigation = [
     name: 'Transacciones',
     href: '/transactions',
     icon: ArrowLeftRight,
+    tourId: 'nav-transactions',
+    description: 'Historial de ingresos y gastos',
   },
   {
     name: 'Informes',
     href: '/reports',
     icon: BarChart3,
+    tourId: 'nav-reports',
+    description: 'Reportes mensuales y anuales',
   },
   {
     name: 'Cartera',
     href: '/cartera',
     icon: BookOpen,
+    tourId: 'nav-cartera',
+    description: 'Cuentas por cobrar',
   },
   {
     name: 'Metas',
     href: '/goals',
     icon: Target,
+    tourId: 'nav-goals',
+    description: 'Objetivos y presupuestos',
   },
   {
     name: 'Configuración',
     href: '/settings',
     icon: Settings,
+    tourId: 'nav-settings',
+    description: 'Personaliza tu experiencia',
   },
 ];
 
@@ -90,7 +100,6 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
           const isActive = location.pathname === item.href ||
                           location.pathname.startsWith(item.href.split('?')[0]);
           const Icon = item.icon;
-          const tourId = item.href === '/transactions/new' ? 'sidebar-new' : undefined;
 
           return (
             <Link
@@ -99,8 +108,8 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
               onClick={() => onNavigate?.()}
               data-menu-item
               data-nav-active={isActive ? 'true' : undefined}
+              data-tour={item.tourId}
               style={mobile ? { opacity: 0 } : undefined}
-              {...(tourId && { 'data-tour': tourId })}
               className={clsx(
                 'flex items-center gap-3 px-4 py-3 rounded-xl',
                 'transition-all duration-200 group',

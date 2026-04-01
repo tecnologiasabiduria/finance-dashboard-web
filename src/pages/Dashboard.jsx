@@ -546,7 +546,7 @@ export default function Dashboard() {
             <span className="hidden sm:inline">Exportar PDF</span>
             <span className="sm:hidden">PDF</span>
           </Button>
-          <Link to="/transactions/new?type=income">
+          <Link to="/transactions/new?type=income" data-tour="quick-new">
             <Button size="sm" icon={Plus}>
               Nuevo
             </Button>

@@ -120,6 +120,10 @@ export default function TransactionForm() {
   const [applyToCartera, setApplyToCartera] = useState(false);
   const [carteraSelectId, setCarteraSelectId] = useState('');
   const [carteraRecords, setCarteraRecords] = useState([]);
+  
+  // Crear nuevo registro de cartera (venta con saldo pendiente)
+  const [createNewCartera, setCreateNewCartera] = useState(false);
+  const [totalSaleValue, setTotalSaleValue] = useState('');
   const [pastClients, setPastClients] = useState([]);
   const [clientSuggestions, setClientSuggestions] = useState([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
@@ -493,6 +497,16 @@ export default function TransactionForm() {
         newErrors.amount = `El monto no puede superar el saldo pendiente (${formatCurrency(selectedCarteraSaldo, currency)})`;
       }
     }
+    // Validación para crear nuevo registro de cartera
+    if (!isEditing && formData.type === 'income' && createNewCartera) {
+      const total = parseFloat(totalSaleValue) || 0;
+      const paid = parseFloat(formData.amount) || 0;
+      if (total <= 0) {
+        newErrors.totalSaleValue = 'El valor total de la venta es requerido';
+      } else if (paid >= total) {
+        newErrors.totalSaleValue = 'El valor total debe ser mayor al monto pagado (si no hay saldo pendiente, no necesitas crear cartera)';
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -596,6 +610,8 @@ export default function TransactionForm() {
     if (type !== 'income') {
       setApplyToCartera(false);
       setCarteraSelectId('');
+      setCreateNewCartera(false);
+      setTotalSaleValue('');
     }
     setFormData((prev) => ({
       ...prev,
@@ -651,6 +667,31 @@ export default function TransactionForm() {
           await Promise.allSettled(
             pendingFiles.map((pf) => api.uploadTransactionDocument(newId, pf.file))
           );
+        }
+        
+        // Crear registro de cartera si está activo
+        if (formData.type === 'income' && createNewCartera && totalSaleValue) {
+          const total = parseFloat(totalSaleValue) || 0;
+          const paid = parseFloat(formData.amount) || 0;
+          const saldo = total - paid;
+          
+          if (saldo > 0) {
+            await api.createCarteraRecord({
+              nombre: formData.client_name || '',
+              documento: formData.client_document || '',
+              email: formData.client_email || '',
+              telefono: formData.client_phone || '',
+              direccion: formData.client_address || '',
+              fecha_venta: formData.date,
+              valor_venta: total,
+              cash: paid,
+              producto: formData.category || '',
+              notas: formData.description || '',
+              plataforma: '',
+              fuente: '',
+            });
+            invalidateCarteraCache();
+          }
         }
       }
       invalidateDashboardCache();
@@ -827,9 +868,15 @@ export default function TransactionForm() {
                     <button
                       type="button"
                       onClick={() => {
-                        setApplyToCartera((v) => !v);
+                        const newValue = !applyToCartera;
+                        setApplyToCartera(newValue);
                         setCarteraSelectId('');
                         setErrors((prev) => ({ ...prev, cartera_id: '' }));
+                        // Desactivar crear nueva cartera si se activa cobro
+                        if (newValue) {
+                          setCreateNewCartera(false);
+                          setTotalSaleValue('');
+                        }
                       }}
                       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                         applyToCartera ? 'bg-gold-500' : 'bg-dark-600'
@@ -916,6 +963,82 @@ export default function TransactionForm() {
                   )}
                 </div>
               )}
+
+              {/* Crear nuevo registro de cartera (venta con saldo pendiente) */}
+              {!isEditing && !applyToCartera && (
+                <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-white flex items-center gap-2">
+                      <Plus className="h-4 w-4 text-amber-400 shrink-0" />
+                      Venta con saldo pendiente
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateNewCartera((v) => !v);
+                        if (!createNewCartera) setTotalSaleValue('');
+                        setErrors((prev) => ({ ...prev, totalSaleValue: '' }));
+                      }}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        createNewCartera ? 'bg-amber-500' : 'bg-dark-600'
+                      }`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+                        createNewCartera ? 'translate-x-4' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {!createNewCartera && (
+                    <p className="text-xs text-dark-400">
+                      Activa si el cliente no paga el total y queda con saldo pendiente (se creará un registro en cartera).
+                    </p>
+                  )}
+
+                  {createNewCartera && (
+                    <div className="space-y-3 pt-1">
+                      <div className="p-3 bg-amber-500/20 border border-amber-500/30 rounded-lg">
+                        <p className="text-xs text-white [.beige-theme_&]:text-amber-900">
+                          El monto de arriba es lo que el cliente paga ahora. Ingresa abajo el valor total de la venta para calcular el saldo pendiente.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-dark-200">Valor total de la venta *</label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Ej: 200.000"
+                            value={totalSaleValue ? Number(totalSaleValue).toLocaleString('es-CO') : ''}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\./g, '').replace(/\D/g, '');
+                              setTotalSaleValue(raw);
+                              if (errors.totalSaleValue) setErrors((prev) => ({ ...prev, totalSaleValue: '' }));
+                            }}
+                            className={`w-full pl-12 pr-4 py-3 bg-dark-900 border rounded-lg text-white placeholder-dark-500 focus:outline-none focus:ring-2 transition-all duration-300 ${
+                              errors.totalSaleValue 
+                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                                : 'border-dark-700 focus:border-amber-400 focus:ring-amber-400/20'
+                            }`}
+                          />
+                        </div>
+                        {errors.totalSaleValue && <p className="text-sm text-red-400">{errors.totalSaleValue}</p>}
+                      </div>
+                      
+                      {totalSaleValue && formData.amount && (
+                        <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                          <span className="text-sm text-dark-400">Saldo pendiente:</span>
+                          <span className="text-lg font-bold text-red-400">
+                            {formatCurrency(Math.max(0, parseFloat(totalSaleValue) - parseFloat(formData.amount)), currency)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isEditing && carteraLink && (
                 <div className="flex gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
                   <Wallet className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />

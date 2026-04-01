@@ -330,7 +330,7 @@ export default function Goals() {
       )}
 
       {/* Annual Target */}
-      <Card className="p-6">
+      <Card data-tour="goals-target" className="p-6">
         <h3 className="text-lg font-semibold text-white mb-1">Meta de Facturación</h3>
         <p className="text-sm text-dark-400 mb-4">Define tu meta de ventas para el año {selectedYear}</p>
 
@@ -373,7 +373,7 @@ export default function Goals() {
       </Card>
 
       {/* Pockets Config */}
-      <Card className="p-6">
+      <Card data-tour="goals-pockets" className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-semibold text-white">Bolsillos de Presupuesto</h3>

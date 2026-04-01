@@ -140,7 +140,7 @@ export default function Settings() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Tabs */}
         <div className="lg:col-span-1">
-          <Card className="p-2">
+          <Card data-tour="settings-tabs" className="p-2">
             <nav className="space-y-1">
               {tabs.map((tab) => (
                 <button

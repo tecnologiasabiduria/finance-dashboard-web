@@ -23,6 +23,10 @@ import {
   MapPin,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import {
+  exportCarteraHerramientaTemplate,
+  downloadExcelBuffer,
+} from '../utils/herramientaFinancieraExport';
 import { Card, StatCard, Button, Input, Modal, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, parseLocalDate } from '../utils/formatters';
 import { api } from '../services/api';
@@ -439,7 +443,7 @@ export default function Cartera() {
   }
 
   // Excel export
-  const exportCarteraExcel = () => {
+  const exportCarteraExcelLegacy = () => {
     const data = filtered.map((r) => ({
       Nombre: r.nombre || '',
       Documento: r.documento || '',
@@ -459,6 +463,16 @@ export default function Cartera() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
     XLSX.writeFile(wb, 'Cartera.xlsx');
+  };
+
+  const exportCarteraExcel = async () => {
+    try {
+      const buf = await exportCarteraHerramientaTemplate(filtered);
+      downloadExcelBuffer(buf, 'Cartera.xlsx');
+    } catch (err) {
+      console.warn('Exportación Cartera con plantilla no disponible, usando formato simple:', err);
+      exportCarteraExcelLegacy();
+    }
   };
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -584,7 +598,7 @@ export default function Cartera() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div data-tour="cartera-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs sm:text-sm text-dark-400">Total Cartera</span>

@@ -23,6 +23,10 @@ import {
   Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import {
+  exportTransactionsHerramientaTemplate,
+  downloadExcelBuffer,
+} from '../utils/herramientaFinancieraExport';
 import { Button, Card, ConfirmModal, Spinner, DatePicker, Modal } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -72,6 +76,7 @@ function getTransactionDetail(t) {
 
 export default function Transactions() {
   const { token, user } = useAuth();
+  // data-tour attributes are added to key elements for onboarding
   const { currency } = useSettings();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
@@ -263,8 +268,7 @@ export default function Transactions() {
     }, 0);
   }, [filteredTransactions]);
 
-  // Excel export
-  const exportToExcel = () => {
+  const exportToExcelLegacy = () => {
     const data = filteredTransactions.map((t) => {
       const row = {
         Fecha: formatDate(t.date, 'medium'),
@@ -296,7 +300,6 @@ export default function Transactions() {
     });
 
     const ws = XLSX.utils.json_to_sheet(data);
-    // Auto-size columns
     const colWidths = Object.keys(data[0] || {}).map((key) => ({
       wch: Math.max(key.length, ...data.map((r) => String(r[key] || '').length).slice(0, 50)) + 2,
     }));
@@ -308,6 +311,20 @@ export default function Transactions() {
     const period = showAllMonths ? 'Todos' : `${MONTH_NAMES[selectedMonth]}_${selectedYear}`;
     const tabLabel = activeTab === 'all' ? '' : `_${EMPTY_LABELS[activeTab]}`;
     XLSX.writeFile(wb, `Transacciones_${period}${tabLabel}.xlsx`);
+  };
+
+  const exportToExcel = async () => {
+    const period = showAllMonths ? 'Todos' : `${MONTH_NAMES[selectedMonth]}_${selectedYear}`;
+    const tabLabel = activeTab === 'all' ? '' : `_${EMPTY_LABELS[activeTab]}`;
+    const filename = `Transacciones_${period}${tabLabel}.xlsx`;
+
+    try {
+      const buf = await exportTransactionsHerramientaTemplate(filteredTransactions);
+      downloadExcelBuffer(buf, filename);
+    } catch (err) {
+      console.warn('Exportación con plantilla no disponible, usando formato simple:', err);
+      exportToExcelLegacy();
+    }
   };
 
   // Duplicate a transaction
@@ -510,7 +527,7 @@ export default function Transactions() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div data-tour="transactions-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-dark-900/50 border border-emerald-500/20 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-sm text-dark-400">Total Ingresos</p>
@@ -544,7 +561,7 @@ export default function Transactions() {
 
       {/* Tabs */}
       <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex gap-1.5 sm:gap-2 p-1 bg-dark-900/50 rounded-xl w-max sm:w-fit">
+        <div data-tour="transactions-tabs" className="flex gap-1.5 sm:gap-2 p-1 bg-dark-900/50 rounded-xl w-max sm:w-fit">
           <button
             onClick={() => setActiveTab('all')}
             className={`flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-base transition-all whitespace-nowrap ${
