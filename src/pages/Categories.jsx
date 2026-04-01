@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import anime from 'animejs';
 import {
   Tag,
   Plus,
@@ -66,15 +67,44 @@ export default function Categories() {
   // Expanded categories
   const [expandedId, setExpandedId] = useState(null);
 
+  // Animation
+  const gridRef = useRef(null);
+
+  const animateCards = useCallback(() => {
+    requestAnimationFrame(() => {
+      const grid = gridRef.current;
+      if (!grid) return;
+      const cards = grid.querySelectorAll('[data-cat-card]');
+      if (!cards.length) return;
+      anime.remove(cards);
+      anime.set(cards, { opacity: 0, translateY: 28, scale: 0.9 });
+      anime({
+        targets: cards,
+        opacity: [0, 1],
+        translateY: [28, 0],
+        scale: [0.9, 1],
+        delay: anime.stagger(55, { start: 60 }),
+        duration: 520,
+        easing: 'easeOutExpo',
+      });
+    });
+  }, []);
+
   useEffect(() => {
     loadCategories();
   }, []);
+
+  // Re-animate when switching expense/income tab
+  useEffect(() => {
+    animateCards();
+  }, [activeTab, animateCards]);
 
   const loadCategories = async () => {
     try {
       invalidateCategoriesCache();
       const response = await api.getCategories();
       setCategories(response.data.grouped || { income: [], expense: [] });
+      animateCards();
     } catch (err) {
       console.error('Error loading categories:', err);
       setError('Error al cargar categorías');
@@ -271,65 +301,62 @@ export default function Categories() {
       </div>
 
       {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {(categories[activeTab] || []).map((category) => {
           const isExpanded = expandedId === category.id;
           const subs = category.subcategories || [];
 
           return (
-            <Card key={category.id} className="hover:border-gold-400/30 transition-all group/card">
-              {/* Category header */}
-              <div className="p-4 flex items-center gap-3">
-                {/* Icon */}
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: `${category.color}20` }}
-                >
-                  {(() => { const Icon = getCategoryIcon(category.icon); return <Icon className="h-5 w-5" style={{ color: category.color }} />; })()}
+            <Card key={category.id} data-cat-card className="hover:border-gold-400/30 transition-all group/card">
+              {/* Category header — vertical layout */}
+              <button
+                onClick={() => toggleExpand(category.id)}
+                className="p-6 w-full text-left"
+              >
+                {/* Top row: icon + hover actions */}
+                <div className="flex items-start justify-between mb-4">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                    style={{ backgroundColor: `${category.color}25` }}
+                  >
+                    {(() => { const Icon = getCategoryIcon(category.icon); return <Icon className="h-7 w-7" style={{ color: category.color }} />; })()}
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); handleOpenCatModal(category); }}
+                      className="p-1.5 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors cursor-pointer"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </span>
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteClick(category, 'category'); }}
+                      className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </span>
+                  </div>
                 </div>
 
-                {/* Name + meta — clickable to expand */}
-                <button
-                  onClick={() => toggleExpand(category.id)}
-                  className="flex-1 min-w-0 text-left"
-                >
-                  <h3 className="font-medium text-white truncate">{category.name}</h3>
-                  <p className="text-xs text-dark-500">
+                {/* Name + meta */}
+                <h3 className="font-semibold text-white text-lg leading-snug">{category.name}</h3>
+                <div className="flex items-center justify-between mt-1.5">
+                  <p className="text-sm text-dark-400">
                     {category.type === 'income' ? 'Ingreso' : 'Gasto'}
                     {subs.length > 0 && ` · ${subs.length} subcategoría${subs.length > 1 ? 's' : ''}`}
                   </p>
-                </button>
-
-                {/* Actions — siempre visibles en hover de la card */}
-                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => handleOpenCatModal(category)}
-                    className="p-1.5 rounded-lg text-dark-400 hover:text-gold-400 hover:bg-dark-800 transition-colors"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(category, 'category')}
-                    className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* Chevron */}
-                {subs.length > 0 && (
-                  <button onClick={() => toggleExpand(category.id)} className="flex-shrink-0">
-                    {isExpanded
+                  {subs.length > 0 && (
+                    isExpanded
                       ? <ChevronDown className="h-4 w-4 text-dark-400" />
                       : <ChevronRight className="h-4 w-4 text-dark-400" />
-                    }
-                  </button>
-                )}
-              </div>
+                  )}
+                </div>
+              </button>
 
               {/* Expanded subcategories */}
               {isExpanded && (
-                <div className="border-t border-dark-800 px-4 pb-4 pt-3 space-y-2">
+                <div className="border-t border-dark-800 px-6 pb-5 pt-4 space-y-2">
                   {subs.length === 0 ? (
                     <p className="text-xs text-dark-500 py-1">Sin subcategorías</p>
                   ) : (
@@ -376,7 +403,7 @@ export default function Categories() {
 
               {/* Add sub button when no subs */}
               {!isExpanded && subs.length === 0 && (
-                <div className="px-4 pb-3">
+                <div className="px-6 pb-4">
                   <button
                     onClick={() => { setExpandedId(category.id); handleOpenSubModal(category); }}
                     className="text-xs text-dark-500 hover:text-gold-400 transition-colors flex items-center gap-1"
@@ -392,8 +419,9 @@ export default function Categories() {
 
         {/* Add new card */}
         <button
+          data-cat-card
           onClick={() => handleOpenCatModal()}
-          className="p-4 border-2 border-dashed border-dark-700 rounded-xl hover:border-gold-400/50 hover:bg-dark-900/50 transition-all flex items-center justify-center gap-2 text-dark-400 hover:text-gold-400 min-h-[88px]"
+          className="p-6 border-2 border-dashed border-dark-700 rounded-xl hover:border-gold-400/50 hover:bg-dark-900/50 transition-all flex items-center justify-center gap-2 text-dark-400 hover:text-gold-400 min-h-[88px] text-base"
         >
           <Plus className="h-5 w-5" />
           <span>Agregar categoría</span>

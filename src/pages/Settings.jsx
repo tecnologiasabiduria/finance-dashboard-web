@@ -1,15 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Mail, Lock, Shield, Palette, Save, Sun, Moon, Tag } from 'lucide-react';
 import { Button, Input, Card, Select } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 import Categories from './Categories';
+import anime from 'animejs';
 
 export default function Settings() {
   const { user } = useAuth();
   const { theme, setTheme, currency, setCurrency, CURRENCIES, sidebarStyle, setSidebarStyle } = useSettings();
   const [activeTab, setActiveTab] = useState('profile');
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    anime.remove(el);
+    anime({
+      targets: el,
+      translateX: [activeTab === 'categories' ? -60 : -20, 0],
+      opacity: [0, 1],
+      scaleX: [activeTab === 'categories' ? 0.96 : 0.99, 1],
+      duration: activeTab === 'categories' ? 600 : 350,
+      easing: activeTab === 'categories' ? 'easeOutExpo' : 'easeOutCubic',
+      complete: () => {
+        // Clear residual transforms so position:fixed modals
+        // inside this container aren't displaced
+        el.style.transform = '';
+      },
+    });
+  }, [activeTab]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -140,7 +161,7 @@ export default function Settings() {
         </div>
 
         {/* Content */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3" ref={contentRef} style={{ transformOrigin: 'left center' }}>
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <Card className="p-6">
