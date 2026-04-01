@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Modal, ConfirmModal, Spinner, CreatableSelect } from '../components/ui';
 import { formatCurrency } from '../utils/formatters';
 import { api } from '../services/api';
-import { getCachedCategories, invalidateCategoriesCache, invalidateDashboardCache } from '../services/cache';
+import { getCachedCategories, getCachedBudgetConfig, getCachedBudgetPockets, invalidateBudgetCache, invalidateCategoriesCache, invalidateDashboardCache } from '../services/cache';
 
 export default function Goals() {
   const navigate = useNavigate();
@@ -54,8 +54,8 @@ export default function Goals() {
         setLoading(true);
 
         const [configRes, pocketsRes, catRes] = await Promise.all([
-          api.getBudgetConfig(selectedYear),
-          api.getBudgetPockets(),
+          getCachedBudgetConfig(selectedYear),
+          getCachedBudgetPockets(),
           getCachedCategories(),
         ]);
 
@@ -113,6 +113,7 @@ export default function Goals() {
     try {
       const res = await api.saveBudgetConfig({ year: selectedYear, annual_revenue_target: target });
       setConfig(res.data.config);
+      invalidateBudgetCache();
       invalidateDashboardCache();
       setSuccessMsg('Meta guardada correctamente');
       setTimeout(() => setSuccessMsg(''), 3000);
@@ -130,6 +131,7 @@ export default function Goals() {
       setConfig(null);
       setAnnualTarget('');
       setPockets([]);
+      invalidateBudgetCache();
       invalidateDashboardCache();
       invalidateCategoriesCache();
       setDeleteConfigModal(false);
@@ -157,6 +159,7 @@ export default function Goals() {
     try {
       const res = await api.saveBudgetPocketsBulk(pocketDraft);
       setPockets(res.data.pockets);
+      invalidateBudgetCache();
       invalidateDashboardCache();
       setEditingPockets(false);
     } catch (err) {
@@ -190,6 +193,7 @@ export default function Goals() {
         sort_order: pockets.length,
       });
       setPockets([...pockets, res.data.pocket]);
+      invalidateBudgetCache();
       invalidateCategoriesCache();
       invalidateDashboardCache();
       const catRes = await getCachedCategories();
@@ -206,6 +210,7 @@ export default function Goals() {
     try {
       await api.deleteBudgetPocket(deleteModal.pocket.id);
       setPockets(pockets.filter((p) => p.id !== deleteModal.pocket.id));
+      invalidateBudgetCache();
       invalidateDashboardCache();
       setDeleteModal({ open: false, pocket: null });
     } catch (err) {
@@ -231,10 +236,58 @@ export default function Goals() {
     setAnnualTarget(raw);
   };
 
+  const Skeleton = ({ className }) => (
+    <div className={`animate-pulse bg-dark-800 rounded-lg ${className}`} />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner size="lg" />
+      <div className="space-y-6 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-44 mb-2" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <Skeleton className="h-10 w-40 rounded-xl" />
+        </div>
+
+        {/* Annual target card skeleton */}
+        <div className="bg-dark-900 border border-dark-700 rounded-xl p-6">
+          <Skeleton className="h-5 w-48 mb-2" />
+          <Skeleton className="h-4 w-64 mb-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <div className="bg-dark-800/50 rounded-lg p-4">
+              <Skeleton className="h-3 w-28 mb-2" />
+              <Skeleton className="h-7 w-40" />
+            </div>
+            <Skeleton className="h-12 w-full rounded-lg" />
+          </div>
+        </div>
+
+        {/* Pockets card skeleton */}
+        <div className="bg-dark-900 border border-dark-700 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <Skeleton className="h-5 w-52 mb-2" />
+              <Skeleton className="h-4 w-72" />
+            </div>
+            <Skeleton className="h-9 w-24 rounded-lg" />
+          </div>
+          <Skeleton className="h-10 w-full rounded-lg mb-4" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-dark-800/50 rounded-lg p-4 flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-8 w-14 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

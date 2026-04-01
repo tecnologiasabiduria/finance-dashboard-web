@@ -26,6 +26,7 @@ import * as XLSX from 'xlsx';
 import { Card, StatCard, Button, Input, Modal, ConfirmModal, Spinner, DatePicker } from '../components/ui';
 import { formatCurrency, parseLocalDate } from '../utils/formatters';
 import { api } from '../services/api';
+import { getCachedCartera, invalidateCarteraCache } from '../services/cache';
 import { useSettings } from '../context/SettingsContext';
 
 const EMPTY_RECORD = {
@@ -95,7 +96,7 @@ export default function Cartera() {
   async function loadRecords() {
     try {
       setLoading(true);
-      const res = await api.getCartera();
+      const res = await getCachedCartera();
       setRecords(res.data?.records || res.data || []);
     } catch (err) {
       console.error('Error loading cartera:', err);
@@ -244,6 +245,7 @@ export default function Cartera() {
         setRecords((prev) => [created, ...prev]);
         showSuccess('Registro creado exitosamente.');
       }
+      invalidateCarteraCache();
       setRecordModal({ open: false, record: null });
     } catch (err) {
       setRecordError(err.message || 'Error al guardar el registro.');
@@ -263,6 +265,7 @@ export default function Cartera() {
         delete next[deleteModal.record.id];
         return next;
       });
+      invalidateCarteraCache();
       showSuccess('Registro eliminado.');
     } catch (err) {
       console.error('Error deleting record:', err);
@@ -388,6 +391,7 @@ export default function Cartera() {
         showSuccess('Abono registrado exitosamente.');
       }
 
+      invalidateCarteraCache();
       setPagoModal({ open: false, carteraId: null, pago: null });
     } catch (err) {
       setPagoError(err.message || 'Error al guardar el abono.');
@@ -401,6 +405,7 @@ export default function Cartera() {
     if (!carteraId || !pagoId) return;
     try {
       await api.deleteCarteraPago(carteraId, pagoId);
+      invalidateCarteraCache();
       const pago = (pagosMap[carteraId] || []).find((p) => p.id === pagoId);
       const montoEliminado = pago ? Number(pago.monto || 0) : 0;
 
@@ -486,10 +491,63 @@ export default function Cartera() {
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
+  const Skeleton = ({ className }) => (
+    <div className={`animate-pulse bg-dark-800 rounded-lg ${className}`} />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+      <div className="space-y-6 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-36 mb-2" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-20 rounded-lg" />
+            <Skeleton className="h-9 w-32 rounded-lg" />
+          </div>
+        </div>
+
+        {/* Stats cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-dark-900 border border-dark-700 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </div>
+              <Skeleton className="h-7 w-36" />
+            </div>
+          ))}
+        </div>
+
+        {/* Filters skeleton */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+          <Skeleton className="h-10 w-40 rounded-lg" />
+        </div>
+
+        {/* Table skeleton */}
+        <div className="bg-dark-900 border border-dark-700 rounded-xl overflow-hidden">
+          <div className="bg-dark-800/50 px-4 py-4">
+            <div className="flex gap-6">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-4 w-24" />
+              ))}
+            </div>
+          </div>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex items-center gap-6 px-4 py-4 border-t border-dark-800/50">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16 ml-auto" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

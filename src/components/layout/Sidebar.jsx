@@ -98,6 +98,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
               to={item.href}
               onClick={() => onNavigate?.()}
               data-menu-item
+              data-nav-active={isActive ? 'true' : undefined}
               style={mobile ? { opacity: 0 } : undefined}
               {...(tourId && { 'data-tour': tourId })}
               className={clsx(

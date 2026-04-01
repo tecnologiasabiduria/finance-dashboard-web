@@ -255,10 +255,53 @@ export default function AnnualReport() {
     return null;
   };
 
+  const Skeleton = ({ className }) => (
+    <div className={`animate-pulse bg-dark-800 rounded-lg ${className}`} />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner size="lg" />
+      <div className="space-y-6 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-44 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-3">
+            <Skeleton className="h-10 w-40 rounded-xl" />
+            <Skeleton className="h-10 w-24 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Summary cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-dark-900 border border-dark-700 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </div>
+              <Skeleton className="h-8 w-40 mb-2" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
+
+        {/* Monthly table skeleton */}
+        <div className="bg-dark-900 border border-dark-700 rounded-xl p-6">
+          <Skeleton className="h-5 w-52 mb-6" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

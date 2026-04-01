@@ -247,10 +247,35 @@ export default function Categories() {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const Skeleton = ({ className }) => (
+    <div className={`animate-pulse bg-dark-800 rounded-lg ${className}`} />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
+      <div className="space-y-6 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-40 mb-2" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-40 rounded-xl" />
+        </div>
+
+        {/* Tabs skeleton */}
+        <Skeleton className="h-10 w-64 rounded-xl" />
+
+        {/* Grid skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-dark-900 border border-dark-700 rounded-xl p-6">
+              <Skeleton className="h-14 w-14 rounded-2xl mb-4" />
+              <Skeleton className="h-5 w-32 mb-2" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

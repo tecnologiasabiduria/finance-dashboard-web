@@ -52,6 +52,51 @@ export function invalidateDashboardCache() {
   Object.keys(dashboardMonthCache).forEach((k) => delete dashboardMonthCache[k]);
 }
 
+// ── Budget cache ──
+const budgetConfigCache = {};
+let budgetConfigPromises = {};
+let budgetPocketsCache = null;
+let budgetPocketsPromise = null;
+
+export async function getCachedBudgetConfig(year) {
+  if (budgetConfigCache[year]) return budgetConfigCache[year];
+  if (budgetConfigPromises[year]) return budgetConfigPromises[year];
+
+  budgetConfigPromises[year] = api.getBudgetConfig(year).then((res) => {
+    budgetConfigCache[year] = res;
+    delete budgetConfigPromises[year];
+    return res;
+  }).catch((err) => {
+    delete budgetConfigPromises[year];
+    throw err;
+  });
+
+  return budgetConfigPromises[year];
+}
+
+export async function getCachedBudgetPockets() {
+  if (budgetPocketsCache) return budgetPocketsCache;
+  if (budgetPocketsPromise) return budgetPocketsPromise;
+
+  budgetPocketsPromise = api.getBudgetPockets().then((res) => {
+    budgetPocketsCache = res;
+    budgetPocketsPromise = null;
+    return res;
+  }).catch((err) => {
+    budgetPocketsPromise = null;
+    throw err;
+  });
+
+  return budgetPocketsPromise;
+}
+
+export function invalidateBudgetCache() {
+  Object.keys(budgetConfigCache).forEach((k) => delete budgetConfigCache[k]);
+  budgetConfigPromises = {};
+  budgetPocketsCache = null;
+  budgetPocketsPromise = null;
+}
+
 // -- Cartera cache --
 let carteraCache = null;
 let carteraPromise = null;
@@ -82,4 +127,5 @@ export function invalidateAllCaches() {
   invalidateCategoriesCache();
   invalidateDashboardCache();
   invalidateCarteraCache();
+  invalidateBudgetCache();
 }

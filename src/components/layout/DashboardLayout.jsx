@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import anime from 'animejs';
 import { Sparkles, X } from 'lucide-react';
@@ -14,24 +14,24 @@ export function DashboardLayout() {
   const overlayRef = useRef(null);
   const sidebarRef = useRef(null);
   const animating = useRef(false);
+  const pageRef = useRef(null);
+  const desktopNavRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
-    if (animating.current) return;
-    
     const overlay = overlayRef.current;
     const sidebar = sidebarRef.current;
-    
-    if (!overlay || !sidebar) return;
 
-    animating.current = true;
+    if (!overlay || !sidebar) return;
 
     if (mobileMenuOpen) {
       // ══════════ OPEN ══════════
-      // 1. Mostrar elementos
+      if (animating.current) return;
+      animating.current = true;
+
       overlay.style.display = 'block';
       sidebar.style.display = 'block';
 
-      // 2. Animar overlay (fade in)
       anime({
         targets: overlay,
         opacity: [0, 1],
@@ -39,7 +39,6 @@ export function DashboardLayout() {
         easing: 'easeOutCubic',
       });
 
-      // 3. Animar sidebar (slide + fade from left)
       anime({
         targets: sidebar,
         translateX: ['-100%', 0],
@@ -48,7 +47,6 @@ export function DashboardLayout() {
         easing: 'easeOutExpo',
       });
 
-      // 4. Animar items del menú con stagger
       const menuItems = sidebar.querySelectorAll('[data-menu-item]');
       if (menuItems.length > 0) {
         anime({
@@ -58,16 +56,20 @@ export function DashboardLayout() {
           delay: anime.stagger(50, { start: 200 }),
           duration: 400,
           easing: 'easeOutCubic',
-          complete: () => {
-            animating.current = false;
-          }
+          complete: () => { animating.current = false; }
         });
       } else {
         animating.current = false;
       }
     } else {
       // ══════════ CLOSE ══════════
-      // 1. Animar sidebar (slide out)
+      // Always allow close — cancel any in-progress open animation
+      anime.remove(overlay);
+      anime.remove(sidebar);
+      const menuItems = sidebar.querySelectorAll('[data-menu-item]');
+      if (menuItems.length) anime.remove(menuItems);
+      animating.current = false;
+
       anime({
         targets: sidebar,
         translateX: [0, '-100%'],
@@ -76,7 +78,6 @@ export function DashboardLayout() {
         easing: 'easeInCubic',
       });
 
-      // 2. Animar overlay (fade out)
       anime({
         targets: overlay,
         opacity: [1, 0],
@@ -85,11 +86,44 @@ export function DashboardLayout() {
         complete: () => {
           overlay.style.display = 'none';
           sidebar.style.display = 'none';
-          animating.current = false;
         }
       });
     }
   }, [mobileMenuOpen]);
+
+  // ══════════ PAGE TRANSITION ══════════
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    anime.remove(el);
+    anime({
+      targets: el,
+      opacity: [0, 1],
+      translateY: [14, 0],
+      duration: 350,
+      easing: 'easeOutCubic',
+      complete: () => { el.style.transform = ''; },
+    });
+  }, [location.pathname]);
+
+  // ══════════ SIDEBAR ACTIVE ITEM PULSE ══════════
+  useEffect(() => {
+    const nav = desktopNavRef.current;
+    if (!nav) return;
+    const activeLink = nav.querySelector('[data-nav-active="true"]');
+    if (!activeLink) return;
+    const icon = activeLink.querySelector('svg');
+    if (icon) {
+      anime.remove(icon);
+      anime({
+        targets: icon,
+        scale: [1, 1.35, 1],
+        rotate: [0, -8, 0],
+        duration: 500,
+        easing: 'easeOutElastic(1, .5)',
+      });
+    }
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-dark-900 relative">
@@ -102,7 +136,7 @@ export function DashboardLayout() {
       <OnboardingTour />
 
       {/* Sidebar */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block" ref={desktopNavRef}>
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -143,7 +177,7 @@ export function DashboardLayout() {
           onMenuClick={() => setMobileMenuOpen(true)}
         />
 
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main ref={pageRef} className="p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
