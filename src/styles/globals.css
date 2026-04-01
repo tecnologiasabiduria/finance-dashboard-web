@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Sabiduría Empresarial — Design Tokens ===== */
+/* ===== Finanzas Sabias — Design Tokens ===== */
 /* --se-charcoal-brown: #261c21 — Fondos, superficies, profundidad */
 /* --se-sand-beige:     #eaad74 — Textos en fondo oscuro, íconos, bordes sutiles */
 /* --se-warm-amber:     #da7d41 — Acento para elementos activos, botones, CTAs */
@@ -57,13 +57,16 @@ body {
 
 /* Smooth theme switching for all elements */
 html.light *,
-html.dark * {
+html.dark *,
+html.beige-theme * {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 }
 html.light .animate-spin,
 html.dark .animate-spin,
+html.beige-theme .animate-spin,
 html.light [class*="transition-transform"],
-html.dark [class*="transition-transform"] {
+html.dark [class*="transition-transform"],
+html.beige-theme [class*="transition-transform"] {
   transition: none;
 }
 
@@ -82,6 +85,14 @@ html.light .bg-dark-700     { background-color: #e8d9c4 !important; }
 html.light .bg-dark-600     { background-color: #dcc9b0 !important; }
 
 html.light .bg-dark-950\/80 { background-color: rgba(255,252,247,0.88) !important; }
+/* Opacity variants used by Header and modal overlays */
+html.light .bg-dark-900\/95 { background-color: rgba(255,252,247,0.97) !important; }
+html.light .bg-dark-900\/90 { background-color: rgba(255,252,247,0.93) !important; }
+html.light .bg-dark-900\/60 { background-color: rgba(255,252,247,0.68) !important; }
+html.light .bg-dark-900\/40 { background-color: rgba(255,252,247,0.45) !important; }
+html.light .bg-dark-800\/40 { background-color: rgba(253,243,231,0.45) !important; }
+html.light .bg-dark-800\/60 { background-color: rgba(253,243,231,0.70) !important; }
+html.light .bg-dark-800\/70 { background-color: rgba(253,243,231,0.80) !important; }
 
 /* ---- Borders (tonos beige cálido del brandbook) ---- */
 html.light .border-dark-800    { border-color: #e8d9c4 !important; }
@@ -242,6 +253,11 @@ html.light ::selection {
   color: #261c21;
 }
 
+html.beige-theme ::selection {
+  background-color: rgba(38, 28, 33, 0.25);
+  color: #ffffff;
+}
+
 /* Scrollbar oculta para scroll horizontal (tabs) */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -371,6 +387,14 @@ html.beige-theme .bg-dark-800\/30 { background-color: rgba(248,223,197,0.35) !im
 html.beige-theme .bg-dark-700     { background-color: #e8c898 !important; }
 html.beige-theme .bg-dark-950\/80 { background-color: rgba(240,223,197,0.9) !important; }
 html.beige-theme .bg-dark-950\/90 { background-color: rgba(240,223,197,0.95) !important; }
+/* Opacity variants used by Header, Goals resumen, and modal overlays */
+html.beige-theme .bg-dark-900\/95 { background-color: rgba(253,243,231,0.97) !important; }
+html.beige-theme .bg-dark-900\/90 { background-color: rgba(253,243,231,0.93) !important; }
+html.beige-theme .bg-dark-900\/60 { background-color: rgba(253,243,231,0.68) !important; }
+html.beige-theme .bg-dark-900\/40 { background-color: rgba(253,243,231,0.45) !important; }
+html.beige-theme .bg-dark-800\/40 { background-color: rgba(248,223,197,0.45) !important; }
+html.beige-theme .bg-dark-800\/60 { background-color: rgba(248,223,197,0.70) !important; }
+html.beige-theme .bg-dark-800\/70 { background-color: rgba(248,223,197,0.80) !important; }
 
 /* Bordes */
 html.beige-theme .border-dark-800    { border-color: #e8c898 !important; }
@@ -423,38 +447,72 @@ html.beige-theme .bg-dark-900\/50 { background-color: rgba(220,185,145,0.35) !im
 html.beige-theme .sticky.bg-dark-900  { background-color: #fdf3e7 !important; }
 html.beige-theme .sticky.bg-dark-950  { background-color: #f0dfc5 !important; }
 
-/* Buttons: charcoal gradient on beige for strong contrast */
+/* Buttons: keep warm terracotta-to-amber gradient on beige */
 html.beige-theme .btn-primary-gradient,
 html.beige-theme .btn-primary {
-  background: linear-gradient(to right, #261c21, #4d3421) !important;
-  color: #eaad74 !important;
+  background: linear-gradient(to right, #7e301f, #c96a2e, #da7d41) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(218,125,65,0.30) !important;
 }
 html.beige-theme .btn-primary-gradient:hover:not(:disabled),
 html.beige-theme .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(to right, #3d2820, #6b4a2e) !important;
-  color: #eaad74 !important;
+  background: linear-gradient(to right, #6a2618, #b05a25, #c96a2e) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 18px rgba(218,125,65,0.40) !important;
 }
 
 /* Scrollbar */
 html.beige-theme ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #da7d41 0%, #7e301f 100%);
+  background: linear-gradient(180deg, #3d2b21 0%, #261c21 100%);
+}
+html.beige-theme ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #4d3828 0%, #3d2b21 100%);
 }
 
-/* Anulación global de los overrides de texto blanco en dark mode */
-html.beige-theme .text-dark-300,
-html.beige-theme .text-dark-400,
-html.beige-theme .text-dark-500,
-html.beige-theme .text-dark-600 { }
+/* ---- Colores de acento ajustados para legibilidad en beige ---- */
+html.beige-theme .text-emerald-400 { color: #047857 !important; }
+html.beige-theme .text-emerald-500 { color: #047857 !important; }
+html.beige-theme .text-red-400     { color: #b91c1c !important; }
+html.beige-theme .text-red-500     { color: #b91c1c !important; }
+html.beige-theme .text-gold-400    { color: #a05a18 !important; }
+html.beige-theme .text-gold-300    { color: #a05a18 !important; }
+html.beige-theme .text-amber-400   { color: #b45309 !important; }
+html.beige-theme .text-blue-400    { color: #1d4ed8 !important; }
 
-/* ===== Sidebar beige — anula los overrides de texto blanco dentro del panel claro ===== */
-html:not(.light) .sidebar-beige .text-dark-200 { color: #261c21 !important; }
-html:not(.light) .sidebar-beige .text-dark-300 { color: #332a25 !important; }
-html:not(.light) .sidebar-beige .text-dark-400 { color: #6b5a50 !important; }
-html:not(.light) .sidebar-beige .text-dark-500 { color: #8c7a6f !important; }
-html:not(.light) .sidebar-beige .text-white    { color: #261c21 !important; }
-/* text-gradient-gold en fondo claro: usar terracota puro sin la parte beige que se pierde */
-html:not(.light) .sidebar-beige .text-gradient-gold {
-  background: linear-gradient(135deg, #7e301f 0%, #c06a35 60%, #da7d41 100%) !important;
+html.beige-theme .bg-emerald-500\/10  { background-color: rgba(4,120,87,0.10) !important; }
+html.beige-theme .bg-emerald-500\/20  { background-color: rgba(4,120,87,0.15) !important; }
+html.beige-theme .bg-red-500\/10      { background-color: rgba(185,28,28,0.08) !important; }
+html.beige-theme .bg-red-500\/20      { background-color: rgba(185,28,28,0.12) !important; }
+html.beige-theme .bg-gold-400\/10     { background-color: rgba(160,90,24,0.10) !important; }
+html.beige-theme .bg-gold-400\/20     { background-color: rgba(160,90,24,0.15) !important; }
+html.beige-theme .bg-amber-500\/20    { background-color: rgba(180,83,9,0.12) !important; }
+html.beige-theme .bg-blue-500\/20     { background-color: rgba(29,78,216,0.10) !important; }
+
+html.beige-theme .border-emerald-500\/20 { border-color: rgba(4,120,87,0.20) !important; }
+html.beige-theme .border-emerald-500\/30 { border-color: rgba(4,120,87,0.28) !important; }
+html.beige-theme .border-emerald-400\/30 { border-color: rgba(4,120,87,0.28) !important; }
+html.beige-theme .border-red-500\/20     { border-color: rgba(185,28,28,0.20) !important; }
+html.beige-theme .border-red-500\/30     { border-color: rgba(185,28,28,0.28) !important; }
+html.beige-theme .border-red-400\/30     { border-color: rgba(185,28,28,0.28) !important; }
+html.beige-theme .border-gold-400\/20    { border-color: rgba(160,90,24,0.25) !important; }
+html.beige-theme .border-gold-400\/30    { border-color: rgba(160,90,24,0.30) !important; }
+
+/* ===== Sidebar beige — anula los overrides de texto dentro del panel beige ===== */
+html:not(.light) .sidebar-beige .text-dark-200,
+html.beige-theme .sidebar-beige .text-dark-200 { color: #261c21 !important; }
+html:not(.light) .sidebar-beige .text-dark-300,
+html.beige-theme .sidebar-beige .text-dark-300 { color: #332a25 !important; }
+html:not(.light) .sidebar-beige .text-dark-400,
+html.beige-theme .sidebar-beige .text-dark-400 { color: #6b5a50 !important; }
+html:not(.light) .sidebar-beige .text-dark-500,
+html.beige-theme .sidebar-beige .text-dark-500 { color: #8c7a6f !important; }
+html:not(.light) .sidebar-beige .text-white,
+html.beige-theme .sidebar-beige .text-white    { color: #261c21 !important; }
+/* text-gradient-gold en fondo claro: usar charcoal oscuro para legibilidad */
+html:not(.light) .sidebar-beige .text-gradient-gold,
+html.beige-theme .sidebar-beige .text-gradient-gold,
+html.beige-theme .text-gradient-gold {
+  background: linear-gradient(135deg, #261c21 0%, #3d2b21 60%, #4d3828 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;

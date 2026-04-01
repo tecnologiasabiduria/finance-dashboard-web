@@ -45,8 +45,8 @@ const navigation = [
 
 export function Sidebar({ collapsed, onToggle, mobile, onNavigate }) {
   const location = useLocation();
-  const { sidebarStyle } = useSettings();
-  const isBeige = sidebarStyle === 'beige';
+  const { theme } = useSettings();
+  const isBeige = theme === 'sand-beige';
 
   return (
     <aside

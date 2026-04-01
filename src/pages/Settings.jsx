@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, Lock, Shield, Palette, Save, Sun, Moon, Tag } from 'lucide-react';
+import { User, Mail, Lock, Shield, Palette, Save, Moon, Tag } from 'lucide-react';
 import { Button, Input, Card, Select } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -9,7 +9,7 @@ import anime from 'animejs';
 
 export default function Settings() {
   const { user } = useAuth();
-  const { theme, setTheme, currency, setCurrency, CURRENCIES, sidebarStyle, setSidebarStyle } = useSettings();
+  const { theme, setTheme, currency, setCurrency, CURRENCIES } = useSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const contentRef = useRef(null);
 
@@ -288,6 +288,7 @@ export default function Settings() {
                     Tema
                   </label>
                   <div className="grid grid-cols-2 gap-4">
+                    {/* Dark */}
                     <button
                       onClick={() => setTheme('dark')}
                       className={`p-4 rounded-xl border-2 transition-all ${
@@ -296,68 +297,38 @@ export default function Settings() {
                           : 'border-dark-700 hover:border-dark-600'
                       }`}
                     >
-                      <div className="h-16 rounded-lg mb-3 bg-dark-950 border border-dark-800 flex items-center justify-center">
-                        <Moon className="h-6 w-6 text-gold-400" />
+                      <div className="h-16 rounded-lg mb-3 bg-dark-950 border border-dark-800 flex flex-col items-center justify-center gap-1.5 px-3">
+                        <Moon className="h-5 w-5 text-gold-400" />
+                        <div className="w-full space-y-1">
+                          <div className="h-1.5 w-3/4 rounded bg-white/20 mx-auto" />
+                          <div className="h-1.5 w-1/2 rounded bg-gold-400/40 mx-auto" />
+                        </div>
                       </div>
                       <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gold-400' : 'text-dark-400'}`}>
                         Oscuro
                       </p>
                     </button>
-                    <button
-                      onClick={() => setTheme('light')}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        theme === 'light'
-                          ? 'border-gold-400 bg-gold-400/10'
-                          : 'border-dark-700 hover:border-dark-600'
-                      }`}
-                    >
-                      <div className="h-16 rounded-lg mb-3 bg-gray-100 border border-gray-200 flex items-center justify-center">
-                        <Sun className="h-6 w-6 text-amber-500" />
-                      </div>
-                      <p className={`text-sm font-medium ${theme === 'light' ? 'text-gold-400' : 'text-dark-400'}`}>
-                        Claro
-                      </p>
-                    </button>
-                  </div>
-                </div>
 
-                {/* Sidebar style */}
-                <div>
-                  <label className="block text-sm font-medium text-dark-200 mb-3">
-                    Estilo del panel lateral
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
+                    {/* Sand Beige */}
                     <button
-                      onClick={() => setSidebarStyle('dark')}
+                      onClick={() => setTheme('sand-beige')}
                       className={`p-4 rounded-xl border-2 transition-all ${
-                        sidebarStyle === 'dark'
+                        theme === 'sand-beige'
                           ? 'border-gold-400 bg-gold-400/10'
                           : 'border-dark-700 hover:border-dark-600'
                       }`}
                     >
-                      <div className="h-16 rounded-lg mb-3 bg-[#261c21] border border-[#332a25] flex flex-col justify-center gap-1 px-3">
-                        <div className="h-2 w-3/4 rounded bg-white/20" />
-                        <div className="h-2 w-1/2 rounded bg-white/10" />
-                        <div className="h-2 w-2/3 rounded bg-gold-400/40" />
+                      <div className="h-16 rounded-lg mb-3 bg-[#f0dfc5] border border-[#e8c898] flex flex-col items-center justify-center gap-1.5 px-3">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 rounded-full bg-[#da7d41]" />
+                          <div className="w-2 h-2 rounded-full bg-[#7e301f]" />
+                        </div>
+                        <div className="w-full space-y-1">
+                          <div className="h-1.5 w-3/4 rounded bg-[#4d3f38]/40 mx-auto" />
+                          <div className="h-1.5 w-1/2 rounded bg-[#7e301f]/50 mx-auto" />
+                        </div>
                       </div>
-                      <p className={`text-sm font-medium ${sidebarStyle === 'dark' ? 'text-gold-400' : 'text-dark-400'}`}>
-                        Oscuro
-                      </p>
-                    </button>
-                    <button
-                      onClick={() => setSidebarStyle('beige')}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        sidebarStyle === 'beige'
-                          ? 'border-gold-400 bg-gold-400/10'
-                          : 'border-dark-700 hover:border-dark-600'
-                      }`}
-                    >
-                      <div className="h-16 rounded-lg mb-3 bg-[#f8dfc5] border border-[#e8c898] flex flex-col justify-center gap-1 px-3">
-                        <div className="h-2 w-3/4 rounded bg-[#4d3f38]/40" />
-                        <div className="h-2 w-1/2 rounded bg-[#4d3f38]/25" />
-                        <div className="h-2 w-2/3 rounded bg-[#7e301f]/50" />
-                      </div>
-                      <p className={`text-sm font-medium ${sidebarStyle === 'beige' ? 'text-gold-400' : 'text-dark-400'}`}>
+                      <p className={`text-sm font-medium ${theme === 'sand-beige' ? 'text-gold-400' : 'text-dark-400'}`}>
                         Sand Beige
                       </p>
                     </button>

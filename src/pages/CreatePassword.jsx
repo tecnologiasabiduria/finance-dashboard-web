@@ -125,7 +125,7 @@ export default function CreatePassword() {
           </h2>
 
           <p className="text-dark-400 mb-2">
-            Bienvenido a <span className="text-gradient-gold font-medium">Sabiduría Empresarial</span>
+            Bienvenido a <span className="text-gradient-gold font-medium">Finanzas Sabias</span>
           </p>
 
           <p className="text-dark-500 text-sm">

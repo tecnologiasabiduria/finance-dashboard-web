@@ -18,6 +18,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabase';
 
@@ -46,6 +47,8 @@ function timeAgo(dateStr) {
 
 export function Header({ onMenuClick, showMenuButton }) {
   const { user, logout } = useAuth();
+  const { theme } = useSettings();
+  const isBeige = theme === 'sand-beige';
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -277,7 +280,12 @@ export function Header({ onMenuClick, showMenuButton }) {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-3 p-2 pr-4 hover:bg-dark-800 rounded-xl transition-colors"
             >
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gold-700 via-gold-500 to-gold-400 flex items-center justify-center shadow-[0_2px_8px_rgba(218,125,65,0.2)]">
+              <div className={clsx(
+                "h-10 w-10 rounded-xl flex items-center justify-center",
+                isBeige
+                  ? "bg-gradient-to-br from-[#261c21] via-[#3d2b21] to-[#4d3828] shadow-[0_2px_8px_rgba(38,28,33,0.3)]"
+                  : "bg-gradient-to-br from-gold-700 via-gold-500 to-gold-400 shadow-[0_2px_8px_rgba(218,125,65,0.2)]"
+              )}>
                 <span className="font-semibold text-white">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>

@@ -25,7 +25,7 @@ export function LoadingScreen({ message = 'Cargando...' }) {
       </div>
       <div className="text-center">
         <h2 className="text-xl font-semibold text-white mb-2">
-          Sabiduría Empresarial
+          Finanzas Sabias
         </h2>
         <p className="text-dark-400">{message}</p>
       </div>

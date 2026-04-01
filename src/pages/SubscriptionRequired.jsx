@@ -145,7 +145,7 @@ export default function SubscriptionRequired() {
       {/* Footer */}
       <footer className="px-8 py-6 border-t border-dark-800">
         <div className="max-w-7xl mx-auto text-center text-sm text-dark-500">
-          © 2026 Sabiduría Empresarial. Todos los derechos reservados.
+          © 2026 Finanzas Sabias. Todos los derechos reservados.
         </div>
       </footer>
     </div>

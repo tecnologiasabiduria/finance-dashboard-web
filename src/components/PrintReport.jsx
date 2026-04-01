@@ -11,7 +11,7 @@ export const PrintReportMonthly = forwardRef(({
   month,
   year,
   currency = 'COP',
-  companyName = 'Sabiduría Empresarial',
+  companyName = 'Finanzas Sabias',
   userName = '',
 }, ref) => {
   const {
@@ -372,7 +372,7 @@ export const PrintReportAnnual = forwardRef(({
   data,
   year,
   currency = 'COP',
-  companyName = 'Sabiduría Empresarial',
+  companyName = 'Finanzas Sabias',
   userName = '',
 }, ref) => {
   const { monthlyData, totals, categoryTotals } = data;
@@ -554,7 +554,7 @@ export const PrintTransactions = forwardRef(({
   summary,
   period,
   currency = 'COP',
-  companyName = 'Sabiduría Empresarial',
+  companyName = 'Finanzas Sabias',
   userName = '',
 }, ref) => {
   const formatDate = (dateStr) => {

@@ -9,42 +9,39 @@ const CURRENCIES = {
   EUR: { code: 'EUR', label: 'EUR - Euro', symbol: '€', locale: 'de-DE' },
 };
 
-const THEMES = ['dark', 'light'];
+const THEMES = ['dark', 'sand-beige'];
 
 export function SettingsProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('app-theme') || 'dark';
+    const savedTheme = localStorage.getItem('app-theme') || 'dark';
+    const savedSidebarStyle = localStorage.getItem('app-sidebar-style');
+    // Migration: old beige sidebar → sand-beige theme
+    if (savedSidebarStyle === 'beige') {
+      localStorage.removeItem('app-sidebar-style');
+      return 'sand-beige';
+    }
+    // Migration: light theme removed → fall back to dark
+    if (savedTheme === 'light') return 'dark';
+    return savedTheme;
   });
 
   const [currency, setCurrency] = useState(() => {
     return localStorage.getItem('app-currency') || 'COP';
   });
 
-  const [sidebarStyle, setSidebarStyle] = useState(() => {
-    return localStorage.getItem('app-sidebar-style') || 'dark';
-  });
-
-  // Apply sidebar style as global class on html element
-  useEffect(() => {
-    localStorage.setItem('app-sidebar-style', sidebarStyle);
-    const root = document.documentElement;
-    if (sidebarStyle === 'beige') {
-      root.classList.add('beige-theme');
-    } else {
-      root.classList.remove('beige-theme');
-    }
-  }, [sidebarStyle]);
-
-  // Apply theme to document
+  // Apply theme to document — handles all 3 theme values
   useEffect(() => {
     localStorage.setItem('app-theme', theme);
+    localStorage.removeItem('app-sidebar-style'); // clean up legacy key
     const root = document.documentElement;
-    if (theme === 'light') {
-      root.classList.add('light');
-      root.classList.remove('dark');
+
+    // Reset all theme classes first
+    root.classList.remove('dark', 'light', 'beige-theme');
+
+    if (theme === 'sand-beige') {
+      root.classList.add('beige-theme');
     } else {
       root.classList.add('dark');
-      root.classList.remove('light');
     }
   }, [theme]);
 
@@ -63,8 +60,6 @@ export function SettingsProvider({ children }) {
     currencyInfo,
     CURRENCIES,
     THEMES,
-    sidebarStyle,
-    setSidebarStyle,
   };
 
   return (

@@ -113,7 +113,7 @@ export default function Register() {
           </h2>
 
           <p className="text-lg text-white/80 mb-10 max-w-md">
-            Miles de empresarios ya confían en Sabiduría Empresarial para
+            Miles de empresarios ya confían en Finanzas Sabias para
             gestionar sus finanzas de manera inteligente.
           </p>
 
