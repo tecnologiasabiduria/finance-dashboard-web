@@ -24,6 +24,13 @@ const navigation = [
     description: 'Historial de ingresos y gastos',
   },
   {
+    name: 'Cuentas',
+    href: '/accounts',
+    icon: Wallet,
+    tourId: 'nav-accounts',
+    description: 'Cuentas bancarias y efectivo',
+  },
+  {
     name: 'Informes',
     href: '/reports',
     icon: BarChart3,

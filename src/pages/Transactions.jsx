@@ -21,6 +21,11 @@ import {
   Download,
   Copy,
   Printer,
+  Landmark,
+  Smartphone,
+  Banknote,
+  PiggyBank,
+  Wallet,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -61,6 +66,14 @@ const EMPTY_LABELS = {
   expense: 'gastos',
   transfer: 'transferencias',
   all: 'transacciones',
+};
+
+const ACCOUNT_TYPE_ICONS = {
+  bank: Landmark,
+  credit_card: CreditCard,
+  digital_wallet: Smartphone,
+  cash: Banknote,
+  savings: PiggyBank,
 };
 
 function getTransactionDetail(t) {
@@ -117,6 +130,9 @@ export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [accountFilter, setAccountFilter] = useState('');
+  const [accounts, setAccounts] = useState([]);
+  const [accountMap, setAccountMap] = useState({});
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
@@ -124,6 +140,18 @@ export default function Transactions() {
   const [deleteModal, setDeleteModal] = useState({ open: false, transaction: null });
   const [deleting, setDeleting] = useState(false);
   const [categoryMap, setCategoryMap] = useState({});
+
+  // Load accounts once
+  useEffect(() => {
+    api.getAccounts().then((res) => {
+      const list = res.data?.accounts || res.data || [];
+      const arr = Array.isArray(list) ? list : [];
+      setAccounts(arr);
+      const map = {};
+      for (const a of arr) map[a.id] = a;
+      setAccountMap(map);
+    }).catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -136,6 +164,9 @@ export default function Transactions() {
           const endDate = new Date(selectedYear, selectedMonth + 1, 0);
           txParams.from = startDate.toISOString().split('T')[0];
           txParams.to = endDate.toISOString().split('T')[0];
+        }
+        if (accountFilter) {
+          txParams.account_id = accountFilter;
         }
 
         const [txRes, catRes] = await Promise.all([
@@ -157,7 +188,7 @@ export default function Transactions() {
       }
     };
     loadData();
-  }, [token, selectedMonth, selectedYear, showAllMonths]);
+  }, [token, selectedMonth, selectedYear, showAllMonths, accountFilter]);
 
   useEffect(() => {
     let filtered = activeTab === 'all'
@@ -642,11 +673,24 @@ export default function Transactions() {
               placeholder="Hasta"
             />
           </div>
+          {accounts.length > 0 && (
+            <select
+              value={accountFilter}
+              onChange={(e) => setAccountFilter(e.target.value)}
+              className="px-3 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-sm text-white
+                       focus:outline-none focus:border-gold-400/50 transition-all duration-300 min-w-[160px]"
+            >
+              <option value="">Todas las cuentas</option>
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>{acc.name}</option>
+              ))}
+            </select>
+          )}
         </div>
       </Card>
 
       {/* Total filtrado */}
-      {(searchTerm || dateFrom || dateTo) && (
+      {(searchTerm || dateFrom || dateTo || accountFilter) && (
         <div className="text-sm text-dark-400">
           {filteredTransactions.length} resultados — Total: <span className={`font-semibold ${
             activeTab === 'income' ? 'text-emerald-400' :
@@ -838,7 +882,15 @@ export default function Transactions() {
                     {activeTab === 'all' && (
                       <>
                         <td className="py-3 px-4 text-dark-300 text-sm">{formatDate(t.date, 'medium')}</td>
-                        <td className="py-3 px-4 text-white font-medium text-sm">{getTransactionDetail(t)}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-white font-medium text-sm">{getTransactionDetail(t)}</span>
+                          {t.account_id && accountMap[t.account_id] && (
+                            <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 text-[10px] rounded bg-dark-800 text-dark-400">
+                              {(() => { const AccIcon = ACCOUNT_TYPE_ICONS[accountMap[t.account_id].account_type] || Wallet; return <AccIcon className="h-2.5 w-2.5" />; })()}
+                              {accountMap[t.account_id].name}
+                            </span>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-center">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg font-medium ${
                             t.type === 'income' ? 'bg-emerald-500/20 text-emerald-400' :

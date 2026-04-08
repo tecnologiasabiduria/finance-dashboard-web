@@ -361,6 +361,15 @@ class ApiService {
     });
   }
 
+  // Accounts
+  getAccounts() { return this.request('/accounts'); }
+  getAccountsSummary() { return this.request('/accounts/summary'); }
+  createAccount(data) { return this.request('/accounts', { method: 'POST', body: JSON.stringify(data) }); }
+  updateAccount(id, data) { return this.request(`/accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  deleteAccount(id) { return this.request(`/accounts/${id}`, { method: 'DELETE' }); }
+  initAccounts() { return this.request('/accounts/init', { method: 'POST' }); }
+  getAccountMovements(id) { return this.request(`/accounts/${id}/movements`); }
+
   // Transaction Documents
   uploadTransactionDocument(transactionId, file) {
     const formData = new FormData();

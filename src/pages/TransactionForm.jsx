@@ -20,6 +20,12 @@ import {
   Tag,
   Wallet,
   Upload,
+  Landmark,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  PiggyBank,
+  AlertCircle,
 } from 'lucide-react';
 import { Button, Select, Card, CreatableSelect, DatePicker, FileUpload } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -60,18 +66,18 @@ const PAYMENT_METHODS = [
   { value: 'Otro', label: 'Otro' },
 ];
 
-// Cuentas para transferencias entre cuentas propias
-const ACCOUNT_OPTIONS = [
-  { value: 'Bancolombia', label: 'Bancolombia' },
-  { value: 'Davivienda', label: 'Davivienda' },
-  { value: 'Nequi', label: 'Nequi' },
-  { value: 'Daviplata', label: 'Daviplata' },
-  { value: 'Efectivo', label: 'Efectivo' },
-  { value: 'Banco Popular', label: 'Banco Popular' },
-  { value: 'Banco de Bogotá', label: 'Banco de Bogotá' },
-  { value: 'BBVA', label: 'BBVA' },
-  { value: 'Otro', label: 'Otro' },
-];
+// Icon map for account types
+const ACCOUNT_TYPE_ICONS = {
+  bank: Landmark,
+  credit_card: CreditCard,
+  digital_wallet: Smartphone,
+  cash: Banknote,
+  savings: PiggyBank,
+};
+
+function getAccountIcon(type) {
+  return ACCOUNT_TYPE_ICONS[type] || Wallet;
+}
 
 export default function TransactionForm() {
   const navigate = useNavigate();
@@ -102,6 +108,11 @@ export default function TransactionForm() {
     // Campos de transferencia
     source_account: '',
     destination_account: '',
+    // Cuenta bancaria
+    account_id: '',
+    to_account_id: '',
+    // Cuotas (solo para gastos con tarjeta de crédito)
+    cuotas: 1,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -130,6 +141,10 @@ export default function TransactionForm() {
   const [pastProviders, setPastProviders] = useState([]);
   const [providerSuggestions, setProviderSuggestions] = useState([]);
   const [showProviderSuggestions, setShowProviderSuggestions] = useState(false);
+
+  // Accounts
+  const [accounts, setAccounts] = useState([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
 
   // Auto-completado: lookup de clientes por documento
   // Fuentes (en orden de prioridad): subcategorías → cartera → transacciones pasadas
@@ -329,6 +344,20 @@ export default function TransactionForm() {
     }
   };
 
+  // Load accounts
+  useEffect(() => {
+    setAccountsLoading(true);
+    api.getAccounts().then((res) => {
+      const list = res.data?.accounts || res.data || [];
+      setAccounts(Array.isArray(list) ? list : []);
+      // Preselect default account
+      const defaultAcc = list.find((a) => a.is_default);
+      if (defaultAcc && !isEditing) {
+        setFormData((prev) => ({ ...prev, account_id: prev.account_id || defaultAcc.id }));
+      }
+    }).catch(() => setAccounts([])).finally(() => setAccountsLoading(false));
+  }, [token]);
+
   useEffect(() => {
     loadCategories();
     api.getTransactions({ limit: 300 }).then((res) => {
@@ -443,6 +472,8 @@ export default function TransactionForm() {
             payment_method: t.payment_method || '',
             source_account: t.source_account || '',
             destination_account: t.destination_account || '',
+            account_id: t.account_id || '',
+            to_account_id: t.to_account_id || '',
           });
           // Load existing documents
           api.getTransactionDocuments(id).then((res) => {
@@ -479,11 +510,30 @@ export default function TransactionForm() {
     if (formData.type === 'expense' && !formData.category) {
       newErrors.category = 'Selecciona una categoría';
     }
+    // Account is required when accounts exist
+    if (accounts.length > 0) {
+      if (formData.type === 'income' || formData.type === 'expense') {
+        if (!formData.account_id) {
+          newErrors.account_id = 'Selecciona una cuenta';
+        }
+      }
+      if (formData.type === 'transfer') {
+        if (!formData.account_id) {
+          newErrors.account_id = 'Selecciona la cuenta de origen';
+        }
+        if (!formData.to_account_id) {
+          newErrors.to_account_id = 'Selecciona la cuenta de destino';
+        }
+        if (formData.account_id && formData.to_account_id && formData.account_id === formData.to_account_id) {
+          newErrors.to_account_id = 'La cuenta destino debe ser diferente a la de origen';
+        }
+      }
+    }
     if (formData.type === 'transfer') {
-      if (!formData.source_account) {
+      if (!formData.source_account && !formData.account_id) {
         newErrors.source_account = 'Selecciona la cuenta de origen';
       }
-      if (!formData.destination_account) {
+      if (!formData.destination_account && !formData.to_account_id) {
         newErrors.destination_account = 'Selecciona la cuenta de destino';
       }
       if (formData.source_account && formData.destination_account && formData.source_account === formData.destination_account) {
@@ -613,6 +663,8 @@ export default function TransactionForm() {
       setCreateNewCartera(false);
       setTotalSaleValue('');
     }
+    // Restore default account when switching type
+    const defaultAcc = accounts.find((a) => a.is_default);
     setFormData((prev) => ({
       ...prev,
       type,
@@ -621,6 +673,8 @@ export default function TransactionForm() {
       client_address: '', client_email: '', client_phone: '',
       invoice_status: '', provider_document: '', provider_name: '',
       payment_method: '', source_account: '', destination_account: '',
+      account_id: defaultAcc?.id || '',
+      to_account_id: '',
     }));
   };
 
@@ -638,6 +692,11 @@ export default function TransactionForm() {
         date: formData.date,
       };
 
+      // Include account_id if accounts are configured
+      if (formData.account_id) {
+        transactionData.account_id = formData.account_id;
+      }
+
       if (formData.type === 'income') {
         transactionData.invoice_number = formData.invoice_number || null;
         transactionData.client_document = formData.client_document || null;
@@ -650,9 +709,15 @@ export default function TransactionForm() {
         transactionData.provider_document = formData.provider_document || null;
         transactionData.provider_name = formData.provider_name || null;
         transactionData.payment_method = formData.payment_method || null;
+        if (!isEditing && formData.cuotas > 1) {
+          transactionData.cuotas = formData.cuotas;
+        }
       } else if (formData.type === 'transfer') {
         transactionData.source_account = formData.source_account || null;
         transactionData.destination_account = formData.destination_account || null;
+        if (formData.to_account_id) {
+          transactionData.to_account_id = formData.to_account_id;
+        }
       }
 
       if (isEditing) {
@@ -854,6 +919,105 @@ export default function TransactionForm() {
               {errors.amount && <p className="text-sm text-red-400">{errors.amount}</p>}
             </div>
           </div>
+
+          {/* Account Selector — for income/expense */}
+          {accounts.length > 0 && formData.type !== 'transfer' && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-dark-200">Cuenta *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {accounts.map((acc) => {
+                  const AccIcon = getAccountIcon(acc.account_type);
+                  const selected = formData.account_id === acc.id;
+                  return (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, account_id: acc.id }));
+                        if (errors.account_id) setErrors((prev) => ({ ...prev, account_id: '' }));
+                      }}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${
+                        selected
+                          ? 'border-gold-400/60 bg-gold-400/10'
+                          : errors.account_id
+                          ? 'border-red-500/40 bg-dark-900 hover:border-dark-600'
+                          : 'border-dark-700 bg-dark-900 hover:border-dark-600'
+                      }`}
+                    >
+                      <div className={`p-1.5 rounded-lg shrink-0 ${selected ? 'bg-gold-400/20' : 'bg-dark-800'}`}>
+                        <AccIcon className={`h-4 w-4 ${selected ? 'text-gold-400' : 'text-dark-400'}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-medium truncate ${selected ? 'text-gold-300' : 'text-white'}`}>{acc.name}</p>
+                        <p className="text-xs text-dark-400 truncate">
+                          {(acc.type === 'credit_card' || acc.account_type === 'credit_card')
+                            ? `Deuda: ${formatCurrency(Math.abs(Number(acc.balance || 0)), currency)}`
+                            : formatCurrency(Number(acc.balance || 0), currency)}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {errors.account_id && <p className="text-sm text-red-400">{errors.account_id}</p>}
+            </div>
+          )}
+          {accounts.length === 0 && !accountsLoading && (
+            <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+              <p className="text-sm text-dark-200">
+                No tienes cuentas configuradas.{' '}
+                <Link to="/accounts" className="text-gold-400 hover:text-gold-300 font-medium underline">
+                  Configura tus cuentas
+                </Link>{' '}
+                para un mejor control financiero.
+              </p>
+            </div>
+          )}
+
+          {/* Cuotas — solo para gastos con tarjeta de crédito */}
+          {formData.type === 'expense' && !isEditing && (() => {
+            const selectedAcc = accounts.find(a => a.id === formData.account_id);
+            const isCreditCard = selectedAcc?.type === 'credit_card' || selectedAcc?.account_type === 'credit_card';
+            if (!isCreditCard) return null;
+            const totalAmount = parseFloat(formData.amount) || 0;
+            const cuotasOpts = [1, 2, 3, 6, 9, 12, 18, 24, 36];
+            const monthly = formData.cuotas > 1 && totalAmount > 0
+              ? (totalAmount / formData.cuotas).toFixed(0)
+              : null;
+            return (
+              <div className="space-y-3 p-4 bg-dark-900/60 border border-dark-700 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-gold-400" />
+                  <label className="text-sm font-medium text-dark-200">Cuotas</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {cuotasOpts.map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, cuotas: n }))}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                        formData.cuotas === n
+                          ? 'border-gold-400 bg-gold-400/10 text-gold-300'
+                          : 'border-dark-700 bg-dark-800 text-dark-300 hover:border-dark-500'
+                      }`}
+                    >
+                      {n === 1 ? 'Una vez' : `${n}x`}
+                    </button>
+                  ))}
+                </div>
+                {monthly && (
+                  <p className="text-xs text-dark-400">
+                    <span className="text-gold-400 font-medium">
+                      {formData.cuotas} cuotas de {formatCurrency(Number(monthly), currency)}/mes
+                    </span>
+                    {' '}— Total: {formatCurrency(totalAmount, currency)}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {formData.type === 'income' && (
             <>
@@ -1423,32 +1587,160 @@ export default function TransactionForm() {
                   Datos de la Transferencia
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-dark-200">Cuenta Origen *</label>
-                    <Select
-                      name="source_account"
-                      value={formData.source_account}
-                      onChange={handleChange}
-                      options={ACCOUNT_OPTIONS}
-                      placeholder="Selecciona cuenta origen"
-                      error={errors.source_account}
-                    />
-                    {errors.source_account && <p className="text-sm text-red-400">{errors.source_account}</p>}
+                {accounts.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-dark-200">Desde (Origen) *</label>
+                        <div className="space-y-2">
+                          {accounts.map((acc) => {
+                            const AccIcon = getAccountIcon(acc.account_type);
+                            const selected = formData.account_id === acc.id;
+                            return (
+                              <button
+                                key={acc.id}
+                                type="button"
+                                onClick={() => {
+                                  setFormData((prev) => ({ ...prev, account_id: acc.id, source_account: acc.name }));
+                                  if (errors.account_id) setErrors((prev) => ({ ...prev, account_id: '' }));
+                                }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${
+                                  selected
+                                    ? 'border-gold-400/60 bg-gold-400/10'
+                                    : errors.account_id
+                                    ? 'border-red-500/40 bg-dark-900 hover:border-dark-600'
+                                    : 'border-dark-700 bg-dark-900 hover:border-dark-600'
+                                }`}
+                              >
+                                <div className={`p-1.5 rounded-lg shrink-0 ${selected ? 'bg-gold-400/20' : 'bg-dark-800'}`}>
+                                  <AccIcon className={`h-4 w-4 ${selected ? 'text-gold-400' : 'text-dark-400'}`} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className={`text-sm font-medium truncate ${selected ? 'text-gold-300' : 'text-white'}`}>{acc.name}</p>
+                                  <p className="text-xs text-dark-400 truncate">
+                                    {acc.account_type === 'credit_card'
+                                      ? `Deuda: -${formatCurrency(Number(acc.balance || 0), currency)}`
+                                      : formatCurrency(Number(acc.balance || 0), currency)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {errors.account_id && <p className="text-sm text-red-400">{errors.account_id}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        {(() => {
+                          const destAcc = accounts.find(a => a.id === formData.to_account_id);
+                          const isPayingTC = destAcc?.account_type === 'credit_card';
+                          return (
+                            <label className="block text-sm font-medium text-dark-200">
+                              {isPayingTC ? 'Pagar Tarjeta (Destino) *' : 'Hacia (Destino) *'}
+                            </label>
+                          );
+                        })()}
+                        <div className="space-y-2">
+                          {accounts.map((acc) => {
+                            const AccIcon = getAccountIcon(acc.account_type);
+                            const selected = formData.to_account_id === acc.id;
+                            const isOrigin = formData.account_id === acc.id;
+                            return (
+                              <button
+                                key={acc.id}
+                                type="button"
+                                disabled={isOrigin}
+                                onClick={() => {
+                                  setFormData((prev) => ({ ...prev, to_account_id: acc.id, destination_account: acc.name }));
+                                  if (errors.to_account_id) setErrors((prev) => ({ ...prev, to_account_id: '' }));
+                                }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${
+                                  isOrigin
+                                    ? 'border-dark-800 bg-dark-900/50 opacity-40 cursor-not-allowed'
+                                    : selected
+                                    ? 'border-gold-400/60 bg-gold-400/10'
+                                    : errors.to_account_id
+                                    ? 'border-red-500/40 bg-dark-900 hover:border-dark-600'
+                                    : 'border-dark-700 bg-dark-900 hover:border-dark-600'
+                                }`}
+                              >
+                                <div className={`p-1.5 rounded-lg shrink-0 ${selected ? 'bg-gold-400/20' : 'bg-dark-800'}`}>
+                                  <AccIcon className={`h-4 w-4 ${selected ? 'text-gold-400' : 'text-dark-400'}`} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className={`text-sm font-medium truncate ${selected ? 'text-gold-300' : 'text-white'}`}>{acc.name}</p>
+                                  <p className="text-xs text-dark-400 truncate">
+                                    {acc.account_type === 'credit_card'
+                                      ? `Deuda: -${formatCurrency(Number(acc.balance || 0), currency)}`
+                                      : formatCurrency(Number(acc.balance || 0), currency)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {errors.to_account_id && <p className="text-sm text-red-400">{errors.to_account_id}</p>}
+                      </div>
+                    </div>
+                    {(() => {
+                      const destAcc = accounts.find(a => a.id === formData.to_account_id);
+                      const isPayingTC = destAcc?.account_type === 'credit_card';
+                      if (isPayingTC) {
+                        const deuda = Math.abs(Number(destAcc.balance || 0));
+                        return (
+                          <div className="mt-3 p-3 rounded-xl bg-gold-400/10 border border-gold-400/20">
+                            <p className="text-xs text-gold-300 font-medium flex items-center gap-1.5">
+                              <CreditCard className="h-3.5 w-3.5" />
+                              El pago reducira la deuda de {destAcc.name}
+                            </p>
+                            {deuda > 0 && (
+                              <p className="text-xs text-dark-400 mt-1">
+                                Deuda actual: {formatCurrency(deuda, currency)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <p className="text-xs text-dark-500 mt-3 flex items-center gap-1.5">
+                          <span>💡</span> Para pagar una tarjeta de credito, selecciona el banco como origen y la tarjeta como destino.
+                        </p>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-dark-200">Cuenta Origen *</label>
+                      <div className="relative">
+                        <Landmark className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                        <input
+                          type="text"
+                          name="source_account"
+                          placeholder="Ej: Bancolombia, Nequi..."
+                          value={formData.source_account}
+                          onChange={handleChange}
+                          className={errors.source_account ? inputErrorClass : inputClass}
+                        />
+                      </div>
+                      {errors.source_account && <p className="text-sm text-red-400">{errors.source_account}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-dark-200">Cuenta Destino *</label>
+                      <div className="relative">
+                        <Landmark className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
+                        <input
+                          type="text"
+                          name="destination_account"
+                          placeholder="Ej: Davivienda, Efectivo..."
+                          value={formData.destination_account}
+                          onChange={handleChange}
+                          className={errors.destination_account ? inputErrorClass : inputClass}
+                        />
+                      </div>
+                      {errors.destination_account && <p className="text-sm text-red-400">{errors.destination_account}</p>}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-dark-200">Cuenta Destino *</label>
-                    <Select
-                      name="destination_account"
-                      value={formData.destination_account}
-                      onChange={handleChange}
-                      options={ACCOUNT_OPTIONS}
-                      placeholder="Selecciona cuenta destino"
-                      error={errors.destination_account}
-                    />
-                    {errors.destination_account && <p className="text-sm text-red-400">{errors.destination_account}</p>}
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="space-y-2">

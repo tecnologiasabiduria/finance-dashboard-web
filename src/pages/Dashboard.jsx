@@ -21,6 +21,8 @@ import {
   CheckCircle,
   PieChart,
   Printer,
+  Building2,
+  CreditCard,
 } from 'lucide-react';
 import {
   PieChart as RechartsPie,
@@ -250,6 +252,131 @@ const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
+
+const ACCOUNT_TYPE_ICONS = {
+  cash: Wallet,
+  bank: Building2,
+  credit_card: CreditCard,
+};
+
+function AccountsWidget({ currency }) {
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [netWorth, setNetWorth] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [acctRes, summRes] = await Promise.all([
+          api.getAccounts(),
+          api.getAccountsSummary(),
+        ]);
+        setAccounts(acctRes.data?.accounts || []);
+        setNetWorth(summRes.data?.net_worth || 0);
+      } catch {
+        // silently fail — widget is non-critical
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="animate-pulse bg-dark-800 rounded-lg h-5 w-5" />
+            <div className="animate-pulse bg-dark-800 rounded-lg h-5 w-28" />
+          </div>
+          <div className="animate-pulse bg-dark-800 rounded-lg h-4 w-20" />
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="animate-pulse bg-dark-800 rounded-lg h-8 w-8" />
+                <div className="animate-pulse bg-dark-800 rounded-lg h-4 w-24" />
+              </div>
+              <div className="animate-pulse bg-dark-800 rounded-lg h-4 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <Card className="p-6 border-dashed border-dark-700">
+        <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+          <div className="p-3 bg-gold-400/10 rounded-xl">
+            <Wallet className="h-6 w-6 text-gold-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-white font-semibold">Cuentas no configuradas</h3>
+            <p className="text-dark-400 text-sm mt-1">
+              Agrega tus cuentas bancarias y tarjetas para ver tu patrimonio.
+            </p>
+          </div>
+          <Link to="/accounts">
+            <Button size="sm" variant="outline" icon={ArrowRight}>
+              Configura tus cuentas
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-gold-400" />
+          <h3 className="text-sm font-semibold text-white">Mis Cuentas</h3>
+        </div>
+        <Link to="/accounts" className="text-xs text-gold-400 hover:text-gold-300">
+          Ver todas →
+        </Link>
+      </div>
+      <div className="space-y-3">
+        {accounts.map((account) => {
+          const Icon = ACCOUNT_TYPE_ICONS[account.type] || Wallet;
+          const isCreditCard = account.type === 'credit_card';
+          return (
+            <div key={account.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="p-1.5 rounded-lg"
+                  style={{ backgroundColor: `${account.color || '#6B7280'}20` }}
+                >
+                  <Icon className="h-4 w-4" style={{ color: account.color || '#6B7280' }} />
+                </div>
+                <span className="text-sm text-dark-300">{account.name}</span>
+              </div>
+              <span className={`text-sm font-medium ${
+                isCreditCard
+                  ? 'text-red-400'
+                  : account.balance >= 0 ? 'text-white' : 'text-red-400'
+              }`}>
+                {isCreditCard ? `-${formatCurrency(account.balance, currency)}` : formatCurrency(account.balance, currency)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between pt-3 mt-3 border-t border-dark-800">
+        <span className="text-xs text-dark-400 uppercase tracking-wider">Patrimonio Neto</span>
+        <span className={`text-sm font-bold ${netWorth >= 0 ? 'text-gold-400' : 'text-red-400'}`}>
+          {formatCurrency(netWorth, currency)}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { currency } = useSettings();
@@ -747,6 +874,9 @@ export default function Dashboard() {
           </div>
         </Card>
       )}
+
+      {/* Accounts Widget */}
+      <AccountsWidget currency={currency} />
 
       {/* Breakdown: Income by Type + Expenses by Category */}
       <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
