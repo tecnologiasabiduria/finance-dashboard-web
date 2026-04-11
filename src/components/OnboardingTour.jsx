@@ -4,7 +4,8 @@ import Joyride, { STATUS, ACTIONS, EVENTS } from 'react-joyride';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-const createSteps = (isIOS) => [
+const createSteps = (isIOS, isMobile) => {
+  const steps = [
   // ========== DASHBOARD ==========
   {
     target: 'body',
@@ -14,16 +15,16 @@ const createSteps = (isIOS) => [
     title: '¡Bienvenido a Sabiduría Empresarial!',
     content: 'Tu plataforma para gestionar las finanzas de tu negocio. Te mostraremos cada sección en ~3 minutos.',
   },
-  {
+  ...(isMobile ? [{
     target: 'body',
     placement: 'center',
     disableBeacon: true,
     route: '/dashboard',
-    title: '📱 Instala la App en tu iPhone',
-    content: isIOS 
+    title: isIOS ? '📱 Instala la App en tu iPhone' : '📱 Instala la App en tu celular',
+    content: isIOS
       ? '1. Toca el botón Compartir (el cuadrado con flecha hacia arriba ↑) en la barra inferior de Safari.\n\n2. Desplázate y toca "Agregar a pantalla de inicio".\n\n3. Toca "Agregar" en la esquina superior derecha.\n\n¡Listo! La app se abrirá en pantalla completa.'
       : '1. Toca el menú ⋮ (tres puntos) en tu navegador.\n\n2. Selecciona "Instalar aplicación" o "Agregar a pantalla de inicio".\n\n¡Listo! La app se abrirá sin barra del navegador.',
-  },
+  }] : []),
   {
     target: '[data-tour="month-navigator"]',
     placement: 'bottom',
@@ -140,7 +141,9 @@ const createSteps = (isIOS) => [
     title: '🚀 ¡Todo Listo!',
     content: 'Ya conoces Sabiduría Empresarial. Empieza configurando tu meta, luego registra tu primer movimiento. Si tienes dudas, escríbenos en el grupo de WhatsApp.',
   },
-];
+  ];
+  return steps;
+};
 
 const joyrideStyles = {
   options: {
@@ -228,10 +231,12 @@ export default function OnboardingTour() {
 
   useEffect(() => {
     if (user && hasCompletedOnboarding === false && !isCompleting) {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      
-      setSteps(createSteps(isIOS));
+      const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+
+      setSteps(createSteps(isIOS, isMobile));
       
       if (location.pathname !== '/dashboard') {
         navigate('/dashboard');
@@ -247,16 +252,38 @@ export default function OnboardingTour() {
 
   useEffect(() => {
     if (isNavigating && pendingStepRef.current !== null) {
-      const timer = setTimeout(() => {
-        setStepIndex(pendingStepRef.current);
-        pendingStepRef.current = null;
-        setIsNavigating(false);
-        setRun(true);
-      }, 800);
-      
-      return () => clearTimeout(timer);
+      const targetStep = steps[pendingStepRef.current];
+      const targetSelector = targetStep?.target;
+
+      // For steps targeting 'body', no need to wait
+      if (!targetSelector || targetSelector === 'body') {
+        const timer = setTimeout(() => {
+          setStepIndex(pendingStepRef.current);
+          pendingStepRef.current = null;
+          setIsNavigating(false);
+          setRun(true);
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+
+      // Poll for the target element to appear in the DOM (pages with loading states)
+      let attempts = 0;
+      const maxAttempts = 25; // 25 × 200ms = 5 seconds max
+      const interval = setInterval(() => {
+        attempts++;
+        const element = document.querySelector(targetSelector);
+        if (element || attempts >= maxAttempts) {
+          clearInterval(interval);
+          setStepIndex(pendingStepRef.current);
+          pendingStepRef.current = null;
+          setIsNavigating(false);
+          setRun(true);
+        }
+      }, 200);
+
+      return () => clearInterval(interval);
     }
-  }, [location.pathname, isNavigating]);
+  }, [location.pathname, isNavigating, steps]);
 
   const completeOnboarding = useCallback(async () => {
     if (isCompleting) return;
@@ -286,12 +313,17 @@ export default function OnboardingTour() {
 
     if (type === EVENTS.STEP_AFTER) {
       const nextIndex = action === ACTIONS.PREV ? index - 1 : index + 1;
-      
+
+      if (nextIndex >= steps.length) {
+        await completeOnboarding();
+        return;
+      }
+
       if (nextIndex >= 0 && nextIndex < steps.length) {
         const nextStep = steps[nextIndex];
         const currentRoute = location.pathname;
         const nextRoute = nextStep.route;
-        
+
         if (nextRoute && nextRoute !== currentRoute) {
           setRun(false);
           setIsNavigating(true);
@@ -304,15 +336,41 @@ export default function OnboardingTour() {
     }
 
     if (type === EVENTS.TARGET_NOT_FOUND) {
-      const nextIndex = index + 1;
-      if (nextIndex < steps.length) {
-        const nextStep = steps[nextIndex];
-        if (nextStep.route && nextStep.route !== location.pathname) {
-          setRun(false);
-          setIsNavigating(true);
-          pendingStepRef.current = nextIndex;
-          navigate(nextStep.route);
-        } else {
+      // The target might not be rendered yet (e.g. page still loading).
+      // Wait for it to appear before giving up and skipping.
+      const currentStep = steps[index];
+      const selector = currentStep?.target;
+
+      if (selector && selector !== 'body') {
+        setRun(false);
+        let attempts = 0;
+        const maxAttempts = 20; // 20 × 250ms = 5 seconds
+        const interval = setInterval(() => {
+          attempts++;
+          const element = document.querySelector(selector);
+          if (element) {
+            clearInterval(interval);
+            // Re-trigger the same step now that the target exists
+            setStepIndex(index > 0 ? index - 1 : 0);
+            setTimeout(() => {
+              setStepIndex(index);
+              setRun(true);
+            }, 50);
+            return;
+          }
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            // Target truly doesn't exist, skip to next step
+            const nextIndex = index + 1;
+            if (nextIndex < steps.length) {
+              setStepIndex(nextIndex);
+              setRun(true);
+            }
+          }
+        }, 250);
+      } else {
+        const nextIndex = index + 1;
+        if (nextIndex < steps.length) {
           setStepIndex(nextIndex);
         }
       }
