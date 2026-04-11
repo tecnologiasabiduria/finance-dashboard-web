@@ -147,64 +147,46 @@ export default function Login() {
           <div className="absolute bottom-20 left-20 w-96 h-96 bg-gold-300/20 rounded-full blur-3xl" />
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center items-center p-16 text-center">
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 border border-white/30 rounded-full mb-6">
+        {/* Content - structured as top text + bottom card, no overlap */}
+        <div className="relative z-10 flex flex-col justify-center p-12 xl:p-16 w-full">
+          {/* Top: text content */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 border border-white/30 rounded-full mb-8">
               <Sparkles className="h-4 w-4 text-white" />
               <span className="text-sm text-white font-medium">
                 Inteligencia Financiera
               </span>
             </div>
-          </div>
 
-          <h2 className="text-4xl xl:text-5xl font-serif font-bold text-white mb-6 leading-tight">
-            Toma el control de{' '}
-            <span className="text-dark-950/80">tus finanzas</span>
-          </h2>
+            <h2 className="text-4xl xl:text-5xl font-serif font-bold text-white mb-5 leading-tight">
+              Toma el control de{' '}
+              <span className="text-dark-950/80">tus finanzas</span>
+            </h2>
 
-          <p className="text-lg text-white/80 max-w-md mb-10">
-            Visualiza tus ingresos y gastos, analiza tendencias y toma decisiones
-            financieras más inteligentes con nuestra plataforma.
-          </p>
+            <p className="text-lg text-white/90 max-w-md mx-auto mb-8">
+              Visualiza tus ingresos y gastos, analiza tendencias y toma decisiones
+              financieras más inteligentes con nuestra plataforma.
+            </p>
 
-          {/* Features */}
-          <div className="grid grid-cols-2 gap-4 max-w-sm">
-            {[
-              'Dashboard intuitivo',
-              'Análisis en tiempo real',
-              'Reportes detallados',
-              'Alertas inteligentes',
-            ].map((feature) => (
-              <div
-                key={feature}
-                className="flex items-center gap-2 text-white/80"
-              >
-                <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                <span className="text-sm">{feature}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Floating cards decoration */}
-        <div className="absolute bottom-32 right-16 animate-float">
-          <div className="w-64 h-40 bg-dark-950/85 backdrop-blur-lg border border-dark-800 rounded-2xl p-5 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs text-dark-400">Balance Total</span>
-              <span className="text-xs text-emerald-400">+12.5%</span>
-            </div>
-            <p className="text-2xl font-bold text-white">$24,850.00</p>
-            <div className="mt-4 h-12 flex items-end gap-1">
-              {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
+            {/* Features */}
+            <div className="inline-grid grid-cols-2 gap-x-6 gap-y-3 text-left">
+              {[
+                'Dashboard intuitivo',
+                'Análisis en tiempo real',
+                'Reportes detallados',
+                'Alertas inteligentes',
+              ].map((feature) => (
                 <div
-                  key={i}
-                  className="flex-1 bg-gradient-to-t from-gold-700/50 to-gold-400 rounded-t"
-                  style={{ height: `${h}%` }}
-                />
+                  key={feature}
+                  className="flex items-center gap-2 text-white/90"
+                >
+                  <div className="w-1.5 h-1.5 bg-white rounded-full shrink-0" />
+                  <span className="text-sm">{feature}</span>
+                </div>
               ))}
             </div>
           </div>
+
         </div>
       </div>
     </div>
