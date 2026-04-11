@@ -63,17 +63,21 @@ export default function ForgotPassword() {
               </h1>
 
               <p className="text-dark-400 text-lg mb-2">
-                Hemos enviado un enlace de recuperación a
+                Si existe una cuenta asociada a
               </p>
 
-              <p className="text-gold-400 font-medium text-lg mb-8">
+              <p className="text-gold-400 font-medium text-lg mb-2">
                 {email}
+              </p>
+
+              <p className="text-dark-400 text-lg mb-8">
+                recibirás un enlace de recuperación en unos minutos.
               </p>
 
               <div className="p-4 bg-dark-900 border border-dark-700 rounded-xl mb-8">
                 <p className="text-dark-300 text-sm">
                   Haz clic en el enlace del correo para restablecer tu contraseña.
-                  Si no lo ves, revisa tu carpeta de spam.
+                  Si no lo ves, revisa tu carpeta de spam o correo no deseado.
                 </p>
               </div>
 
