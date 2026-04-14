@@ -32,46 +32,46 @@ export function AIAgentPanel() {
   const [configDirty, setConfigDirty] = useState(false);
 
   const panelRef = useRef(null);
-  const hasLoadedRef = useRef(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchInsights = useCallback(async () => {
     try {
-      const [insightsRes, configRes] = await Promise.allSettled([
-        api.getAgentInsights(),
-        api.getAgentConfig(),
-      ]);
-
-      if (insightsRes.status === 'fulfilled' && insightsRes.value?.data) {
-        const data = insightsRes.value.data;
-        setInsights(Array.isArray(data) ? data : []);
-        const count = (Array.isArray(data) ? data : []).filter(
-          (i) => !i.read
-        ).length;
-        setUnreadCount(count);
+      const res = await api.getAgentInsights();
+      const data = res?.data;
+      if (Array.isArray(data)) {
+        setInsights(data);
+        setUnreadCount(data.filter((i) => !i.read).length);
       }
+    } catch {
+      // Silently fail
+    }
+  }, []);
 
-      if (configRes.status === 'fulfilled' && configRes.value?.data) {
-        const c = configRes.value.data;
+  const fetchConfig = useCallback(async () => {
+    try {
+      const res = await api.getAgentConfig();
+      const c = res?.data;
+      if (c) {
         setConfig({
           enabled: c.enabled ?? false,
           shared_data: c.shared_data ?? { transactions: true, goals: true, budget: true, cartera: false },
         });
       }
     } catch {
-      // Silently fail — panel still usable
-    } finally {
-      setLoading(false);
+      // Silently fail
     }
   }, []);
 
-  // Fetch on first open
+  // On mount: load insights so the badge reflects unread count even before opening
   useEffect(() => {
-    if (open && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      fetchData();
-    }
-  }, [open, fetchData]);
+    fetchInsights();
+  }, [fetchInsights]);
+
+  // On open: refresh insights (catches anything n8n generated since last fetch) + load config
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    Promise.all([fetchInsights(), fetchConfig()]).finally(() => setLoading(false));
+  }, [open, fetchInsights, fetchConfig]);
 
   // Mark insights as read when viewing
   useEffect(() => {
