@@ -27,3 +27,8 @@ CLAUDE.md
 docs/auditoria-feedback-y-codigo.md
 integrationGoogleSheet-context/Herramienta financiera 2.xlsx
 TC_PAYMENT_FIX_PLAN.md
+supabase/migrations/add_agent_tables.sql
+.gitignore
+generate_dashboard_report.py
+n8n-workflows/financial-advisor.json
+Informe_Mejora_Dashboard_Financiero.docx

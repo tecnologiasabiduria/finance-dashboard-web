@@ -392,6 +392,28 @@ class ApiService {
   deleteTransactionDocument(docId) {
     return this.request(`/documents/doc/${docId}`, { method: 'DELETE' });
   }
+
+  // Agent
+  getAgentConfig() {
+    return this.request('/agent');
+  }
+
+  updateAgentConfig(data) {
+    return this.request('/agent', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  getAgentInsights(limit = 20) {
+    return this.request(`/agent/insights?limit=${limit}`);
+  }
+
+  markInsightRead(id) {
+    return this.request(`/agent/insights/${id}/read`, {
+      method: 'PUT',
+    });
+  }
 }
 
 export const api = new ApiService();
