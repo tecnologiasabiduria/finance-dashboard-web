@@ -30,6 +30,15 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  AreaChart,
+  Area,
+  Legend,
+  LabelList,
 } from 'recharts';
 import anime from 'animejs';
 import { Card, Button, Spinner, Modal } from '../components/ui';
@@ -563,6 +572,40 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [expenses, totalExpense, categoryColors]);
 
+  // KPIs adicionales derivados de transacciones ya cargadas
+  const avgTicket = incomes.length > 0 ? totalIncome / incomes.length : 0;
+  const uniqueClients = useMemo(() => {
+    const names = new Set(incomes.map((t) => t.client_name).filter(Boolean));
+    return names.size;
+  }, [incomes]);
+  const maxIncome = incomes.length > 0 ? Math.max(...incomes.map((t) => parseFloat(t.amount))) : 0;
+  const invoicesWithStatus = incomes.filter((t) => t.invoice_status);
+  const facturadoPct = invoicesWithStatus.length > 0
+    ? Math.round((invoicesWithStatus.filter((t) => t.invoice_status === 'FACTURADO').length / invoicesWithStatus.length) * 100)
+    : null;
+
+  // Top 5 clientes por volumen de ingresos
+  const topClients = useMemo(() => {
+    const map = {};
+    incomes.forEach((t) => {
+      const name = t.client_name || '(Sin nombre)';
+      if (!map[name]) map[name] = { name, total: 0, count: 0 };
+      map[name].total += parseFloat(t.amount);
+      map[name].count += 1;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total).slice(0, 5);
+  }, [incomes]);
+
+  // Datos diarios para gráfico de tendencia
+  const dailyChartData = useMemo(() => {
+    if (!summaryData?.dailyData?.length) return [];
+    return summaryData.dailyData.map((d) => ({
+      day: d.date ? String(new Date(d.date + 'T12:00:00').getDate()) : '—',
+      Ingresos: d.income || 0,
+      Gastos: d.expense || d.expenses || 0,
+    }));
+  }, [summaryData]);
+
   // Skeleton pulse helper
   const Skeleton = ({ className }) => (
     <div className={`animate-pulse bg-dark-800 rounded-lg ${className}`} />
@@ -878,6 +921,78 @@ export default function Dashboard() {
       {/* Accounts Widget */}
       <AccountsWidget currency={currency} />
 
+      {/* KPI micro-strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="p-4">
+          <p className="text-[11px] text-dark-400 uppercase tracking-wider mb-1">Ticket promedio</p>
+          <p className="text-lg font-bold text-white">{formatCurrency(avgTicket, currency)}</p>
+          <p className="text-[11px] text-dark-500 mt-0.5">por ingreso</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[11px] text-dark-400 uppercase tracking-wider mb-1">Clientes únicos</p>
+          <p className="text-lg font-bold text-gold-400">{uniqueClients}</p>
+          <p className="text-[11px] text-dark-500 mt-0.5">{MONTH_NAMES[selectedMonth]}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[11px] text-dark-400 uppercase tracking-wider mb-1">Mayor venta</p>
+          <p className="text-lg font-bold text-emerald-400">{maxIncome > 0 ? formatCurrency(maxIncome, currency) : '—'}</p>
+          <p className="text-[11px] text-dark-500 mt-0.5">transacción individual</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[11px] text-dark-400 uppercase tracking-wider mb-1">% Facturado</p>
+          {facturadoPct !== null ? (
+            <>
+              <p className={`text-lg font-bold ${facturadoPct >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>{facturadoPct}%</p>
+              <p className="text-[11px] text-dark-500 mt-0.5">{invoicesWithStatus.length} con estado</p>
+            </>
+          ) : (
+            <p className="text-lg font-bold text-dark-500">—</p>
+          )}
+        </Card>
+      </div>
+
+      {/* Tendencia diaria del mes */}
+      {dailyChartData.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <h3 className="text-base font-semibold text-white">Tendencia del Mes</h3>
+              <p className="text-xs text-dark-400 mt-0.5">Ingresos y gastos día a día — {MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+            </div>
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Activity className="h-4 w-4 text-blue-400" />
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={dailyChartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="dashGradIncome" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="dashGradExpense" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f87171" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="day" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false}
+                interval={dailyChartData.length > 20 ? 2 : 0} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} width={46}
+                tickFormatter={(v) => v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : v} />
+              <Tooltip
+                contentStyle={{ background: '#1a1118', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }}
+                labelFormatter={(l) => `Día ${l}`}
+                formatter={(v, name) => [formatCurrency(v, currency), name]}
+              />
+              <Legend formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v}</span>} />
+              <Area type="monotone" dataKey="Ingresos" stroke="#34d399" strokeWidth={2} fill="url(#dashGradIncome)" dot={false} />
+              <Area type="monotone" dataKey="Gastos" stroke="#f87171" strokeWidth={2} fill="url(#dashGradExpense)" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+
       {/* Breakdown: Income by Type + Expenses by Category */}
       <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* INGRESOS por Tipo */}
@@ -894,54 +1009,39 @@ export default function Dashboard() {
 
           {incomeByType.length > 0 ? (
             <>
-              <div className="h-48 mb-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPie>
-                    <Pie
-                      data={incomeByType}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {incomeByType.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomPieTooltip />} />
-                  </RechartsPie>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="space-y-3">
-                {incomeByType.map((item) => {
-                  const catInfo = categoryIconMap[item.name];
-                  const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
-                  return (
-                    <div key={item.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {Icon ? (
-                          <div className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: `${item.color}20` }}>
-                            <Icon className="h-3.5 w-3.5" style={{ color: item.color }} />
-                          </div>
-                        ) : (
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                        )}
-                        <span className="text-sm text-dark-300">{item.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
-                        <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="flex items-center justify-between pt-3 border-t border-dark-800">
-                  <span className="text-sm font-semibold text-white">TOTAL</span>
-                  <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</span>
-                </div>
+              <ResponsiveContainer width="100%" height={Math.max(incomeByType.length * 44, 100)}>
+                <BarChart
+                  data={incomeByType}
+                  layout="vertical"
+                  margin={{ top: 0, right: 60, bottom: 0, left: 0 }}
+                  barSize={20}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={90}
+                  />
+                  <Tooltip content={<CustomPieTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {incomeByType.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                    <LabelList
+                      dataKey="percentage"
+                      position="right"
+                      formatter={(v) => `${v}%`}
+                      style={{ fill: '#6b7280', fontSize: 11 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center justify-between pt-4 mt-2 border-t border-dark-800">
+                <span className="text-sm font-semibold text-white">TOTAL</span>
+                <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalIncome, currency)}</span>
               </div>
             </>
           ) : (
@@ -966,54 +1066,39 @@ export default function Dashboard() {
 
           {expenseByCategory.length > 0 ? (
             <>
-              <div className="h-48 mb-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPie>
-                    <Pie
-                      data={expenseByCategory}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {expenseByCategory.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomPieTooltip />} />
-                  </RechartsPie>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="space-y-3">
-                {expenseByCategory.map((item) => {
-                  const catInfo = categoryIconMap[item.name];
-                  const Icon = catInfo ? getCategoryIcon(catInfo.icon) : null;
-                  return (
-                    <div key={item.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {Icon ? (
-                          <div className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: `${item.color}20` }}>
-                            <Icon className="h-3.5 w-3.5" style={{ color: item.color }} />
-                          </div>
-                        ) : (
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                        )}
-                        <span className="text-sm text-dark-300">{item.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-medium text-white">{formatCurrency(item.value, currency)}</span>
-                        <span className="text-xs text-dark-500 ml-2">({item.percentage}%)</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="flex items-center justify-between pt-3 border-t border-dark-800">
-                  <span className="text-sm font-semibold text-white">TOTAL</span>
-                  <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense, currency)}</span>
-                </div>
+              <ResponsiveContainer width="100%" height={Math.max(expenseByCategory.length * 44, 100)}>
+                <BarChart
+                  data={expenseByCategory}
+                  layout="vertical"
+                  margin={{ top: 0, right: 60, bottom: 0, left: 0 }}
+                  barSize={20}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={90}
+                  />
+                  <Tooltip content={<CustomPieTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {expenseByCategory.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                    <LabelList
+                      dataKey="percentage"
+                      position="right"
+                      formatter={(v) => `${v}%`}
+                      style={{ fill: '#6b7280', fontSize: 11 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center justify-between pt-4 mt-2 border-t border-dark-800">
+                <span className="text-sm font-semibold text-white">TOTAL</span>
+                <span className="text-sm font-bold text-red-400">{formatCurrency(totalExpense, currency)}</span>
               </div>
             </>
           ) : (
@@ -1024,6 +1109,47 @@ export default function Dashboard() {
           )}
         </Card>
       </div>
+
+      {/* Top Clientes */}
+      {topClients.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-base font-semibold text-white">Top Clientes del Mes</h3>
+              <p className="text-xs text-dark-400 mt-0.5">Por volumen de ingresos — {MONTH_NAMES[selectedMonth]}</p>
+            </div>
+            <div className="p-2 bg-gold-400/10 rounded-lg">
+              <BarChart3 className="h-4 w-4 text-gold-400" />
+            </div>
+          </div>
+          <div className="space-y-3">
+            {topClients.map((c, i) => {
+              const pct = totalIncome > 0 ? (c.total / totalIncome) * 100 : 0;
+              return (
+                <div key={c.name} className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-dark-500 w-4 shrink-0">#{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-white truncate">{c.name}</span>
+                      <div className="flex items-center gap-2 ml-2 shrink-0">
+                        <span className="text-xs text-dark-500">{c.count} tx</span>
+                        <span className="text-sm font-semibold text-emerald-400">{formatCurrency(c.total, currency)}</span>
+                        <span className="text-xs text-dark-500 w-8 text-right">{pct.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-dark-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500/70"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Detail Tables - Desktop */}
       <div className="hidden md:grid md:grid-cols-2 gap-6">
