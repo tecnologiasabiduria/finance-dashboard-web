@@ -45,11 +45,11 @@ const navigation = [
     description: 'Cuentas por cobrar',
   },
   {
-    name: 'Metas',
+    name: 'Presupuesto',
     href: '/goals',
     icon: Target,
     tourId: 'nav-goals',
-    description: 'Objetivos y presupuestos',
+    description: 'Presupuesto y bolsillos',
   },
   {
     name: 'Configuración',

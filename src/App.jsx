@@ -23,6 +23,7 @@ import Reports from './pages/Reports';
 import ImportTransactions from './pages/ImportTransactions';
 import Cartera from './pages/Cartera';
 import Accounts from './pages/Accounts';
+import Privacy from './pages/Privacy';
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
             }
           />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/subscription-required" element={<SubscriptionRequired />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/create-password" element={<CreatePassword />} />

@@ -32,3 +32,6 @@ supabase/migrations/add_agent_tables.sql
 generate_dashboard_report.py
 n8n-workflows/financial-advisor.json
 Informe_Mejora_Dashboard_Financiero.docx
+Transacciones - Abril 2026.pdf
+docs/roadmap-mejoras.md
+supabase/migrations/20260420_payment_method_check.sql

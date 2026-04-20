@@ -9,10 +9,9 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  ArrowRight,
   Check,
 } from 'lucide-react';
-import { Card, Button, Input, Modal, ConfirmModal, Spinner } from '../components/ui';
+import { Card, Button, Input, Modal } from '../components/ui';
 import { formatCurrency } from '../utils/formatters';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
@@ -68,6 +67,7 @@ export default function Accounts() {
   // Delete state
   const [deleteModal, setDeleteModal] = useState({ open: false, account: null });
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const loadData = async () => {
     try {
@@ -98,14 +98,15 @@ export default function Accounts() {
 
   const openEdit = (account) => {
     setEditingAccount(account);
+    const cc = account.credit_card || {};
     setForm({
       name: account.name || '',
       type: account.type || 'bank',
       balance: (account.balance || 0).toString(),
-      credit_limit: (account.credit_limit || '').toString(),
-      cut_off_day: (account.cut_off_day || '').toString(),
-      payment_day: (account.payment_due_day || '').toString(),
-      interest_rate: (account.interest_rate || '').toString(),
+      credit_limit: (cc.credit_limit || '').toString(),
+      cut_off_day: (cc.cut_off_day || '').toString(),
+      payment_day: (cc.payment_due_day || '').toString(),
+      interest_rate: (cc.interest_rate || '').toString(),
       color: account.color || ACCOUNT_COLORS[1],
       is_default: account.is_default || false,
     });
@@ -168,15 +169,21 @@ export default function Accounts() {
   const handleDelete = async () => {
     if (!deleteModal.account) return;
     setDeleting(true);
+    setDeleteError('');
     try {
       await api.deleteAccount(deleteModal.account.id);
       setDeleteModal({ open: false, account: null });
       await loadData();
     } catch (err) {
-      console.error('Error deleting account:', err);
+      setDeleteError(err.message || 'No se pudo eliminar la cuenta');
     } finally {
       setDeleting(false);
     }
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ open: false, account: null });
+    setDeleteError('');
   };
 
   const cashAndBank = accounts.filter((a) => a.type === 'cash' || a.type === 'bank');
@@ -311,8 +318,9 @@ export default function Accounts() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {creditCards.map((account) => {
+              const cc = account.credit_card || {};
               const debt = Math.abs(account.balance || 0);
-              const limit = account.credit_limit || 0;
+              const limit = cc.credit_limit || 0;
               const available = Math.max(0, limit - debt);
               const utilization = limit > 0 ? (debt / limit) * 100 : 0;
 
@@ -382,10 +390,10 @@ export default function Accounts() {
                   </div>
 
                   {/* Cut-off & payment dates */}
-                  {(account.cut_off_day || account.payment_day) && (
+                  {(cc.cut_off_day || cc.payment_due_day) && (
                     <div className="flex items-center gap-4 mt-2 text-xs text-dark-500">
-                      {account.cut_off_day && <span>Corte: día {account.cut_off_day}</span>}
-                      {account.payment_day && <span>Pago: día {account.payment_day}</span>}
+                      {cc.cut_off_day && <span>Corte: día {cc.cut_off_day}</span>}
+                      {cc.payment_due_day && <span>Pago: día {cc.payment_due_day}</span>}
                     </div>
                   )}
                 </Card>
@@ -419,7 +427,7 @@ export default function Accounts() {
                 <TrendingDown className="h-4 w-4 text-red-400" />
               </div>
               <p className="text-xl font-bold text-red-400">
-                {formatCurrency(summary.total_liabilities || 0, currency)}
+                {formatCurrency(summary.total_debts || 0, currency)}
               </p>
               <p className="text-xs text-dark-500 mt-1">Tarjetas de crédito</p>
             </Card>
@@ -453,16 +461,18 @@ export default function Accounts() {
               {ACCOUNT_TYPES.map((t) => {
                 const Icon = t.icon;
                 const isSelected = form.type === t.value;
+                const disabled = !!editingAccount;
                 return (
                   <button
                     key={t.value}
                     type="button"
-                    onClick={() => setForm({ ...form, type: t.value })}
+                    disabled={disabled}
+                    onClick={() => !disabled && setForm({ ...form, type: t.value })}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all duration-200 ${
                       isSelected
                         ? 'border-gold-400 bg-gold-400/10 text-gold-400'
                         : 'border-dark-700 bg-dark-800/50 text-dark-400 hover:border-dark-600 hover:text-dark-300'
-                    }`}
+                    } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     <Icon className="h-5 w-5" />
                     <span className="text-xs font-medium">{t.label}</span>
@@ -470,6 +480,11 @@ export default function Accounts() {
                 );
               })}
             </div>
+            {editingAccount && (
+              <p className="mt-1.5 text-xs text-dark-500">
+                El tipo de cuenta no se puede cambiar después de crearla.
+              </p>
+            )}
           </div>
 
           {/* Name */}
@@ -481,13 +496,21 @@ export default function Accounts() {
           />
 
           {/* Balance */}
-          <Input
-            label={form.type === 'credit_card' ? 'Deuda actual' : 'Saldo inicial'}
-            type="number"
-            placeholder="0"
-            value={form.balance}
-            onChange={(e) => setForm({ ...form, balance: e.target.value })}
-          />
+          <div>
+            <Input
+              label={form.type === 'credit_card' ? 'Deuda actual' : 'Saldo inicial'}
+              type="number"
+              placeholder="0"
+              value={form.balance}
+              onChange={(e) => setForm({ ...form, balance: e.target.value })}
+              disabled={!!editingAccount}
+            />
+            {editingAccount && (
+              <p className="mt-1.5 text-xs text-dark-500">
+                El saldo se actualiza automáticamente con tus transacciones.
+              </p>
+            )}
+          </div>
 
           {/* Credit card extra fields */}
           {form.type === 'credit_card' && (
@@ -585,15 +608,31 @@ export default function Accounts() {
       </Modal>
 
       {/* Delete Confirm */}
-      <ConfirmModal
+      <Modal
         isOpen={deleteModal.open}
-        onClose={() => setDeleteModal({ open: false, account: null })}
-        onConfirm={handleDelete}
+        onClose={closeDeleteModal}
         title="Eliminar cuenta"
-        message={`¿Estás seguro de eliminar "${deleteModal.account?.name}"? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        loading={deleting}
-      />
+        size="sm"
+      >
+        <div className="space-y-6">
+          <p className="text-dark-300">
+            ¿Estás seguro de eliminar "{deleteModal.account?.name}"? Esta acción no se puede deshacer.
+          </p>
+          {deleteError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+              <p className="text-sm text-red-400">{deleteError}</p>
+            </div>
+          )}
+          <div className="flex gap-3 justify-end">
+            <Button variant="ghost" onClick={closeDeleteModal} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDelete} loading={deleting}>
+              Eliminar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

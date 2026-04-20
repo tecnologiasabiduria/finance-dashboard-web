@@ -52,19 +52,43 @@ const INVOICE_STATUS_OPTIONS = [
   { value: 'NO FACTURADO', label: 'No Facturado' },
 ];
 
-// Métodos de pago comunes
-const PAYMENT_METHODS = [
-  { value: 'Bancolombia', label: 'Bancolombia' },
-  { value: 'Davivienda', label: 'Davivienda' },
-  { value: 'Nequi', label: 'Nequi' },
-  { value: 'Daviplata', label: 'Daviplata' },
-  { value: 'Efectivo', label: 'Efectivo' },
-  { value: 'Tarjeta de Crédito', label: 'Tarjeta de Crédito' },
-  { value: 'Tarjeta de Débito', label: 'Tarjeta de Débito' },
-  { value: 'Transferencia', label: 'Transferencia' },
-  { value: 'PSE', label: 'PSE' },
-  { value: 'Otro', label: 'Otro' },
+// Método de pago / Tipo de transacción (enum canónico sincronizado con backend y DB)
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'tarjeta_debito', label: 'Tarjeta de Débito' },
+  { value: 'tarjeta_credito', label: 'Tarjeta de Crédito' },
+  { value: 'consignacion', label: 'Consignación' },
+  { value: 'cheque', label: 'Cheque' },
 ];
+const VALID_PAYMENT_METHODS = PAYMENT_METHOD_OPTIONS.map((o) => o.value);
+
+// Normaliza cualquier valor legacy a uno del enum (o '' si no mapea).
+function normalizePaymentMethod(raw) {
+  if (!raw) return '';
+  const v = String(raw)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (VALID_PAYMENT_METHODS.includes(v)) return v;
+  if (['transferencia', 'transfer', 'transferencia bancaria'].includes(v)) return 'transferencia';
+  if (['efectivo', 'cash'].includes(v)) return 'efectivo';
+  if (['tarjeta_debito', 'tarjeta debito', 'tarjeta de debito', 'debito', 'debit'].includes(v)) return 'tarjeta_debito';
+  if (['tarjeta_credito', 'tarjeta credito', 'tarjeta de credito', 'credito', 'credit'].includes(v)) return 'tarjeta_credito';
+  if (['consignacion', 'consignación'].includes(v)) return 'consignacion';
+  if (['cheque'].includes(v)) return 'cheque';
+  return '';
+}
+
+// Default razonable según el tipo de cuenta seleccionada.
+function defaultPaymentMethodForAccount(account) {
+  if (!account) return '';
+  const t = account.type || account.account_type;
+  if (t === 'cash') return 'efectivo';
+  if (t === 'credit_card') return 'tarjeta_credito';
+  return '';
+}
 
 // Icon map for account types
 const ACCOUNT_TYPE_ICONS = {
@@ -212,7 +236,7 @@ export default function TransactionForm() {
           map[doc] = {
             provider_name: sub.provider_name || '',
             provider_document: doc,
-            payment_method: sub.payment_method || '',
+            payment_method: normalizePaymentMethod(sub.payment_method),
           };
         }
       }
@@ -267,7 +291,7 @@ export default function TransactionForm() {
       ...prev,
       provider_document: provider.provider_document || prev.provider_document,
       provider_name: provider.provider_name || prev.provider_name,
-      payment_method: provider.payment_method || prev.payment_method,
+      payment_method: normalizePaymentMethod(provider.payment_method) || prev.payment_method,
     }));
     setShowProviderSuggestions(false);
     setProviderSuggestions([]);
@@ -326,7 +350,7 @@ export default function TransactionForm() {
         ...prev,
         provider_name: sub.provider_name || prev.provider_name,
         provider_document: sub.provider_document || prev.provider_document,
-        payment_method: sub.payment_method || prev.payment_method,
+        payment_method: normalizePaymentMethod(sub.payment_method) || prev.payment_method,
       }));
     } else if (formData.type === 'income') {
       setFormData((prev) => ({
@@ -337,10 +361,6 @@ export default function TransactionForm() {
         client_phone: sub.client_phone || prev.client_phone,
         client_address: sub.client_address || prev.client_address,
       }));
-      // Auto-activar cartera si la subcategoría es de cobro de cartera
-      if (!isEditing && (sub.name || '').toLowerCase().includes('cartera')) {
-        setApplyToCartera(true);
-      }
     }
   };
 
@@ -350,10 +370,26 @@ export default function TransactionForm() {
     api.getAccounts().then((res) => {
       const list = res.data?.accounts || res.data || [];
       setAccounts(Array.isArray(list) ? list : []);
-      // Preselect default account
+      // Preselect default account + sugerir método de pago coherente
       const defaultAcc = list.find((a) => a.is_default);
       if (defaultAcc && !isEditing) {
-        setFormData((prev) => ({ ...prev, account_id: prev.account_id || defaultAcc.id }));
+        setFormData((prev) => {
+          const suggested = defaultPaymentMethodForAccount(defaultAcc);
+          return {
+            ...prev,
+            account_id: prev.account_id || defaultAcc.id,
+            payment_method:
+              prev.type === 'transfer'
+                ? 'transferencia'
+                : prev.payment_method || suggested,
+          };
+        });
+      } else if (!isEditing) {
+        setFormData((prev) =>
+          prev.type === 'transfer' && !prev.payment_method
+            ? { ...prev, payment_method: 'transferencia' }
+            : prev
+        );
       }
     }).catch(() => setAccounts([])).finally(() => setAccountsLoading(false));
   }, [token]);
@@ -381,7 +417,7 @@ export default function TransactionForm() {
             providers[doc] = {
               provider_name: tx.provider_name || '',
               provider_document: doc,
-              payment_method: tx.payment_method || '',
+              payment_method: normalizePaymentMethod(tx.payment_method),
             };
           }
         }
@@ -469,7 +505,7 @@ export default function TransactionForm() {
             invoice_status: t.invoice_status || '',
             provider_document: t.provider_document || '',
             provider_name: t.provider_name || '',
-            payment_method: t.payment_method || '',
+            payment_method: normalizePaymentMethod(t.payment_method),
             source_account: t.source_account || '',
             destination_account: t.destination_account || '',
             account_id: t.account_id || '',
@@ -492,7 +528,8 @@ export default function TransactionForm() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+    const isCarteraOnlyIncome = formData.type === 'income' && createNewCartera && !applyToCartera;
+    if (!isCarteraOnlyIncome && (!formData.amount || parseFloat(formData.amount) <= 0)) {
       newErrors.amount = 'El monto debe ser mayor a 0';
     }
     if (!formData.date) {
@@ -509,6 +546,14 @@ export default function TransactionForm() {
     }
     if (formData.type === 'expense' && !formData.category) {
       newErrors.category = 'Selecciona una categoría';
+    }
+    // Método de pago requerido en income/expense, excepto facturas sin cobro inmediato
+    if ((formData.type === 'income' || formData.type === 'expense') && !isCarteraOnlyIncome) {
+      if (!formData.payment_method) {
+        newErrors.payment_method = 'Selecciona el método de pago';
+      } else if (!VALID_PAYMENT_METHODS.includes(formData.payment_method)) {
+        newErrors.payment_method = 'Método de pago inválido';
+      }
     }
     // Account is required when accounts exist
     if (accounts.length > 0) {
@@ -553,7 +598,7 @@ export default function TransactionForm() {
       const paid = parseFloat(formData.amount) || 0;
       if (total <= 0) {
         newErrors.totalSaleValue = 'El valor total de la venta es requerido';
-      } else if (paid >= total) {
+      } else if (paid > 0 && paid >= total) {
         newErrors.totalSaleValue = 'El valor total debe ser mayor al monto pagado (si no hay saldo pendiente, no necesitas crear cartera)';
       }
     }
@@ -628,13 +673,6 @@ export default function TransactionForm() {
     }
     if (name === 'category') {
       setSelectedSubId(null);
-      // Auto-enable cartera when selecting a cartera-related category
-      if (formData.type === 'income' && !isEditing) {
-        const isCarteraCategory = value.toLowerCase().includes('cartera');
-        if (isCarteraCategory && !applyToCartera) {
-          setApplyToCartera(true);
-        }
-      }
     }
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -657,14 +695,19 @@ export default function TransactionForm() {
 
   const handleTypeChange = (type) => {
     setSelectedSubId(null);
-    if (type !== 'income') {
-      setApplyToCartera(false);
-      setCarteraSelectId('');
-      setCreateNewCartera(false);
-      setTotalSaleValue('');
-    }
+    // Al cambiar de tipo, resetear siempre los toggles de cartera para evitar
+    // que queden activos por un estado anterior. Solo se reactivan si el usuario
+    // los marca manualmente o si llegan por el query param `carteraId`.
+    setApplyToCartera(false);
+    setCarteraSelectId('');
+    setCreateNewCartera(false);
+    setTotalSaleValue('');
     // Restore default account when switching type
     const defaultAcc = accounts.find((a) => a.is_default);
+    const nextPaymentMethod =
+      type === 'transfer'
+        ? 'transferencia'
+        : defaultPaymentMethodForAccount(defaultAcc);
     setFormData((prev) => ({
       ...prev,
       type,
@@ -672,7 +715,8 @@ export default function TransactionForm() {
       invoice_number: '', client_document: '', client_name: '',
       client_address: '', client_email: '', client_phone: '',
       invoice_status: '', provider_document: '', provider_name: '',
-      payment_method: '', source_account: '', destination_account: '',
+      payment_method: nextPaymentMethod,
+      source_account: '', destination_account: '',
       account_id: defaultAcc?.id || '',
       to_account_id: '',
     }));
@@ -684,9 +728,35 @@ export default function TransactionForm() {
     setLoading(true);
 
     try {
+      // Factura/Cuenta de cobro sin anticipo: solo crea registro en cartera
+      const paidAmount = parseFloat(formData.amount) || 0;
+      if (!isEditing && formData.type === 'income' && createNewCartera && paidAmount === 0) {
+        const total = parseFloat(totalSaleValue) || 0;
+        if (total > 0) {
+          await api.createCarteraRecord({
+            nombre: formData.client_name || '',
+            documento: formData.client_document || '',
+            email: formData.client_email || '',
+            telefono: formData.client_phone || '',
+            direccion: formData.client_address || '',
+            fecha_venta: formData.date,
+            valor_venta: total,
+            cash: 0,
+            producto: formData.category || '',
+            notas: formData.description || '',
+            plataforma: '',
+            fuente: '',
+          });
+          invalidateCarteraCache();
+        }
+        navigate('/cartera');
+        setLoading(false);
+        return;
+      }
+
       const transactionData = {
         type: formData.type,
-        amount: parseFloat(formData.amount),
+        amount: paidAmount,
         category: formData.category,
         description: formData.description || null,
         date: formData.date,
@@ -695,6 +765,10 @@ export default function TransactionForm() {
       // Include account_id if accounts are configured
       if (formData.account_id) {
         transactionData.account_id = formData.account_id;
+      }
+
+      if (formData.type !== 'transfer') {
+        transactionData.payment_method = formData.payment_method || null;
       }
 
       if (formData.type === 'income') {
@@ -708,7 +782,6 @@ export default function TransactionForm() {
       } else if (formData.type === 'expense') {
         transactionData.provider_document = formData.provider_document || null;
         transactionData.provider_name = formData.provider_name || null;
-        transactionData.payment_method = formData.payment_method || null;
         if (!isEditing && formData.cuotas > 1) {
           transactionData.cuotas = formData.cuotas;
         }
@@ -902,7 +975,13 @@ export default function TransactionForm() {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-dark-200">
-                {formData.type === 'income' ? `Ingreso ${currency} *` : formData.type === 'transfer' ? `Monto ${currency} *` : `Gasto Total ${currency} *`}
+                {formData.type === 'income' && createNewCartera
+                  ? `Anticipo recibido ${currency} (0 si no hay cobro aún)`
+                  : formData.type === 'income'
+                  ? `Ingreso ${currency} *`
+                  : formData.type === 'transfer'
+                  ? `Monto ${currency} *`
+                  : `Gasto Total ${currency} *`}
               </label>
               <div className="relative">
                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-400" />
@@ -921,11 +1000,25 @@ export default function TransactionForm() {
           </div>
 
           {/* Account Selector — for income/expense */}
-          {accounts.length > 0 && formData.type !== 'transfer' && (
+          {accounts.length > 0 && formData.type !== 'transfer' && (() => {
+            const selectableAccounts = formData.type === 'income'
+              ? accounts.filter((a) => (a.type || a.account_type) !== 'credit_card')
+              : accounts;
+            if (selectableAccounts.length === 0) {
+              return (
+                <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                  <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+                  <p className="text-sm text-dark-200">
+                    No tienes cuentas de efectivo o banco donde recibir este ingreso. Crea una cuenta para continuar.
+                  </p>
+                </div>
+              );
+            }
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-dark-200">Cuenta *</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {accounts.map((acc) => {
+                {selectableAccounts.map((acc) => {
                   const AccIcon = getAccountIcon(acc.account_type);
                   const selected = formData.account_id === acc.id;
                   return (
@@ -933,7 +1026,17 @@ export default function TransactionForm() {
                       key={acc.id}
                       type="button"
                       onClick={() => {
-                        setFormData((prev) => ({ ...prev, account_id: acc.id }));
+                        setFormData((prev) => {
+                          const suggested = defaultPaymentMethodForAccount(acc);
+                          return {
+                            ...prev,
+                            account_id: acc.id,
+                            payment_method:
+                              !prev.payment_method && suggested
+                                ? suggested
+                                : prev.payment_method,
+                          };
+                        });
                         if (errors.account_id) setErrors((prev) => ({ ...prev, account_id: '' }));
                       }}
                       className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${
@@ -961,7 +1064,8 @@ export default function TransactionForm() {
               </div>
               {errors.account_id && <p className="text-sm text-red-400">{errors.account_id}</p>}
             </div>
-          )}
+            );
+          })()}
           {accounts.length === 0 && !accountsLoading && (
             <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
               <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
@@ -973,6 +1077,19 @@ export default function TransactionForm() {
                 para un mejor control financiero.
               </p>
             </div>
+          )}
+
+          {/* Método de pago / Tipo de transacción — income & expense */}
+          {formData.type !== 'transfer' && (
+            <Select
+              label="Método de pago *"
+              name="payment_method"
+              value={formData.payment_method}
+              onChange={handleChange}
+              options={PAYMENT_METHOD_OPTIONS}
+              placeholder="Selecciona cómo se movió el dinero"
+              error={errors.payment_method}
+            />
           )}
 
           {/* Cuotas — solo para gastos con tarjeta de crédito */}
@@ -1469,16 +1586,6 @@ export default function TransactionForm() {
                   </div>
                 )}
 
-                <div className="space-y-2 order-3 md:order-2">
-                  <label className="block text-sm font-medium text-dark-200">Método de Pago</label>
-                  <Select
-                    name="payment_method"
-                    value={formData.payment_method}
-                    onChange={handleChange}
-                    options={PAYMENT_METHODS}
-                    placeholder="Selecciona método"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
