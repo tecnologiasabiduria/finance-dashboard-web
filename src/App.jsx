@@ -24,6 +24,8 @@ import ImportTransactions from './pages/ImportTransactions';
 import Cartera from './pages/Cartera';
 import Accounts from './pages/Accounts';
 import Privacy from './pages/Privacy';
+import Workshop from './pages/Workshop';
+import WorkshopPro from './pages/WorkshopPro';
 
 function App() {
   return (
@@ -58,6 +60,8 @@ function App() {
           />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/workshop" element={<Workshop />} />
+          <Route path="/workshop-bogota" element={<WorkshopPro />} />
           <Route path="/subscription-required" element={<SubscriptionRequired />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/create-password" element={<CreatePassword />} />
