@@ -1,5 +1,18 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { printReport } from '../utils/printReport';
+
+function useMediaMinWidth(px) {
+  const q = `(min-width: ${px}px)`;
+  return useSyncExternalStore(
+    cb => {
+      const mq = window.matchMedia(q);
+      mq.addEventListener('change', cb);
+      return () => mq.removeEventListener('change', cb);
+    },
+    () => window.matchMedia(q).matches,
+    () => true,
+  );
+}
 
 /* ─── helpers ─── */
 function parseMoney(str) {
@@ -101,19 +114,25 @@ const TH_STYLE = {
 };
 const TD_LABEL = {
   border: BORDER,
-  padding: '10px 14px',
+  padding: '10px 12px',
   fontSize: '11px',
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
   color: '#374151',
   background: '#f9fafb',
-  whiteSpace: 'nowrap',
 };
 const TD_VALUE = {
   border: BORDER,
   padding: '0',
   textAlign: 'center',
+};
+
+/** Fondo tenue para celdas/campos editables (gold marca, legible sobre blanco) */
+const EDITABLE_SURFACE = 'rgba(234, 173, 116, 0.2)';
+const TD_EDITABLE = {
+  ...TD_VALUE,
+  backgroundColor: EDITABLE_SURFACE,
 };
 
 function FormInput({ value, onChange, placeholder = '', align = 'left', style = {} }) {
@@ -143,6 +162,8 @@ function FormInput({ value, onChange, placeholder = '', align = 'left', style = 
 }
 
 export default function Workshop() {
+  const escenarioTabla = useMediaMinWidth(720);
+
   const [facturacion, setFacturacion]   = useState('');
   const [utilidadPct, setUtilidadPct]   = useState('');
   const [productos, setProductos]       = useState([
@@ -189,21 +210,91 @@ export default function Workshop() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fff', color: '#111', fontFamily: 'DM Sans, system-ui, sans-serif' }}>
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px 64px' }}>
+    <div className="workshop-page" style={{ minHeight: '100vh', background: '#fff', color: '#111', fontFamily: 'DM Sans, system-ui, sans-serif' }}>
+      <style>{`
+        .workshop-page { box-sizing: border-box; }
+        .workshop-page * { box-sizing: border-box; }
+        .workshop-brandbar {
+          background: transparent;
+          margin: 0 auto 14px;
+          padding: 0 8px;
+          text-align: center;
+        }
+        .workshop-brandbar img {
+          display: block;
+          margin: 0 auto;
+          width: auto;
+          max-width: min(243px, 56.32vw);
+          height: auto;
+          max-height: clamp(21px, 4.48vw, 27px);
+        }
+        .workshop-hero-title {
+          text-align: center;
+          font-size: clamp(24px, 6vw, 42px);
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          margin: 0 0 clamp(22px, 4vw, 36px);
+          text-transform: uppercase;
+          line-height: 1.08;
+        }
+        .workshop-inner { max-width: 680px; margin: 0 auto; padding: clamp(24px, 5vw, 48px) clamp(14px, 4vw, 24px) clamp(40px, 8vw, 64px); }
+        .workshop-facturacion { display: flex; align-items: baseline; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+        .workshop-facturacion-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0; }
+        .workshop-facturacion-field { flex: 1 1 220px; min-width: 0; position: relative; background: ${EDITABLE_SURFACE}; border-radius: 8px; padding: 8px 12px 10px; }
+        .workshop-table-scroll { margin-bottom: 36px; }
+        .workshop-table-scroll table { width: 100%; }
+        .workshop-table-escenario { border-collapse: collapse; width: 100%; border: none; table-layout: fixed; }
+        .workshop-label-cell { white-space: normal; word-break: break-word; }
+        @media (min-width: 640px) {
+          .workshop-label-cell { white-space: nowrap; }
+        }
+        .workshop-escenario-shell { border: 2px solid #5b21b6; }
+        .workshop-escenario-mobile { display: flex; flex-direction: column; gap: 0; }
+        .workshop-escenario-card { border-top: 1px solid #d1d5db; }
+        .workshop-escenario-card-head {
+          background: #ede9fe; color: #4c1d95; text-align: center; padding: 8px 12px;
+          font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+        }
+        .workshop-escenario-row { display: flex; border-bottom: 1px solid #d1d5db; min-height: 40px; }
+        .workshop-escenario-row:last-child { border-bottom: none; }
+        .workshop-escenario-row-label {
+          flex: 0 0 44%; max-width: 160px; padding: 8px 10px; font-size: 10px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.05em; color: #374151; background: #f9fafb;
+          display: flex; align-items: center; border-right: 1px solid #d1d5db;
+        }
+        .workshop-escenario-row-val {
+          flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center;
+          text-align: center; font-size: 13px; font-weight: 600; color: #111;
+        }
+        .workshop-escenario-row-val input { width: 100%; }
+        .workshop-escenario-row-val--edit { background: ${EDITABLE_SURFACE}; }
+        .workshop-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 56px; border-top: 1px solid #e5e7eb; padding-top: 24px; gap: 16px; flex-wrap: wrap; }
+        @media (max-width: 520px) {
+          .workshop-footer { flex-direction: column; text-align: center; align-items: center; }
+        }
+      `}</style>
+      <div className="workshop-inner">
 
-        {/* ── TÍTULO ── */}
-        <h1 style={{ textAlign: 'center', fontSize: 'clamp(28px, 6vw, 42px)', fontWeight: 900, letterSpacing: '0.06em', marginBottom: 40, textTransform: 'uppercase' }}>
-          Finanzas Sabias
-        </h1>
+        {/* ── Marca + título principal ── */}
+        <header className="workshop-brandbar">
+          <img
+            src="/assets/brand/workshop-sabiduria-empresarial.png"
+            alt="Sabiduría Empresarial"
+            width={3050}
+            height={279}
+            decoding="async"
+          />
+        </header>
+        <h1 className="workshop-hero-title">Finanzas Sabias</h1>
 
         {/* ── FACTURACIÓN AÑO ── */}
-        <div style={{ marginBottom: 28, display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <label style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+        <div className="workshop-facturacion">
+          <label className="workshop-facturacion-label" htmlFor="workshop-facturacion-input">
             Facturación Año:
           </label>
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div className="workshop-facturacion-field">
             <input
+              id="workshop-facturacion-input"
               type="text"
               inputMode="decimal"
               value={facturacion}
@@ -215,7 +306,7 @@ export default function Workshop() {
                 borderBottom: '2px solid #111',
                 outline: 'none',
                 background: 'transparent',
-                fontSize: 16,
+                fontSize: 'clamp(14px, 3.5vw, 16px)',
                 fontWeight: 700,
                 padding: '4px 0',
                 fontFamily: 'inherit',
@@ -223,7 +314,7 @@ export default function Workshop() {
               }}
             />
             {facturacionVal > 0 && (
-              <span style={{ position: 'absolute', right: 0, top: 4, fontSize: 12, color: '#6b7280', fontWeight: 500 }}>
+              <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#6b7280', fontWeight: 500, wordBreak: 'break-word' }}>
                 {fmtCOP(facturacionVal)}
               </span>
             )}
@@ -231,76 +322,127 @@ export default function Workshop() {
         </div>
 
         {/* ── TABLA UTILIDAD ── */}
-        <table style={{ borderCollapse: 'collapse', marginBottom: 36, width: 'auto' }}>
-          <thead>
-            <tr>
-              <th style={{ ...TH_STYLE, minWidth: 100 }}>% Utilidad</th>
-              <th style={{ ...TH_STYLE, minWidth: 130 }}>Utilidad Año</th>
-              <th style={{ ...TH_STYLE, minWidth: 130 }}>Utilidad Mes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{ border: BORDER, padding: 0, height: 44 }}>
-                <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                  <FormInput value={utilidadPct} onChange={setUtilidadPct} placeholder="40" align="center" />
-                </div>
-              </td>
-              <td style={{ border: BORDER, textAlign: 'center', padding: '10px 14px', fontSize: 13, fontWeight: 600, height: 44 }}>
-                {fmtCOP(utilidadAnio)}
-              </td>
-              <td style={{ border: BORDER, textAlign: 'center', padding: '10px 14px', fontSize: 13, fontWeight: 600, height: 44 }}>
-                {fmtCOP(utilidadMes)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* ── TABLA ESCENARIO ── */}
-        <table style={{ borderCollapse: 'collapse', width: '100%', border: '2px solid #5b21b6' }}>
-          {/* Header negro */}
-          <thead>
-            <tr>
-              <th
-                colSpan={4}
-                style={{ background: '#000', color: '#fff', textAlign: 'center', padding: '10px 14px', fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}
-              >
-                Escenario Pesimista
-              </th>
-            </tr>
-            {/* Meta facturación */}
-            <tr>
-              <td style={{ border: BORDER, padding: '10px 14px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Meta Facturación Año
-              </td>
-              <td colSpan={3} style={{ border: BORDER, padding: '10px 14px', fontSize: 14, fontWeight: 700 }}>
-                {fmtCOP(facturacionVal)}
-              </td>
-            </tr>
-            {/* Columnas */}
-            <tr>
-              <th style={{ ...TH_STYLE, width: 160 }}></th>
-              {COLS.map(col => (
-                <th key={col.key} style={{ ...TH_STYLE, minWidth: 120 }}>{col.label}</th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {ROW_LABELS.map((label, ri) => (
-              <tr key={ri}>
-                <td style={TD_LABEL}>{label}</td>
-                {rows[ri].map((cell, ci) => (
-                  <td key={ci} style={{ ...TD_VALUE, height: 40 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: INPUT_ROWS.includes(ri) ? 0 : '10px 14px' }}>
-                      {cell}
-                    </div>
-                  </td>
-                ))}
+        <div className="workshop-table-scroll">
+          <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 420 }}>
+            <thead>
+              <tr>
+                <th style={{ ...TH_STYLE, minWidth: 88, width: '28%' }}>% Utilidad</th>
+                <th style={{ ...TH_STYLE, minWidth: 110, width: '36%' }}>Utilidad Año</th>
+                <th style={{ ...TH_STYLE, minWidth: 110, width: '36%' }}>Utilidad Mes</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ border: BORDER, padding: 0, height: 44, backgroundColor: EDITABLE_SURFACE }}>
+                  <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                    <FormInput value={utilidadPct} onChange={setUtilidadPct} placeholder="40" align="center" />
+                  </div>
+                </td>
+                <td style={{ border: BORDER, textAlign: 'center', padding: '10px 12px', fontSize: 'clamp(12px, 2.8vw, 13px)', fontWeight: 600, height: 44 }}>
+                  {fmtCOP(utilidadAnio)}
+                </td>
+                <td style={{ border: BORDER, textAlign: 'center', padding: '10px 12px', fontSize: 'clamp(12px, 2.8vw, 13px)', fontWeight: 600, height: 44 }}>
+                  {fmtCOP(utilidadMes)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── ESCENARIO (tabla en escritorio / tarjetas apiladas en móvil — sin scroll horizontal) ── */}
+        <div className="workshop-escenario-shell">
+          <div
+            style={{
+              background: '#000',
+              color: '#fff',
+              textAlign: 'center',
+              padding: '10px 14px',
+              fontSize: 12,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+            }}
+          >
+            Escenario Pesimista
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              borderBottom: BORDER,
+            }}
+          >
+            <div
+              style={{
+                padding: '10px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                flex: '1 1 160px',
+                minWidth: 0,
+              }}
+            >
+              Meta Facturación Año
+            </div>
+            <div
+              style={{
+                padding: '10px 12px',
+                fontSize: 'clamp(13px, 3.2vw, 14px)',
+                fontWeight: 700,
+                flex: '1 1 200px',
+                minWidth: 0,
+                textAlign: 'center',
+              }}
+            >
+              {fmtCOP(facturacionVal)}
+            </div>
+          </div>
+
+          {escenarioTabla ? (
+            <table className="workshop-table-escenario">
+              <thead>
+                <tr>
+                  <th style={{ ...TH_STYLE, width: '26%' }} />
+                  {COLS.map(col => (
+                    <th key={col.key} style={{ ...TH_STYLE, width: '24.67%' }}>{col.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ROW_LABELS.map((label, ri) => (
+                  <tr key={ri}>
+                    <td className="workshop-label-cell" style={{ ...TD_LABEL, width: '26%', minWidth: 88 }}>{label}</td>
+                    {rows[ri].map((cell, ci) => (
+                      <td key={ci} style={{ ...(INPUT_ROWS.includes(ri) ? TD_EDITABLE : TD_VALUE), height: 40 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: INPUT_ROWS.includes(ri) ? 0 : '10px 8px' }}>
+                          {cell}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="workshop-escenario-mobile">
+              {COLS.map((col, ci) => (
+                <div className="workshop-escenario-card" key={col.key}>
+                  <div className="workshop-escenario-card-head">{col.label}</div>
+                  {ROW_LABELS.map((label, ri) => (
+                    <div className="workshop-escenario-row" key={`${col.key}-${ri}`}>
+                      <div className="workshop-escenario-row-label">{label}</div>
+                      <div className={`workshop-escenario-row-val${INPUT_ROWS.includes(ri) ? ' workshop-escenario-row-val--edit' : ''}`}>
+                        {rows[ri][ci]}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── BOTÓN ── */}
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40 }}>
@@ -336,7 +478,7 @@ export default function Workshop() {
         </div>
 
         {/* ── FOOTER ── */}
-        <div style={{ marginTop: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e5e7eb', paddingTop: 24 }}>
+        <div className="workshop-footer">
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1.5 }}>
             Workshop<br />Crecimiento Empresarial
           </div>
