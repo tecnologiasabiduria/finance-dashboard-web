@@ -73,7 +73,7 @@ function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utili
           <thead><tr>${th('% Utilidad')}${th('Utilidad Año')}${th('Utilidad Mes')}</tr></thead>
           <tbody><tr>${cell(utilidadPctVal ? utilidadPctVal+'%' : '')}${cell(fmtCOP(utilidadAnio))}${cell(fmtCOP(utilidadMes))}</tr></tbody>
         </table>
-        <h2 style="background:#000;color:#fff;text-align:center;padding:8px;font-size:13px;letter-spacing:0.15em;text-transform:uppercase;border:1px solid #000;">Escenario Pesimista</h2>
+        <h2 style="background:#000;color:#fff;text-align:center;padding:8px;font-size:13px;letter-spacing:0.15em;text-transform:uppercase;border:1px solid #000;">Escenario Proyectado</h2>
         <table style="border-collapse:collapse;width:100%;border:2px solid #5b21b6;">
           <tbody>
             <tr>
@@ -430,7 +430,7 @@ export default function Workshop() {
               fontWeight: 700,
             }}
           >
-            Escenario Pesimista
+            Escenario Proyectado
           </div>
           <div
             style={{
