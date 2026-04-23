@@ -62,7 +62,8 @@ function useIsMobile() {
   return mobile;
 }
 
-function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utilidadMes, productos, calcs }) {
+function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utilidadMes, productos, calcs, assetOrigin }) {
+  const logoSrc = `${assetOrigin}/assets/brand/workshop-sabiduria-empresarial.png`;
   const rows = [
     productos.map(p => `${parsePct(p.aportePct) || ''}%`),
     calcs.map(c => fmtCOP(c.facturacion)),
@@ -76,6 +77,9 @@ function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utili
   const th   = v => `<th style="border:1px solid #ccc;padding:9px 14px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:#f5f5f5;">${v}</th>`;
   return `
     <div class="print-report">
+      <div style="text-align:center;margin-bottom:20px;">
+        <img src="${logoSrc}" alt="Sabiduría Empresarial" width="3050" height="279" style="display:block;margin:0 auto;max-width:min(280px,72vw);width:auto;height:auto;max-height:34px;object-fit:contain;" />
+      </div>
       <div class="print-report-header">
         <div>
           <h1 class="print-report-title">FINANZAS SABIAS</h1>
@@ -281,7 +285,15 @@ export default function WorkshopPro() {
     setProductos(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p));
 
   const handlePrint = () => {
-    const html = generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utilidadMes, productos, calcs });
+    const html = generatePrintHTML({
+      facturacionVal,
+      utilidadPctVal,
+      utilidadAnio,
+      utilidadMes,
+      productos,
+      calcs,
+      assetOrigin: window.location.origin,
+    });
     printReport(html, 'Finanzas Sabias – Workshop');
   };
 

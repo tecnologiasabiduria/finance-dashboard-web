@@ -46,7 +46,8 @@ const COLS = [
 const ROW_LABELS = ['% Aporte Meta', 'Facturación', 'Precio', 'Und Año', 'Und Mes', 'Und Semana', 'Und Día'];
 const INPUT_ROWS = [0, 2]; // índices de filas que son inputs (% Aporte Meta, Precio)
 
-function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utilidadMes, productos, calcs }) {
+function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utilidadMes, productos, calcs, assetOrigin }) {
+  const logoSrc = `${assetOrigin}/assets/brand/workshop-sabiduria-empresarial.png`;
   const rows = [
     productos.map(p => `${parsePct(p.aportePct) || ''}%`),
     calcs.map(c => fmtCOP(c.facturacion)),
@@ -60,9 +61,10 @@ function generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utili
   const th = (v, extra='') => `<th style="border:1px solid #ccc;padding:8px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:#f5f5f5;${extra}">${v}</th>`;
   return `
     <div class="print-report">
-      <div style="text-align:center;margin-bottom:32px;">
-        <h1 style="font-size:32px;font-weight:900;letter-spacing:0.05em;margin-bottom:4px;">FINANZAS SABIAS</h1>
-      </div>
+      <header style="text-align:center;margin-bottom:28px;padding-bottom:22px;border-bottom:2px solid #111;">
+        <img src="${logoSrc}" alt="Sabiduría Empresarial" width="3050" height="279" style="display:block;margin:0 auto 16px;max-width:min(280px,72vw);width:auto;height:auto;max-height:34px;object-fit:contain;object-position:center;" />
+        <h1 style="font-size:clamp(22px,5vw,30px);font-weight:900;letter-spacing:0.06em;margin:0;text-transform:uppercase;line-height:1.1;">Finanzas Sabias</h1>
+      </header>
       <section>
         <p style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">
           Facturación Año: <span style="border-bottom:2px solid #000;padding-bottom:2px;min-width:200px;display:inline-block;">&nbsp;${fmtCOP(facturacionVal)}&nbsp;</span>
@@ -161,6 +163,37 @@ function FormInput({ value, onChange, placeholder = '', align = 'left', style = 
   );
 }
 
+/** Prefijo/sufijo fijo ($, %) junto a inputs en celdas editables para evitar confusión */
+function InputAffix({ prefix, suffix, children }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        gap: 6,
+        padding: '0 6px',
+      }}
+    >
+      {prefix != null && (
+        <span style={{ fontWeight: 700, fontSize: 13, color: '#111', flexShrink: 0 }} aria-hidden>
+          {prefix}
+        </span>
+      )}
+      <div style={{ flex: '1 1 0', minWidth: 0, height: '100%', display: 'flex', alignItems: 'center' }}>
+        {children}
+      </div>
+      {suffix != null && (
+        <span style={{ fontWeight: 700, fontSize: 13, color: '#111', flexShrink: 0 }} aria-hidden>
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function Workshop() {
   const escenarioTabla = useMediaMinWidth(720);
 
@@ -189,19 +222,31 @@ export default function Workshop() {
     setProductos(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p));
 
   const handlePrint = () => {
-    const html = generatePrintHTML({ facturacionVal, utilidadPctVal, utilidadAnio, utilidadMes, productos, calcs });
+    const html = generatePrintHTML({
+      facturacionVal,
+      utilidadPctVal,
+      utilidadAnio,
+      utilidadMes,
+      productos,
+      calcs,
+      assetOrigin: window.location.origin,
+    });
     printReport(html, 'Finanzas Sabias – Workshop');
   };
 
   const rows = [
     productos.map((p, i) => (
-      <FormInput key={i} value={p.aportePct} onChange={v => setProducto(i, 'aportePct', v)} placeholder="50" align="center" />
+      <InputAffix key={i} suffix="%">
+        <FormInput value={p.aportePct} onChange={v => setProducto(i, 'aportePct', v)} placeholder="50" align="center" />
+      </InputAffix>
     )),
     calcs.map((c, i) => (
       <span key={i} style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{fmtCOP(c.facturacion)}</span>
     )),
     productos.map((p, i) => (
-      <FormInput key={i} value={p.precio} onChange={v => setProducto(i, 'precio', formatThousands(v))} placeholder="90.000" align="center" />
+      <InputAffix key={i} prefix="$">
+        <FormInput value={p.precio} onChange={v => setProducto(i, 'precio', formatThousands(v))} placeholder="90.000" align="center" />
+      </InputAffix>
     )),
     calcs.map((c, i) => <span key={i} style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{fmtNum(c.undAnio)}</span>),
     calcs.map((c, i) => <span key={i} style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{fmtNum(c.undMes)}</span>),
@@ -293,26 +338,48 @@ export default function Workshop() {
             Facturación Año:
           </label>
           <div className="workshop-facturacion-field">
-            <input
-              id="workshop-facturacion-input"
-              type="text"
-              inputMode="decimal"
-              value={facturacion}
-              onChange={e => setFacturacion(formatThousands(e.target.value))}
-              placeholder="100.000.000"
+            <div
               style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 8,
                 width: '100%',
-                border: 'none',
-                borderBottom: '2px solid #111',
-                outline: 'none',
-                background: 'transparent',
-                fontSize: 'clamp(14px, 3.5vw, 16px)',
-                fontWeight: 700,
-                padding: '4px 0',
-                fontFamily: 'inherit',
-                color: '#111',
               }}
-            />
+            >
+              <span
+                style={{
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
+                  fontWeight: 800,
+                  color: '#111',
+                  flexShrink: 0,
+                }}
+                aria-hidden
+              >
+                $
+              </span>
+              <input
+                id="workshop-facturacion-input"
+                type="text"
+                inputMode="decimal"
+                value={facturacion}
+                onChange={e => setFacturacion(formatThousands(e.target.value))}
+                placeholder="100.000.000"
+                aria-label="Facturación del año en pesos colombianos"
+                style={{
+                  flex: '1 1 0',
+                  minWidth: 0,
+                  border: 'none',
+                  borderBottom: '2px solid #111',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
+                  fontWeight: 700,
+                  padding: '4px 0',
+                  fontFamily: 'inherit',
+                  color: '#111',
+                }}
+              />
+            </div>
             {facturacionVal > 0 && (
               <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#6b7280', fontWeight: 500, wordBreak: 'break-word' }}>
                 {fmtCOP(facturacionVal)}
@@ -334,9 +401,9 @@ export default function Workshop() {
             <tbody>
               <tr>
                 <td style={{ border: BORDER, padding: 0, height: 44, backgroundColor: EDITABLE_SURFACE }}>
-                  <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                  <InputAffix suffix="%">
                     <FormInput value={utilidadPct} onChange={setUtilidadPct} placeholder="40" align="center" />
-                  </div>
+                  </InputAffix>
                 </td>
                 <td style={{ border: BORDER, textAlign: 'center', padding: '10px 12px', fontSize: 'clamp(12px, 2.8vw, 13px)', fontWeight: 600, height: 44 }}>
                   {fmtCOP(utilidadAnio)}

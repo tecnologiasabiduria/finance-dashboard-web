@@ -302,17 +302,49 @@ export function printReport(htmlContent, title = 'Informe Financiero') {
     </head>
     <body>
       ${htmlContent}
-      <script>
-        window.onload = function() {
-          setTimeout(function() {
-            window.print();
-          }, 500);
-        };
-      </script>
     </body>
     </html>
   `;
 
   printWindow.document.write(html);
   printWindow.document.close();
+
+  let printed = false;
+  const runPrint = () => {
+    if (printed) return;
+    printed = true;
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {
+        /* ventana cerrada u otro error del navegador */
+      }
+    }, 80);
+  };
+
+  const waitForImagesThenPrint = () => {
+    const imgs = Array.from(printWindow.document.images);
+    const pending = imgs.filter((img) => !img.complete);
+    if (pending.length === 0) {
+      runPrint();
+      return;
+    }
+    let left = pending.length;
+    const oneDone = () => {
+      left -= 1;
+      if (left <= 0) runPrint();
+    };
+    pending.forEach((img) => {
+      img.addEventListener('load', oneDone, { once: true });
+      img.addEventListener('error', oneDone, { once: true });
+    });
+    setTimeout(runPrint, 4500);
+  };
+
+  if (printWindow.document.readyState === 'complete') {
+    waitForImagesThenPrint();
+  } else {
+    printWindow.addEventListener('load', waitForImagesThenPrint, { once: true });
+  }
 }
