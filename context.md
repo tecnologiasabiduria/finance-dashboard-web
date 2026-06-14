@@ -1,703 +1,275 @@
-# Contexto del Proyecto: Finance Dashboard Frontend
+# Contexto del Proyecto — Finance Dashboard Web (Sabiduría Empresarial)
 
-> **IMPORTANTE:** Este archivo es para contextualizar el desarrollo del frontend.
-> El backend existe en un repositorio separado y expone una API REST.
-
----
-
-## 1. Qué Es Este Proyecto
-
-**Producto:** Dashboard web para control de gastos e ingresos personales.
-
-**Tipo:** Aplicación React (SPA) que consume una API REST.
-
-**Modelo de Negocio:**
-- Es una plataforma de pago (SaaS)
-- Solo usuarios con suscripción activa pueden acceder
-- El backend controla el acceso, el frontend solo muestra
+> Documento de handoff para quien retome el desarrollo (y para su asistente Claude).
+> Refleja el **estado real y actual** del proyecto en producción. Última actualización: 2026-06-14.
+>
+> Complementa al `CLAUDE.md` del repo (instrucciones para Claude Code). Si algo se contradice, **este archivo y el código mandan**.
 
 ---
 
-## 2. Regla Fundamental
+## 1. Qué es
 
-```
-┌────────────────────────────────────────────────────────┐
-│  EL FRONTEND NO DECIDE NADA SOBRE ACCESO O PAGOS      │
-│  Solo muestra lo que el backend le permite ver        │
-└────────────────────────────────────────────────────────┘
-```
+**Producto:** Dashboard web (SaaS) de control financiero personal/empresarial para clientes de Sabiduría Empresarial (marca de Diana Cortés).
 
-- ❌ NO validar suscripción en el frontend
-- ❌ NO procesar pagos en el frontend
-- ❌ NO guardar datos sensibles en localStorage
-- ✅ SÍ mostrar UI según respuesta del backend
-- ✅ SÍ redirigir si el backend dice "no autorizado"
-- ✅ SÍ guardar el JWT en memoria o httpOnly cookie
+**Tipo:** SPA en **React + Vite** que consume una **API REST** propia. Es una plataforma de pago: solo usuarios con suscripción activa entran. El **backend decide acceso y pagos; el frontend solo muestra**.
+
+**Dominio producción:** https://app.sabiduriaempresarial.com
 
 ---
 
-## 3. Arquitectura General
+## 2. Arquitectura
+
+Dos repositorios hermanos (mismo servidor en prod, carpetas hermanas en local):
+
+| Repo | Qué es | Puerto local |
+|---|---|---|
+| `finance-dashboard-web` (este) | Frontend React (Vite) | 5173 (dev) |
+| `finance-dashboard-api` (`../finance-dashboard-api`) | Backend Express + Node 18+ | 3000 |
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    FLUJO DE LA PLATAFORMA                   │
-└─────────────────────────────────────────────────────────────┘
-
-   Usuario paga en GoHighLevel/Stripe (externo)
-          │
-          ▼
-   Backend Node.js (otro repositorio)
-          │
-          │ API REST
-          ▼
-   ┌──────────────────┐
-   │  React Frontend  │  ◄── ESTE REPOSITORIO
-   │  (Dashboard)     │
-   └──────────────────┘
+Navegador
+   │
+   ▼
+React (Vite)  ──REST──▶  Express API (Node)  ──▶  Supabase (PostgreSQL + Auth)
+                                  ▲
+                       Webhooks Stripe / GoHighLevel
 ```
+
+- **Todo el frontend habla con el backend por `src/services/api.js`** — una clase singleton `ApiService` que adjunta el JWT (`Authorization: Bearer ...`) a cada request.
+- El cliente Supabase JS (`src/lib/supabase.js`) se usa **directo solo** en dos flujos: intercambio de código del magic-link (`AuthCallback`) y creación de contraseña (`CreatePassword`). El resto pasa por la API Express.
 
 ---
 
-## 4. Comunicación con el Backend
+## 3. Stack y dependencias
 
-### URL Base de la API
-
-```env
-# .env.local (desarrollo)
-VITE_API_URL=http://localhost:3000
-
-# .env.production (producción)
-VITE_API_URL=https://api.tu-dominio.com
-```
-
-### Endpoints Disponibles
-
-| Método | Endpoint | Descripción | Auth |
-|--------|----------|-------------|------|
-| GET | `/health` | Estado del servidor | No |
-| POST | `/auth/login` | Iniciar sesión | No |
-| POST | `/auth/register` | Registrarse | No |
-| GET | `/auth/me` | Datos del usuario actual | Sí |
-| GET | `/dashboard/summary` | Resumen financiero | Sí |
-| GET | `/transactions` | Listar transacciones | Sí |
-| POST | `/transactions` | Crear transacción | Sí |
-| PUT | `/transactions/:id` | Editar transacción | Sí |
-| DELETE | `/transactions/:id` | Eliminar transacción | Sí |
-
-### Formato de Respuestas del Backend
-
-```javascript
-// Respuesta exitosa
-{
-  "success": true,
-  "data": { /* datos */ }
-}
-
-// Respuesta de error
-{
-  "success": false,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Token inválido o expirado"
-  }
-}
-```
-
-### Códigos de Error Importantes
-
-| Código HTTP | Significado | Acción en Frontend |
-|-------------|-------------|-------------------|
-| 200 | OK | Mostrar datos |
-| 201 | Creado | Mostrar éxito, refrescar lista |
-| 400 | Datos inválidos | Mostrar errores en formulario |
-| 401 | No autenticado | Redirigir a `/login` |
-| 403 | Suscripción inactiva | Redirigir a `/subscription-required` |
-| 404 | No encontrado | Mostrar mensaje |
-| 500 | Error del servidor | Mostrar error genérico |
+- **React 18** + **react-router-dom 6** + **Vite 5**
+- **Tailwind CSS 3** (config en `tailwind.config.js`, `postcss.config.js`)
+- **@supabase/supabase-js** (auth callback / magic link / password)
+- **recharts** (gráficos), **lucide-react** (íconos), **date-fns**, **clsx**, **animejs**, **react-joyride** (onboarding tour)
+- **exceljs** / **xlsx** (import/export de transacciones y plantillas)
+- ⚠️ `express` aparece en `package.json` pero es **legacy** (de un viejo `server.js` para PM2 que **ya no existe ni se usa**; en prod sirve nginx). No depender de eso.
 
 ---
 
-## 5. Flujo de Autenticación
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    FLUJO DE LOGIN                           │
-└─────────────────────────────────────────────────────────────┘
-
-1. Usuario ingresa email y contraseña
-              │
-              ▼
-2. Frontend hace POST /auth/login
-              │
-              ▼
-3. Backend valida credenciales + suscripción
-              │
-              ├── 401: Credenciales inválidas → Mostrar error
-              │
-              ├── 403: Suscripción inactiva → Página de "Activa tu suscripción"
-              │
-              ▼
-4. Backend responde con JWT + datos de usuario
-              │
-              ▼
-5. Frontend guarda JWT en memoria (Context/Zustand)
-              │
-              ▼
-6. Frontend redirige al Dashboard
-              │
-              ▼
-7. Todas las peticiones incluyen: Authorization: Bearer <jwt>
-```
-
-### Implementación del Auth Context
-
-```javascript
-// src/context/AuthContext.jsx
-import { createContext, useContext, useState, useEffect } from 'react';
-
-const AuthContext = createContext(null);
-
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Verificar sesión al cargar
-  useEffect(() => {
-    const checkAuth = async () => {
-      const savedToken = sessionStorage.getItem('token');
-      if (savedToken) {
-        try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-            headers: { 'Authorization': `Bearer ${savedToken}` }
-          });
-          if (response.ok) {
-            const { data } = await response.json();
-            setUser(data.user);
-            setToken(savedToken);
-          } else {
-            sessionStorage.removeItem('token');
-          }
-        } catch (error) {
-          sessionStorage.removeItem('token');
-        }
-      }
-      setLoading(false);
-    };
-    checkAuth();
-  }, []);
-
-  const login = async (email, password) => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw { status: response.status, ...result.error };
-    }
-    
-    setUser(result.data.user);
-    setToken(result.data.token);
-    sessionStorage.setItem('token', result.data.token);
-    
-    return result.data;
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    sessionStorage.removeItem('token');
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export const useAuth = () => useContext(AuthContext);
-```
-
----
-
-## 6. Rutas y Páginas
-
-### Estructura de Rutas
-
-```
-/                     → Redirige a /login o /dashboard
-/login                → Página de inicio de sesión
-/register             → Página de registro
-/subscription-required → Usuario sin suscripción activa
-/dashboard            → Panel principal (protegido)
-/transactions         → Lista de transacciones (protegido)
-/transactions/new     → Crear transacción (protegido)
-/transactions/:id     → Editar transacción (protegido)
-/settings             → Configuración de cuenta (protegido)
-```
-
-### Componente de Ruta Protegida
-
-```javascript
-// src/components/ProtectedRoute.jsx
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-
-export function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
-    return <div>Cargando...</div>; // O un spinner
-  }
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
-}
-```
-
----
-
-## 7. Páginas a Implementar
-
-### 7.1 Página de Login (`/login`)
-
-**Funcionalidad:**
-- Formulario con email y contraseña
-- Validación de campos requeridos
-- Mostrar errores del backend
-- Redirigir al dashboard si éxito
-- Link a registro
-
-**Estados a manejar:**
-- `loading`: mientras se procesa el login
-- `error`: mensaje de error del backend
-- Código 403: mostrar mensaje especial de suscripción
-
----
-
-### 7.2 Página de Registro (`/register`)
-
-**Funcionalidad:**
-- Formulario: nombre, email, contraseña, confirmar contraseña
-- Validación de campos
-- Mostrar errores
-- Redirigir a página de "Activa tu suscripción" después del registro
-
-**Nota:** El registro NO da acceso automático. El usuario debe pagar primero.
-
----
-
-### 7.3 Página de Suscripción Requerida (`/subscription-required`)
-
-**Funcionalidad:**
-- Mensaje claro: "Necesitas una suscripción activa"
-- Botón/Link hacia la página de pago (GoHighLevel/Stripe)
-- Opción de cerrar sesión
-
----
-
-### 7.4 Dashboard (`/dashboard`)
-
-**Funcionalidad:**
-- Resumen financiero (ingresos vs gastos del mes)
-- Gráfico de barras o dona
-- Lista de últimas 5 transacciones
-- Accesos rápidos a crear ingreso/gasto
-
-**Datos del endpoint `/dashboard/summary`:**
-```javascript
-{
-  "success": true,
-  "data": {
-    "balance": 1500.00,
-    "totalIncome": 3000.00,
-    "totalExpenses": 1500.00,
-    "transactionsCount": 25,
-    "recentTransactions": [
-      { "id": "...", "type": "expense", "amount": 50, "category": "food", "date": "2025-01-28" },
-      // ...
-    ]
-  }
-}
-```
-
----
-
-### 7.5 Lista de Transacciones (`/transactions`)
-
-**Funcionalidad:**
-- Tabla con todas las transacciones
-- Filtros: tipo (ingreso/gasto), categoría, rango de fechas
-- Paginación
-- Botón para crear nueva
-- Acciones: editar, eliminar
-
-**Parámetros de query para `/transactions`:**
-```
-GET /transactions?type=expense&category=food&from=2025-01-01&to=2025-01-31&page=1&limit=20
-```
-
----
-
-### 7.6 Crear/Editar Transacción (`/transactions/new`, `/transactions/:id`)
-
-**Campos del formulario:**
-- Tipo: ingreso o gasto (select)
-- Monto: número decimal positivo
-- Categoría: select con opciones predefinidas
-- Descripción: texto opcional
-- Fecha: date picker
-
-**Categorías sugeridas:**
-```javascript
-const CATEGORIES = {
-  income: ['Salario', 'Freelance', 'Inversiones', 'Otros'],
-  expense: ['Alimentación', 'Transporte', 'Servicios', 'Entretenimiento', 'Salud', 'Educación', 'Otros']
-};
-```
-
----
-
-## 8. Estructura de Carpetas
-
-```
-finance-dashboard-frontend/
-├── public/
-│   └── favicon.ico
-├── src/
-│   ├── components/
-│   │   ├── ui/                    # Componentes reutilizables
-│   │   │   ├── Button.jsx
-│   │   │   ├── Input.jsx
-│   │   │   ├── Card.jsx
-│   │   │   ├── Modal.jsx
-│   │   │   └── Spinner.jsx
-│   │   ├── layout/
-│   │   │   ├── Header.jsx
-│   │   │   ├── Sidebar.jsx
-│   │   │   └── DashboardLayout.jsx
-│   │   ├── ProtectedRoute.jsx
-│   │   └── TransactionForm.jsx
-│   ├── pages/
-│   │   ├── Login.jsx
-│   │   ├── Register.jsx
-│   │   ├── SubscriptionRequired.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── Transactions.jsx
-│   │   ├── TransactionNew.jsx
-│   │   ├── TransactionEdit.jsx
-│   │   └── Settings.jsx
-│   ├── context/
-│   │   └── AuthContext.jsx
-│   ├── hooks/
-│   │   ├── useApi.js             # Hook para llamadas a la API
-│   │   └── useTransactions.js
-│   ├── services/
-│   │   └── api.js                # Cliente HTTP configurado
-│   ├── utils/
-│   │   ├── formatCurrency.js
-│   │   └── formatDate.js
-│   ├── styles/
-│   │   └── globals.css
-│   ├── App.jsx
-│   └── main.jsx
-├── .env.local
-├── .env.production
-├── .gitignore
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
-```
-
----
-
-## 9. Servicio API (Cliente HTTP)
-
-```javascript
-// src/services/api.js
-const API_URL = import.meta.env.VITE_API_URL;
-
-class ApiService {
-  constructor() {
-    this.token = null;
-  }
-
-  setToken(token) {
-    this.token = token;
-  }
-
-  clearToken() {
-    this.token = null;
-  }
-
-  async request(endpoint, options = {}) {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const error = new Error(data.error?.message || 'Error desconocido');
-      error.status = response.status;
-      error.code = data.error?.code;
-      throw error;
-    }
-
-    return data;
-  }
-
-  // Auth
-  login(email, password) {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  }
-
-  register(data) {
-    return this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  getMe() {
-    return this.request('/auth/me');
-  }
-
-  // Dashboard
-  getDashboardSummary() {
-    return this.request('/dashboard/summary');
-  }
-
-  // Transactions
-  getTransactions(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/transactions${query ? `?${query}` : ''}`);
-  }
-
-  getTransaction(id) {
-    return this.request(`/transactions/${id}`);
-  }
-
-  createTransaction(data) {
-    return this.request('/transactions', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  updateTransaction(id, data) {
-    return this.request(`/transactions/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  deleteTransaction(id) {
-    return this.request(`/transactions/${id}`, {
-      method: 'DELETE',
-    });
-  }
-}
-
-export const api = new ApiService();
-```
-
----
-
-## 10. Dependencias Recomendadas
-
-```json
-{
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.x",
-    "recharts": "^2.x",
-    "date-fns": "^2.x",
-    "clsx": "^2.x"
-  },
-  "devDependencies": {
-    "vite": "^5.x",
-    "@vitejs/plugin-react": "^4.x",
-    "tailwindcss": "^3.x",
-    "autoprefixer": "^10.x",
-    "postcss": "^8.x"
-  }
-}
-```
-
-**Notas:**
-- **Recharts**: para gráficos del dashboard
-- **date-fns**: para formateo de fechas
-- **Tailwind CSS**: para estilos (opcional, puedes usar otro)
-
----
-
-## 11. Manejo de Estados de Carga
-
-```javascript
-// Ejemplo en página Dashboard
-function Dashboard() {
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const { data } = await api.getDashboardSummary();
-        setSummary(data);
-      } catch (err) {
-        if (err.status === 401) {
-          // Token expirado, redirigir
-          navigate('/login');
-        } else if (err.status === 403) {
-          // Sin suscripción
-          navigate('/subscription-required');
-        } else {
-          setError(err.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSummary();
-  }, []);
-
-  if (loading) return <Spinner />;
-  if (error) return <ErrorMessage message={error} />;
-  return <DashboardContent data={summary} />;
-}
-```
-
----
-
-## 12. Diseño Visual (Sugerencias)
-
-### Paleta de Colores
-```css
-:root {
-  --primary: #3B82F6;      /* Azul */
-  --success: #10B981;      /* Verde - ingresos */
-  --danger: #EF4444;       /* Rojo - gastos */
-  --background: #F9FAFB;   /* Gris claro */
-  --card: #FFFFFF;
-  --text: #1F2937;
-  --text-muted: #6B7280;
-}
-```
-
-### Layout del Dashboard
-```
-┌─────────────────────────────────────────────────────────┐
-│  Header (Logo + User menu + Logout)                     │
-├──────────┬──────────────────────────────────────────────┤
-│          │                                              │
-│ Sidebar  │   Contenido Principal                        │
-│          │                                              │
-│ - Home   │   ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│ - Trans. │   │ Balance │ │Ingresos │ │ Gastos  │       │
-│ - Config │   └─────────┘ └─────────┘ └─────────┘       │
-│          │                                              │
-│          │   ┌──────────────────────────────────┐       │
-│          │   │         Gráfico                  │       │
-│          │   └──────────────────────────────────┘       │
-│          │                                              │
-│          │   ┌──────────────────────────────────┐       │
-│          │   │   Últimas Transacciones          │       │
-│          │   └──────────────────────────────────┘       │
-└──────────┴──────────────────────────────────────────────┘
-```
-
----
-
-## 13. Checklist de Implementación
-
-### Fase 1: Setup
-- [ ] Crear proyecto con Vite + React
-- [ ] Configurar Tailwind CSS
-- [ ] Configurar React Router
-- [ ] Crear estructura de carpetas
-- [ ] Configurar variables de entorno
-
-### Fase 2: Autenticación
-- [ ] Implementar AuthContext
-- [ ] Crear servicio API
-- [ ] Página de Login
-- [ ] Página de Registro
-- [ ] Componente ProtectedRoute
-- [ ] Página SubscriptionRequired
-
-### Fase 3: Dashboard
-- [ ] Layout principal (Header + Sidebar)
-- [ ] Página Dashboard con cards
-- [ ] Integrar gráfico con Recharts
-- [ ] Lista de transacciones recientes
-
-### Fase 4: Transacciones
-- [ ] Página lista de transacciones
-- [ ] Filtros y paginación
-- [ ] Formulario crear transacción
-- [ ] Formulario editar transacción
-- [ ] Confirmación de eliminación
-
-### Fase 5: Pulido
-- [ ] Manejo de errores global
-- [ ] Estados de carga (spinners)
-- [ ] Mensajes de éxito (toasts)
-- [ ] Responsive design
-- [ ] Página de configuración
-
----
-
-## 14. Comandos Útiles
+## 4. Correr en local
 
 ```bash
-# Desarrollo
-npm run dev
-
-# Build para producción
-npm run build
-
-# Preview del build
-npm run preview
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # build de producción → dist/
+npm run preview  # previsualizar el build
 ```
 
----
+No hay suite de tests configurada.
 
-## 15. Variables de Entorno
+### Variables de entorno
+
+Copiar `.env.example` → `.env` y setear:
 
 ```env
-# .env.local (desarrollo)
-VITE_API_URL=http://localhost:3000
-
-# .env.production (producción - configurar en el VPS)
-VITE_API_URL=https://api.tu-dominio.com
+# DESARROLLO (.env)
+VITE_API_URL=http://localhost:3000/api
+VITE_SUPABASE_URL=https://qpvlyeqbsvuunzitrclp.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key público de Supabase>
 ```
+
+- El `VITE_SUPABASE_ANON_KEY` es la **anon key pública** (va embebida en el bundle del cliente; no es secreta).
+- En `.gitignore` se ignoran `.env`, `.env.local`, `.env.production`. ⚠️ **OJO:** `.env.production.local` **NO está ignorado** — si lo usas para buildear prod, bórralo después (ver §8).
 
 ---
 
-*Este documento contextualiza el frontend. El backend es un proyecto separado con su propia documentación.*
+## 5. Estructura de carpetas (real)
+
+```
+src/
+├── App.jsx                  # Definición de rutas (público vs protegido)
+├── main.jsx
+├── services/
+│   ├── api.js               # Singleton ApiService (TODA la comunicación con el backend)
+│   └── cache.js             # Cache a nivel de módulo (categorías, dashboard del mes)
+├── context/
+│   ├── AuthContext.jsx      # JWT en sessionStorage, useAuth() → {user, login, logout, isAuthenticated}
+│   └── SettingsContext.jsx  # tema (dark/light) + moneda (COP/USD/MXN/EUR) en localStorage, useSettings()
+├── lib/
+│   └── supabase.js          # cliente Supabase (solo magic-link y create-password)
+├── components/
+│   ├── ProtectedRoute.jsx   # exporta ProtectedRoute y PublicRoute
+│   ├── layout/              # DashboardLayout, Header, Sidebar, Logo (barrel index.js)
+│   ├── ui/                  # Button, Card, Input, Select, CreatableSelect, DatePicker, Modal, Spinner (barrel index.js)
+│   ├── AIAgentPanel.jsx, OnboardingTour.jsx, PrintReport.jsx
+├── pages/                   # Login, Register, Dashboard, Transactions, TransactionForm, Reports,
+│                            # Goals, Categories, Accounts, Cartera, Settings, Workshop, WorkshopPro, etc.
+└── utils/
+    ├── formatters.js, categoryIcons.jsx, printReport.js, herramientaFinancieraExport.js
+```
+
+**Cache de módulo (`src/services/cache.js`):** categorías y datos del mes del dashboard sobreviven la navegación de React pero se limpian al refrescar la página. Tras mutaciones, llamar `invalidateCategoriesCache()` / `invalidateDashboardCache()` / `invalidateAllCaches()`.
+
+---
+
+## 6. Rutas (App.jsx)
+
+**Públicas** (sin login):
+
+| Ruta | Página | Nota |
+|---|---|---|
+| `/login`, `/register`, `/forgot-password`, `/reset-password` | Auth | `register` está deshabilitado de hecho (entran por GHL) |
+| `/auth/callback` | AuthCallback | intercambio de magic-link |
+| `/create-password` | CreatePassword | setear contraseña |
+| `/subscription-required` | SubscriptionRequired | 403 → aquí |
+| `/privacy` | Privacy | |
+| **`/workshop`** | **Workshop** | **herramienta independiente (ver §7)** |
+| **`/workshop-bogota`** | **WorkshopPro** | **variante presencial (ver §7)** |
+
+**Protegidas** (requieren JWT, dentro de `<DashboardLayout>`): `/transactions`, `/transactions/new`, `/transactions/import`, `/transactions/:id`, `/reports`, `/goals`, `/categories`, `/settings`, `/accounts`, `/cartera`.
+
+**Redirects:** `/` → `/login`; `/dashboard` y `/annual-report` → `/reports`; `*` → `/reports`. **La pantalla principal real es `/reports`** (no `/dashboard`).
+
+---
+
+## 7. Herramientas "Workshop" (independientes)
+
+`/workshop` (`src/pages/Workshop.jsx`) y `/workshop-bogota` (`src/pages/WorkshopPro.jsx`) son **calculadoras financieras públicas e independientes** del resto de la app: NO usan la API ni Supabase, todo el cálculo es local en el navegador, con su propia marca y estilos embebidos. Se usan en talleres presenciales de Diana.
+
+`/workshop` ("Finanzas Sabias"): el usuario ingresa Facturación Año y % Utilidad, y en "Datos por Escenario" define, para 3 escenarios (Precio Bajo/Medio/Alto), el **Precio** y el **% Aporte Meta** (con total acumulado + alerta si pasa de 100%). Abajo, el "Escenario Proyectado" muestra de solo lectura la Facturación, el precio resaltado en el subheader, y las unidades necesarias por año/mes/semana/día. Botón de imprimir/descargar PDF.
+
+> ⚠️ **Esta herramienta la usan mayormente desde MÓVIL.** Cualquier cambio de UI debe priorizar el celular.
+
+---
+
+## 8. Deploy a producción ⭐
+
+**Producción corre en un droplet de DigitalOcean** (Ubuntu, `nyc1`). **NO** usa Cloudways ni PM2 (el `CLAUDE.md` aún menciona eso pero está desactualizado).
+
+**nginx sirve el frontend como archivos estáticos** desde `/var/www/finance-dashboard-web` (config: `/etc/nginx/sites-enabled/finance-dashboard`), con fallback SPA a `index.html`, y proxya `/api/` → `127.0.0.1:3000` (el backend Express). En esa carpeta **NO hay repo, ni `.env`, ni `dist/`, ni git** — es directamente el build ya servido.
+
+➡️ **Por lo tanto el deploy es: buildear LOCAL (con env de producción) y subir el contenido de `dist/` por `scp`.**
+
+### Pasos (frontend)
+
+```bash
+# 1) En tu máquina, dentro de finance-dashboard-web:
+#    Build con env de PRODUCCIÓN (¡no localhost!). Usa un .env.production.local temporal:
+cat > .env.production.local <<'EOF'
+VITE_API_URL=https://app.sabiduriaempresarial.com/api
+VITE_SUPABASE_URL=https://qpvlyeqbsvuunzitrclp.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key público>
+EOF
+
+npm run build     # genera dist/ apuntando a la API de prod
+
+# 2) Empaquetar y subir
+tar -czf /tmp/dist.tgz -C dist .
+scp /tmp/dist.tgz root@142.93.7.13:/tmp/dist.tgz
+
+# 3) En el servidor: backup + extraer + permisos
+ssh root@142.93.7.13 '
+  DIR=/var/www/finance-dashboard-web
+  cp -a "$DIR" "$DIR.bak-$(date +%F-%H%M%S)"   # backup para rollback
+  tar -xzf /tmp/dist.tgz -C "$DIR"
+  chown -R www-data:www-data "$DIR"
+  rm -f /tmp/dist.tgz
+'
+
+# 4) Limpiar local
+rm -f .env.production.local       # NO está gitignoreado, no lo dejes
+rm -rf dist
+```
+
+### Verificar que quedó arriba
+
+```bash
+curl -s https://app.sabiduriaempresarial.com/ | grep -oE 'assets/index-[a-zA-Z0-9.-]+\.js'  # debe ser el hash nuevo
+curl -s -o /dev/null -w '%{http_code}\n' https://app.sabiduriaempresarial.com/workshop        # 200
+```
+
+### Notas importantes
+- **Buildear SIEMPRE con el `VITE_API_URL` de prod.** El `.env` del repo apunta a `localhost`; si buildeas con eso, el sitio en prod intenta pegarle a localhost y se rompe.
+- nginx sirve estáticos: tras el deploy, los usuarios con `index.html` cacheado seguirán cargando el bundle viejo hasta refrescar. El extraer **no borra** los assets viejos (hash distinto), así que sirven de fallback y nadie ve la página rota a mitad del deploy.
+- **Rollback:** los backups quedan en `/var/www/finance-dashboard-web.bak-<fecha>`. Para revertir: `cp -a /var/www/finance-dashboard-web.bak-<fecha>/* /var/www/finance-dashboard-web/` (o renombrar carpetas).
+
+### Backend (`finance-dashboard-api`, Express en :3000)
+El backend corre como proceso Node en el servidor escuchando en `127.0.0.1:3000` (nginx le proxya `/api/` y `/health`). Verifica con qué se levanta en el server (`systemctl`/`pm2`/`screen`) antes de reiniciarlo. Si cambian dependencias: `npm install` y reiniciar el proceso.
+
+---
+
+## 9. Acceso al servidor (SSH)
+
+```bash
+ssh root@142.93.7.13
+```
+
+- El servidor acepta **login de root por llave SSH** (`PermitRootLogin yes`, `PubkeyAuthentication yes`).
+- **Tu llave ya está configurada** (la de `tecnologia2.sabiduria@gmail.com`), así que entras directo sin contraseña. Las llaves autorizadas viven en `/root/.ssh/authorized_keys`.
+- Entras como `root` → acceso total (deploy, nginx, etc.).
+
+Rutas útiles en el servidor:
+- Frontend servido: `/var/www/finance-dashboard-web`
+- Config nginx del sitio: `/etc/nginx/sites-enabled/finance-dashboard`
+- Otros sitios en el mismo droplet: `dashboard.sabiduriaempresarial.com` (proxy a :3002), n8n, ventracrm, wordpress.
+- Recargar nginx si tocas su config: `nginx -t && systemctl reload nginx`
+
+---
+
+## 10. Suscripción y onboarding
+
+1. El cliente paga en GoHighLevel/Stripe → webhook → una Edge Function de Supabase pone `profiles.subscription_status = 'active'` y manda un email con magic-link.
+2. El usuario abre el link → `/auth/callback` intercambia el código por sesión → `/create-password`.
+3. Setea contraseña → auto-login vía API → entra (`/reports`).
+4. En cada login el backend revisa la suscripción; si no está activa devuelve 403 `SUBSCRIPTION_INACTIVE` y el frontend redirige a `/subscription-required`.
+
+**Registro público está deshabilitado**: los usuarios entran solo por el flujo GHL → magic link. Pagos directos por Stripe no se usan (van por GoHighLevel, que usa Stripe por debajo).
+
+---
+
+## 11. Backend API (resumen)
+
+Todas las rutas bajo `/api/`. Prefijos: `/api/auth`, `/api/transactions` (CRUD + import masivo hasta 500), `/api/dashboard`, `/api/categories` (+ `/init`), `/api/subcategories`, `/api/goals`, `/api/budget`, `/api/cartera`, `/api/notifications`, `/api/webhooks` (Stripe, GHL).
+
+**Envelope estándar:**
+```json
+{ "success": true,  "data": { } }
+{ "success": false, "error": { "code": "ERROR_CODE", "message": "..." } }
+```
+
+**Auth:** Supabase emite JWTs; el backend los valida y exige `profiles.subscription_status === 'active'`. Login devuelve 403 `SUBSCRIPTION_INACTIVE` si no está activa.
+
+---
+
+## 12. Marca y estilos
+
+- Tonos cálidos (oro): `gold-300 #eaad74`, `gold-400 #da7d41`, `gold-700 #7e301f`.
+- Superficies oscuras: `dark-900 #261c21`, `dark-950`.
+- Tipografía: **DM Sans** (Google Fonts, en `index.html`); Georgia como fallback serif/logo.
+- **Tema oscuro por defecto.** Las clases `dark`/`light` se alternan en `document.documentElement`.
+- Regla de gradiente: sobre fondos cálidos (`from-gold-700 via-gold-500 to-gold-400`) usar `text-white`/`bg-white/20`; las variantes `text-gold-*`/`bg-gold-*/20` son solo para fondos oscuros.
+
+---
+
+## 13. Estado de features
+
+| Feature | Estado |
+|---|---|
+| Transacciones (CRUD + import masivo) | ✅ Completo |
+| Reports / Dashboard + Bolsillos | ✅ Completo (la home es `/reports`) |
+| Metas financieras (en `Goals.jsx` junto con bolsillos) | ✅ Completo |
+| Categorías | ✅ Completo |
+| Reporte anual | ✅ Completo |
+| Workshop / WorkshopPro | ✅ En uso (móvil) |
+| Cartera | 🔧 Incompleto (página existe, funcionalidad parcial) |
+| Notificaciones | ⚠️ Backend ok, frontend parcial — no tocar por ahora |
+| Registro público | 🚫 Deshabilitado (entran por GHL) |
+| Stripe directo | 🚫 No (pagos por GoHighLevel) |
+
+---
+
+## 14. Gotchas / cosas a recordar
+
+- **Build de prod siempre con el `VITE_API_URL` correcto** (ver §8). Es el error más fácil de cometer.
+- `.env.production.local` **no está gitignoreado** — bórralo tras buildear, o agrégalo al `.gitignore`.
+- El `CLAUDE.md` del repo menciona Cloudways + PM2 + `server.js`: **desactualizado**, hoy es DigitalOcean + nginx estático.
+- Las herramientas Workshop son **mobile-first** y autónomas (sin API).
+- Tras mutaciones de datos, invalidar el cache de módulo correspondiente.
+- Hay un `.env` local en el servidor para el **backend**, no para el frontend (el frontend ya viene buildeado).
+
+<!-- test push: línea de prueba, se puede borrar -->
